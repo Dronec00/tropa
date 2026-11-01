@@ -11,7 +11,7 @@ const SPACING := {
 	"birch": 4.6, "birch_multi": 4.6, "oak": 5.6, "ash": 4.8,
 	"spruce": 4.6, "cedar": 5.2, "pine": 4.6, "willow": 5.0,
 	"bush": 2.2, "fern": 1.8, "reed": 1.6,
-	"rock": 2.6, "moss_rock": 2.6, "puddle": 5.0, "hut": 12.0, "grass": 6.0,
+	"rock": 2.6, "moss_rock": 2.6, "bonfire": 4.0, "puddle": 5.0, "hut": 12.0, "grass": 6.0,
 }
 
 static func variants(kind: String, count: int = 8) -> Array:

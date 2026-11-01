@@ -9,6 +9,7 @@ const WindScript := preload("res://scripts/wind.gd")
 const HutScript := preload("res://scripts/hut.gd")
 const LabStateScript := preload("res://scripts/lab_state.gd")
 const PauseScript := preload("res://scripts/pause_menu.gd")
+const BonfireScript := preload("res://libraries/bonfire.gd")
 
 const TREE_COUNT := 950
 const WORLD_LIMIT := 89.0
@@ -201,11 +202,13 @@ func _build_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.30, 0.36, 0.45)
+	env.ambient_light_color = Color(0.19, 0.26, 0.40)
 	env.ambient_light_energy = 0.6
 	env.fog_enabled = true
-	env.fog_light_color = Color(0.10, 0.11, 0.13)
-	env.fog_density = 0.052
+	env.fog_light_color = Color(0.05, 0.07, 0.11)
+	env.fog_density = 0.038
+	env.fog_height = 1.2
+	env.fog_height_density = 0.16
 	env.fog_sky_affect = 0.25
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 0.92
@@ -222,14 +225,18 @@ func _build_environment() -> void:
 	env.glow_hdr_threshold = 0.9
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
 	env.volumetric_fog_enabled = true
-	env.volumetric_fog_density = 0.006
-	env.volumetric_fog_albedo = Color(0.35, 0.39, 0.44)
-	env.volumetric_fog_length = 48.0
-	env.volumetric_fog_ambient_inject = 0.2
+	env.volumetric_fog_density = 0.014
+	env.volumetric_fog_albedo = Color(0.52, 0.60, 0.74)
+	env.volumetric_fog_emission = Color(0.012, 0.018, 0.030)
+	env.volumetric_fog_length = 72.0
+	env.volumetric_fog_ambient_inject = 0.38
+	env.volumetric_fog_gi_inject = 0.25
+	env.volumetric_fog_anisotropy = 0.35
+	env.volumetric_fog_detail_spread = 1.4
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 0.92
-	env.adjustment_contrast = 1.10
-	env.adjustment_brightness = 0.97
+	env.adjustment_saturation = 0.88
+	env.adjustment_contrast = 1.18
+	env.adjustment_brightness = 0.96
 
 	_env = env
 	var world_env := WorldEnvironment.new()
@@ -238,7 +245,7 @@ func _build_environment() -> void:
 
 	var moon := DirectionalLight3D.new()
 	moon.rotation_degrees = Vector3(-46, 28, 0)
-	moon.light_color = Color(0.62, 0.70, 0.88)
+	moon.light_color = Color(0.50, 0.64, 0.92)
 	moon.light_energy = 1.3
 	moon.shadow_enabled = true
 	moon.directional_shadow_max_distance = 80.0
@@ -959,88 +966,8 @@ func _build_camp_trees() -> void:
 
 func _build_bonfire() -> void:
 	bonfire_pos = Vector3(0, terrain.height_at(0, 0), 0)
-
-	var root := Node3D.new()
-	root.position = bonfire_pos
-	add_child(root)
-
-	var stone_mat := StandardMaterial3D.new()
-	stone_mat.albedo_color = Color(0.17, 0.17, 0.18)
-
-	for i in 9:
-		var stone := MeshInstance3D.new()
-		var stone_mesh := SphereMesh.new()
-		stone_mesh.radius = 0.16
-		stone_mesh.height = 0.3
-		stone.mesh = stone_mesh
-		var a := TAU * float(i) / 9.0
-		stone.position = Vector3(cos(a) * 0.95, 0.1, sin(a) * 0.95)
-		stone.material_override = stone_mat
-		root.add_child(stone)
-
-	var log_mat := StandardMaterial3D.new()
-	log_mat.albedo_color = Color(0.11, 0.07, 0.05)
-	for i in 4:
-		var log_mesh := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.08
-		cyl.bottom_radius = 0.1
-		cyl.height = 1.15
-		log_mesh.mesh = cyl
-		log_mesh.position = Vector3(0, 0.3, 0)
-		log_mesh.rotation = Vector3(PI * 0.5, TAU * float(i) / 4.0, 0.18)
-		log_mesh.material_override = log_mat
-		root.add_child(log_mesh)
-
-	var flame := MeshInstance3D.new()
-	var flame_mesh := SphereMesh.new()
-	flame_mesh.radius = 0.17
-	flame_mesh.height = 0.42
-	flame.mesh = flame_mesh
-	var flame_mat := StandardMaterial3D.new()
-	flame_mat.albedo_color = Color(1.0, 0.45, 0.12)
-	flame_mat.emission_enabled = true
-	flame_mat.emission = Color(1.0, 0.42, 0.1)
-	flame_mat.emission_energy_multiplier = 4.0
-	flame.material_override = flame_mat
-	flame.position.y = 0.55
-	root.add_child(flame)
-
-	var fire := CPUParticles3D.new()
-	fire.position = Vector3(0.0, 0.55, 0.0)
-	fire.amount = 26
-	fire.lifetime = 0.65
-	fire.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
-	fire.emission_sphere_radius = 0.16
-	fire.direction = Vector3(0, 1, 0)
-	fire.spread = 14.0
-	fire.gravity = Vector3(0, 1.4, 0)
-	fire.initial_velocity_min = 0.3
-	fire.initial_velocity_max = 0.85
-	fire.scale_amount_min = 0.6
-	fire.scale_amount_max = 1.5
-	fire.color = Color(1.0, 0.5, 0.12, 0.9)
-	var fire_quad := QuadMesh.new()
-	fire_quad.size = Vector2(0.5, 0.5)
-	fire.mesh = fire_quad
-	var fire_mat := StandardMaterial3D.new()
-	fire_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	fire_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	fire_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
-	fire_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
-	fire_mat.vertex_color_use_as_albedo = true
-	fire_mat.albedo_color = Color(1.0, 0.55, 0.15, 0.9)
-	fire_mat.albedo_texture = _soft_particle_texture()
-	fire.material_override = fire_mat
-	root.add_child(fire)
-
-	_fire_light = OmniLight3D.new()
-	_fire_light.position = Vector3(0, 1.1, 0)
-	_fire_light.light_color = Color(1.0, 0.6, 0.28)
-	_fire_light.light_energy = 2.4
-	_fire_light.omni_range = 15.0
-	_fire_light.shadow_enabled = true
-	root.add_child(_fire_light)
+	var parts := BonfireScript.build(self, bonfire_pos)
+	_fire_light = parts["light"]
 
 # --- тропа, изба, тьма по краю ---
 

@@ -5,6 +5,7 @@ extends Node3D
 const TreeLibScript := preload("res://scripts/tree_lib.gd")
 const HutScript := preload("res://scripts/hut.gd")
 const LibScript := preload("res://libraries/object_library.gd")
+const BonfireScript := preload("res://libraries/bonfire.gd")
 
 var _cam: Camera3D
 var _yaw := 0.0
@@ -127,13 +128,18 @@ func _puddle_material(rough: float) -> ShaderMaterial:
 
 func _spawn_objects() -> void:
 	var kind := _kind()
-	var count := 8
+	var single := kind in ["hut", "bonfire"]
+	var count := 1 if single else 8
 	var entries: Array = LibScript.variants(kind, count)
 	var spacing: float = LibScript.spacing(kind)
 	_span = maxf(10.0, spacing * float(count) + 4.0)
 
 	if kind == "hut":
 		HutScript.build(self, Vector3(0.0, 0.0, 0.0), 0.0)
+		return
+
+	if kind == "bonfire":
+		BonfireScript.build(self, Vector3(0.0, 0.0, 0.0))
 		return
 
 	if kind == "moss_rock" or kind == "rock":
@@ -219,10 +225,10 @@ func _patch(cx: float, cz: float, radius: float) -> ArrayMesh:
 	return mesh
 
 func _build_camera() -> void:
-	if _kind() == "hut":
+	if _kind() == "hut" or _kind() == "bonfire":
 		_cam = Camera3D.new()
 		_cam.fov = 62.0
-		_cam.position = Vector3(0.0, 7.0, 17.0)
+		_cam.position = Vector3(0.0, 3.2, 6.5)
 		_pitch = -0.22
 		_yaw = 0.0
 		_cam.rotation = Vector3(_pitch, _yaw, 0.0)
@@ -243,7 +249,7 @@ func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var label := Label.new()
-	label.text = "ОБЪЕКТ: " + _kind().to_upper() + "  —  8 вариантов\nWASD — идти  мышь — смотреть  Esc — в меню"
+	label.text = "ОБЪЕКТ: " + _kind().to_upper() + ("  —  витрина" if _kind() in ["hut", "bonfire"] else "  —  8 вариантов")\nWASD — идти  мышь — смотреть  Esc — в меню"
 	label.position = Vector2(24, 24)
 	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.8))
