@@ -298,6 +298,9 @@ func _build_streams() -> void:
 
 		for i in samples.size():
 			var p: Vector2 = samples[i]
+			# ручей заканчивается на берегу реки, не заходя в русло
+			if absf(p.x - river_center(p.y)) < 8.6:
+				break
 			var prev: Vector2 = samples[maxi(i - 1, 0)]
 			var next: Vector2 = samples[mini(i + 1, samples.size() - 1)]
 			var dir := (next - prev).normalized()
@@ -336,6 +339,7 @@ func _build_streams() -> void:
 		water.material_override = material
 		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(water)
+
 
 func _resample(points: PackedVector2Array, step: float) -> Array[Vector2]:
 	var result: Array[Vector2] = []
