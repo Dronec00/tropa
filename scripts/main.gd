@@ -96,6 +96,7 @@ func _ready() -> void:
 	_build_ferns()
 	_build_bog()
 	_build_path_strips()
+	_build_bridges()
 	_build_puddles()
 	_build_rocks()
 	_spawn_player()
@@ -735,6 +736,101 @@ func _puddle_patch(cx: float, cz: float, radius: float, segs: int = 20, elongati
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
+
+func _build_bridges() -> void:
+	var built: Array[Vector3] = []
+	for path in _paths:
+		var pts: Array = path["points"]
+		var i := 2
+		while i < pts.size() - 2:
+			var p: Vector3 = pts[i]
+			if terrain.stream_distance(p.x, p.z) < 3.0:
+				var too_close := false
+				for b in built:
+					if Vector2(b.x - p.x, b.z - p.z).length() < 6.0:
+						too_close = true
+				if not too_close:
+					var prev: Vector3 = pts[i - 1]
+					var nxt: Vector3 = pts[i + 1]
+					var dir: Vector3 = (nxt - prev)
+					dir.y = 0.0
+					dir = dir.normalized()
+					_build_bridge(p, dir)
+					built.append(p)
+				i += 8
+			else:
+				i += 1
+	print("[bridges] ", built.size())
+
+func _build_bridge(center: Vector3, dir: Vector3) -> void:
+	var root := Node3D.new()
+	root.rotation.y = atan2(dir.x, dir.z)
+	add_child(root)
+
+	var half_len := 3.2
+	var end_a := center - dir * half_len
+	var end_b := center + dir * half_len
+	var ha: float = terrain.height_at(end_a.x, end_a.z)
+	var hb: float = terrain.height_at(end_b.x, end_b.z)
+	var deck_y := maxf(ha, hb) + 0.22
+	root.position = Vector3(center.x, deck_y, center.z)
+
+	var wood_mat := StandardMaterial3D.new()
+	wood_mat.albedo_color = Color(0.42, 0.33, 0.23)
+	wood_mat.roughness = 0.95
+	if ResourceLoader.exists("res://assets/textures/photo/bark_color.jpg"):
+		wood_mat.albedo_texture = load("res://assets/textures/photo/bark_color.jpg")
+		wood_mat.uv1_scale = Vector3(2.0, 2.0, 1.0)
+
+	var dark_mat := StandardMaterial3D.new()
+	dark_mat.albedo_color = Color(0.24, 0.19, 0.14)
+	dark_mat.roughness = 1.0
+
+	# настил: доски поперёк движения
+	var plank_count := 15
+	var step := (half_len * 2.0) / float(plank_count)
+	for i in plank_count:
+		var plank := MeshInstance3D.new()
+		var box := BoxMesh.new()
+		box.size = Vector3(2.1, 0.07, step * 0.82)
+		plank.mesh = box
+		plank.material_override = wood_mat
+		var z := -half_len + step * (float(i) + 0.5)
+		var arch := 0.10 * (1.0 - pow(z / half_len, 2.0))
+		plank.position = Vector3(_rng.randf_range(-0.03, 0.03), arch, z)
+		plank.rotation.z = _rng.randf_range(-0.012, 0.012)
+		root.add_child(plank)
+
+	# два продольных бревна под настилом
+	for side in [-1.0, 1.0]:
+		var beam := MeshInstance3D.new()
+		var beam_mesh := BoxMesh.new()
+		beam_mesh.size = Vector3(0.16, 0.18, half_len * 2.0 + 0.2)
+		beam.mesh = beam_mesh
+		beam.material_override = dark_mat
+		beam.position = Vector3(side * 0.92, -0.10, 0.0)
+		root.add_child(beam)
+
+	# столбы по углам
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			var post := MeshInstance3D.new()
+			var post_mesh := BoxMesh.new()
+			post_mesh.size = Vector3(0.16, 1.4, 0.16)
+			post.mesh = post_mesh
+			post.material_override = dark_mat
+			post.position = Vector3(sx * 0.92, -0.75, sz * (half_len - 0.35))
+			root.add_child(post)
+
+	# коллизия: плоская коробка по настилу
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var box_shape := BoxShape3D.new()
+	box_shape.size = Vector3(2.3, 0.3, half_len * 2.0)
+	shape.shape = box_shape
+	body.add_child(shape)
+	body.position = Vector3(0.0, -0.05, 0.0)
+	root.add_child(body)
 
 func _build_puddles() -> void:
 	var water_mat := _make_puddle_material(7.0, 0.34)
