@@ -13,6 +13,7 @@ const BonfireScript := preload("res://libraries/bonfire.gd")
 const TimeOfDayScript := preload("res://libraries/time_of_day.gd")
 const QualityScript := preload("res://libraries/quality.gd")
 const PerfOverlay := preload("res://scripts/perf_overlay.gd")
+const PostFXScript := preload("res://scripts/post_fx.gd")
 
 const TREE_COUNT := 950
 const WORLD_LIMIT := 89.0
@@ -97,6 +98,8 @@ func _ready() -> void:
 	if OS.get_environment("TROPA_TOD") != "":
 		_tod = OS.get_environment("TROPA_TOD")
 	TimeOfDayScript.apply(_tod, _env, _sun, _sky_mat)
+	var post := PostFXScript.new()
+	add_child(post)
 	var perf := PerfOverlay.new()
 	add_child(perf)
 	var pause = PauseScript.new()

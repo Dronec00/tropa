@@ -20,6 +20,11 @@ const PRESETS := {
 		"sky_top": Color(0.006, 0.010, 0.022),
 		"sky_horizon": Color(0.020, 0.028, 0.045),
 		"stars": 6.5,
+		"moon_dir": Vector3(0.45, 0.55, -0.70),
+		"moon": 1.0,
+		"clouds": 0.42,
+		"cloud_color": Color(0.05, 0.06, 0.09),
+		"cloud_lit": Color(0.30, 0.34, 0.42),
 		"exposure": 0.92,
 		"contrast": 1.18,
 	},
@@ -37,6 +42,11 @@ const PRESETS := {
 		"sky_top": Color(0.12, 0.16, 0.24),
 		"sky_horizon": Color(0.42, 0.40, 0.44),
 		"stars": 0.6,
+		"moon_dir": Vector3(0.30, 0.62, 0.72),
+		"moon": 0.25,
+		"clouds": 0.55,
+		"cloud_color": Color(0.22, 0.24, 0.28),
+		"cloud_lit": Color(0.55, 0.56, 0.60),
 		"exposure": 0.90,
 		"contrast": 1.08,
 	},
@@ -54,6 +64,11 @@ const PRESETS := {
 		"sky_top": Color(0.22, 0.30, 0.42),
 		"sky_horizon": Color(0.48, 0.50, 0.54),
 		"stars": 0.0,
+		"moon_dir": Vector3(0.20, 0.90, 0.30),
+		"moon": 0.0,
+		"clouds": 0.60,
+		"cloud_color": Color(0.34, 0.37, 0.42),
+		"cloud_lit": Color(0.62, 0.64, 0.68),
 		"exposure": 0.84,
 		"contrast": 1.04,
 	},
@@ -71,6 +86,11 @@ const PRESETS := {
 		"sky_top": Color(0.07, 0.08, 0.15),
 		"sky_horizon": Color(0.46, 0.26, 0.20),
 		"stars": 1.6,
+		"moon_dir": Vector3(-0.65, 0.40, 0.64),
+		"moon": 0.85,
+		"clouds": 0.40,
+		"cloud_color": Color(0.14, 0.10, 0.10),
+		"cloud_lit": Color(0.52, 0.32, 0.24),
 		"exposure": 0.94,
 		"contrast": 1.12,
 	},
@@ -105,3 +125,9 @@ static func apply(key: String, env: Environment, sun: DirectionalLight3D, sky_ma
 		sky_mat.set_shader_parameter("top_color", p["sky_top"])
 		sky_mat.set_shader_parameter("horizon_color", p["sky_horizon"])
 		sky_mat.set_shader_parameter("star_brightness", p["stars"])
+		sky_mat.set_shader_parameter("moon_glow", p["moon"])
+		sky_mat.set_shader_parameter("cloud_cover", p["clouds"])
+		sky_mat.set_shader_parameter("cloud_color", p["cloud_color"])
+		sky_mat.set_shader_parameter("cloud_lit", p["cloud_lit"])
+
+		sky_mat.set_shader_parameter("moon_dir", (p["moon_dir"] as Vector3).normalized())
