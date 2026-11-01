@@ -72,6 +72,7 @@ func _ready() -> void:
 	_build_path()
 	_build_hut()
 	_build_forest()
+	_build_camp_trees()
 	_build_bonfire()
 	_build_undergrowth()
 	_build_ferns()
@@ -244,7 +245,7 @@ func _build_terrain() -> void:
 	var grass = GrassScript.new()
 	grass.name = "Grass"
 	add_child(grass)
-	grass.populate(terrain, 95000, 42.0)
+	grass.populate(terrain, 52000, 40.0)
 
 # --- лес ---
 
@@ -880,6 +881,38 @@ func _add_tree_collision(parent: Node3D, radius: float, height: float) -> void:
 	parent.add_child(body)
 
 # --- костёр ---
+
+func _build_camp_trees() -> void:
+	var placed := 0
+	var attempts := 0
+	while placed < 11 and attempts < 200:
+		attempts += 1
+		var angle := _rng.randf_range(0.0, TAU)
+		var dist := _rng.randf_range(13.0, 22.0)
+		var x := cos(angle) * dist
+		var z := sin(angle) * dist
+		if _near_path(x, z, 3.0):
+			continue
+		var h: float = terrain.height_at(x, z)
+		if h < TerrainScript.WATER_LEVEL + 0.6:
+			continue
+		if terrain.slope_at(x, z) > 0.55:
+			continue
+
+		var species: String = ["birch", "birch_multi", "spruce", "oak", "pine"][placed % 5]
+		var variant: int = _rng.randi_range(0, 1)
+		var mesh := TreeLibScript.build(species, 7000 + placed * 13, false)
+		var mat := _mat_dark if species in ["cedar", "spruce", "willow"] else _mat_light
+		var node := MeshInstance3D.new()
+		node.mesh = mesh
+		node.material_override = mat
+		node.position = Vector3(x, h - 0.1, z)
+		node.rotation.y = _rng.randf_range(0.0, TAU)
+		node.scale = Vector3.ONE * _rng.randf_range(0.9, 1.15)
+		add_child(node)
+		_add_tree_collision_at(Vector3(x, h, z), TreeLibScript.trunk_radius(species), TreeLibScript.height_of(species))
+		placed += 1
+	print("[camp trees] ", placed)
 
 func _build_bonfire() -> void:
 	bonfire_pos = Vector3(0, terrain.height_at(0, 0), 0)

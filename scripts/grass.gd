@@ -39,15 +39,16 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> voi
 
 		var basis := Basis(Vector3.UP, rng.randf() * TAU)
 		basis = basis.scaled(Vector3(
-			rng.randf_range(0.75, 1.25),
-			rng.randf_range(0.34, 0.58),
-			rng.randf_range(0.75, 1.25)
+			rng.randf_range(0.8, 1.2),
+			rng.randf_range(0.20, 0.42),
+			rng.randf_range(0.8, 1.2)
 		))
 		var key := Vector2i(int(floor(x / chunk_size)), int(floor(z / chunk_size)))
 		if not chunks.has(key):
 			chunks[key] = []
 		var tint := rng.randf()
-		(chunks[key] as Array).append([Transform3D(basis, Vector3(x, h - 0.03, z)), tint])
+		var hue := rng.randf()
+		(chunks[key] as Array).append([Transform3D(basis, Vector3(x, h - 0.03, z)), tint, hue])
 		placed += 1
 
 	for key in chunks:
@@ -60,7 +61,7 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> voi
 		for i in transforms.size():
 			var entry: Array = transforms[i]
 			mm.set_instance_transform(i, entry[0])
-			mm.set_instance_color(i, Color(entry[1], entry[1], entry[1]))
+			mm.set_instance_color(i, Color(entry[1], entry[2], 0.0))
 		var node := MultiMeshInstance3D.new()
 		node.multimesh = mm
 		node.material_override = material
@@ -78,7 +79,7 @@ func _make_tuft_mesh() -> ArrayMesh:
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
 
-	var half_w := 0.34
+	var half_w := 0.26
 
 	for k in 3:
 		var a := PI * float(k) / 3.0
@@ -87,8 +88,8 @@ func _make_tuft_mesh() -> ArrayMesh:
 
 		verts.append(dir * -half_w)
 		verts.append(dir * half_w)
-		verts.append(dir * half_w + Vector3(0.0, 0.78, 0.0))
-		verts.append(dir * -half_w + Vector3(0.0, 0.78, 0.0))
+		verts.append(dir * half_w + Vector3(0.0, 0.70, 0.0))
+		verts.append(dir * -half_w + Vector3(0.0, 0.70, 0.0))
 
 		for i in 4:
 			normals.append(Vector3.UP)

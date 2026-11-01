@@ -2,8 +2,8 @@ shader_type spatial;
 render_mode cull_disabled, diffuse_burley, specular_disabled, depth_prepass_alpha;
 
 uniform sampler2D tuft : source_color, filter_linear_mipmap, repeat_disable;
-uniform vec3 tint_a : source_color = vec3(0.95, 1.25, 0.62);
-uniform vec3 tint_b : source_color = vec3(1.25, 1.10, 0.55);
+uniform vec3 tint_a : source_color = vec3(0.62, 0.80, 0.44);
+uniform vec3 tint_b : source_color = vec3(0.95, 0.88, 0.52);
 uniform float wind_strength = 0.16;
 uniform float wind_speed = 1.35;
 
@@ -20,7 +20,11 @@ void vertex() {
 void fragment() {
 	vec4 c = texture(tuft, UV);
 	float v = COLOR.r;
-	ALBEDO = c.rgb * mix(tint_a, tint_b, v) * 1.6;
+	float hue = COLOR.g;
+	vec3 tint = mix(tint_a, tint_b, v);
+	tint = mix(tint, tint * vec3(1.12, 1.0, 0.82), hue);
+	float ao = mix(0.45, 1.0, smoothstep(0.0, 0.62, UV.y));
+	ALBEDO = c.rgb * tint * ao * 1.35;
 	ROUGHNESS = 0.9;
 	BACKLIGHT = c.rgb * 0.8;
 	ALPHA = smoothstep(0.30, 0.46, c.a);
