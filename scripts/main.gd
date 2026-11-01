@@ -349,7 +349,7 @@ func _spawn_player() -> void:
 
 func _spawn_enemies() -> void:
 	_spawn_points = [
-		Vector2(10.0, -9.0),
+		Vector2(15.0, -13.0),
 		Vector2(-20.0, -16.0),
 		Vector2(26.0, 12.0),
 		Vector2(-16.0, 22.0),

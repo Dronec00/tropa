@@ -98,7 +98,7 @@ func set_health(current: float, maximum: float) -> void:
 	_hp.max_value = maximum
 	_hp.value = current
 	if _last_health >= 0.0 and current < _last_health:
-		_hurt_alpha = 0.45
+		_hurt_alpha = 0.28
 	_last_health = current
 
 func set_stamina(current: float, maximum: float) -> void:
@@ -115,7 +115,7 @@ func show_notice(text: String, duration: float = 2.0) -> void:
 
 func _process(delta: float) -> void:
 	if _hurt_alpha > 0.0:
-		_hurt_alpha = maxf(0.0, _hurt_alpha - delta * 1.7)
+		_hurt_alpha = maxf(0.0, _hurt_alpha - delta * 2.4)
 		_hurt.color = Color(0.7, 0.0, 0.0, _hurt_alpha)
 
 	if _notice_timer > 0.0:
