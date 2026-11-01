@@ -828,20 +828,43 @@ func _build_rocks() -> void:
 	print("[rocks] dry: ", _rock_dry.size(), " wet: ", _rock_wet.size())
 
 func _finish_trees() -> void:
-	var detail_nodes := 0
-	var simple_nodes := 0
+	var t0 := Time.get_ticks_msec()
+	var merged := 0
 	for key in _tree_chunks:
 		var lists: Array = _tree_chunks[key]
 		var origin := Vector3(float(key.x) * TREE_CHUNK, 0.0, float(key.y) * TREE_CHUNK)
+
+		# группируем по материалу: светлая кора и тёмная
+		var groups := {0: [], 1: []}
 		for i in lists.size():
 			var transforms: Array = lists[i]
 			if transforms.is_empty():
 				continue
 			var variant: Dictionary = _tree_variants[i]
-			_spawn_mm(variant["mesh"], variant["material"], transforms, origin, 0.0, 52.0)
-			detail_nodes += 1
-			simple_nodes += 1
-	print("[trees lod] detail: ", detail_nodes, " simple: ", simple_nodes)
+			var g := 0 if variant["material"] == _mat_light else 1
+			for t in transforms:
+				(groups[g] as Array).append([variant["mesh"], t])
+
+		for g in [0, 1]:
+			var items: Array = groups[g]
+			if items.is_empty():
+				continue
+			var st := SurfaceTool.new()
+			st.begin(Mesh.PRIMITIVE_TRIANGLES)
+			for item in items:
+				var mesh: Mesh = item[0]
+				var tr: Transform3D = item[1]
+				st.append_from(mesh, 0, Transform3D(tr.basis, tr.origin - origin))
+			var merged_mesh := st.commit()
+			var node := MeshInstance3D.new()
+			node.mesh = merged_mesh
+			node.material_override = _mat_light if g == 0 else _mat_dark
+			node.position = origin
+			node.visibility_range_end = 52.0
+			node.visibility_range_end_margin = 5.0
+			add_child(node)
+			merged += 1
+	print("[trees] merged nodes: ", merged, " за ", Time.get_ticks_msec() - t0, " мс")
 
 func _spawn_mm(mesh: Mesh, material: Material, transforms: Array, origin: Vector3, begin: float, end: float) -> void:
 	var mm := MultiMesh.new()
