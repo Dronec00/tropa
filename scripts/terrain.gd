@@ -188,14 +188,12 @@ func _build_mesh() -> void:
 	material.roughness = 1.0
 	material.uv1_scale = Vector3(4.0, 4.0, 1.0)
 
-	var noise_tex := NoiseTexture2D.new()
-	var noise := FastNoiseLite.new()
-	noise.frequency = 0.08
-	noise_tex.noise = noise
-	noise_tex.seamless = true
-	noise_tex.width = 256
-	noise_tex.height = 256
-	material.albedo_texture = noise_tex
+	if ResourceLoader.exists("res://assets/textures/ground_albedo.png"):
+		material.albedo_texture = load("res://assets/textures/ground_albedo.png")
+		material.roughness_texture = load("res://assets/textures/ground_rough.png")
+		material.normal_enabled = true
+		material.normal_texture = load("res://assets/textures/ground_normal.png")
+		material.normal_scale = 0.9
 	material.metallic_specular = 0.0
 	_mesh.surface_set_material(0, material)
 

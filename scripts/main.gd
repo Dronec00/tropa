@@ -21,6 +21,8 @@ uniform vec3 base_color : source_color = vec3(0.5, 0.5, 0.5);
 uniform float wind = 0.18;
 uniform float rigid = 0.0;
 uniform float rough = 1.0;
+uniform sampler2D bark_tex : source_color, filter_linear_mipmap, repeat_enable;
+uniform float use_bark = 0.0;
 
 global uniform vec3 player_pos;
 
@@ -46,7 +48,11 @@ void vertex() {
 
 void fragment() {
 	float variation = 0.86 + 0.14 * sin(v_world.x * 0.7 + v_world.z * 0.6);
-	ALBEDO = base_color * variation;
+	vec3 albedo = base_color * variation;
+	if (use_bark > 0.5) {
+		albedo *= texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.7;
+	}
+	ALBEDO = albedo;
 	ROUGHNESS = rough;
 	BACKLIGHT = base_color * 0.35;
 }
@@ -266,9 +272,13 @@ func _create_tree_materials() -> void:
 	_tree_shader = Shader.new()
 	_tree_shader.code = TREE_SHADER
 
-	_mat_birch_trunk = _tree_material(Color(0.62, 0.62, 0.57), 0.0, 0.15)
+	_mat_birch_trunk = _tree_material(Color(0.72, 0.72, 0.68), 0.0, 0.15)
+	_mat_birch_trunk.set_shader_parameter("use_bark", 1.0)
+	_mat_birch_trunk.set_shader_parameter("bark_tex", load("res://assets/textures/birch_bark.png"))
 	_mat_birch_leaf = _tree_material(Color(0.11, 0.18, 0.08), 1.0, 0.26)
-	_mat_spruce_trunk = _tree_material(Color(0.15, 0.14, 0.13), 0.0, 0.10)
+	_mat_spruce_trunk = _tree_material(Color(0.95, 0.92, 0.88), 0.0, 0.10)
+	_mat_spruce_trunk.set_shader_parameter("use_bark", 1.0)
+	_mat_spruce_trunk.set_shader_parameter("bark_tex", load("res://assets/textures/spruce_bark.png"))
 	_mat_spruce_leaf = _tree_material(Color(0.04, 0.085, 0.05), 1.0, 0.22)
 
 func _tree_material(color: Color, rigid: float, wind_power: float) -> ShaderMaterial:
@@ -319,7 +329,7 @@ func _build_leaves() -> void:
 		return
 
 	var quad := QuadMesh.new()
-	quad.size = Vector2(1.0, 1.0)
+	quad.size = Vector2(1.3, 1.3)
 
 	var shader := Shader.new()
 	shader.code = """
@@ -327,7 +337,7 @@ shader_type spatial;
 render_mode cull_disabled, depth_prepass_alpha;
 
 uniform sampler2D leaf_tex : source_color, filter_linear_mipmap, repeat_disable;
-uniform vec3 tint : source_color = vec3(0.17, 0.26, 0.11);
+uniform vec3 tint : source_color = vec3(0.30, 0.42, 0.16);
 uniform float wind = 0.26;
 
 void vertex() {
@@ -344,15 +354,18 @@ void fragment() {
 	if (c.a < 0.35) {
 		discard;
 	}
-	ALBEDO = tint * c.rgb;
+	ALBEDO = tint * c.rgb * 1.8;
 	ROUGHNESS = 1.0;
-	BACKLIGHT = tint * 0.45;
+	BACKLIGHT = tint * 0.6;
 }
 """
 
 	_leaf_material = ShaderMaterial.new()
 	_leaf_material.shader = shader
-	_leaf_material.set_shader_parameter("leaf_tex", _leaf_texture())
+	if ResourceLoader.exists("res://assets/textures/leaf_atlas.png"):
+		_leaf_material.set_shader_parameter("leaf_tex", load("res://assets/textures/leaf_atlas.png"))
+	else:
+		_leaf_material.set_shader_parameter("leaf_tex", _leaf_texture())
 
 	var multimesh := MultiMesh.new()
 	multimesh.transform_format = MultiMesh.TRANSFORM_3D
@@ -629,13 +642,14 @@ func _marker_birch(pos: Vector3) -> void:
 	torus.ring_segments = 8
 	wreath.mesh = torus
 	var wreath_mat := StandardMaterial3D.new()
-	wreath_mat.albedo_color = Color(0.12, 0.24, 0.09)
+	wreath_mat.albedo_color = Color(0.16, 0.20, 0.09)
 	wreath_mat.emission_enabled = true
-	wreath_mat.emission = Color(0.55, 0.12, 0.08)
-	wreath_mat.emission_energy_multiplier = 0.8
+	wreath_mat.emission = Color(0.35, 0.10, 0.07)
+	wreath_mat.emission_energy_multiplier = 0.18
 	wreath.material_override = wreath_mat
 	wreath.position = Vector3(0.0, 1.75, 0.0)
 	wreath.rotation.x = PI * 0.5
+	wreath.scale = Vector3(0.85, 0.85, 0.85)
 	root.add_child(wreath)
 
 	var berry_mat := StandardMaterial3D.new()
