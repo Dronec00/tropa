@@ -48,6 +48,8 @@ var _encounter_enemy = null
 var _path_points: Array[Vector3] = []
 var _paths: Array = []
 var _bush_points: Array = []
+var _puddle_plan: Array = []
+var _puddle_mats: Array = []
 var _edge_cooldown := 0.0
 var _hut_parts: Dictionary = {}
 var _hut_door: Node3D
@@ -104,6 +106,8 @@ func _ready() -> void:
 	_build_path_strips()
 	_build_bridges()
 	_build_stream_fog()
+	_plan_puddles()
+	_build_grass()
 	_build_puddles()
 	_build_rocks()
 	_spawn_player()
@@ -112,8 +116,7 @@ func _ready() -> void:
 	_terrain_mat = terrain.ground_material
 	if OS.get_environment("TROPA_TOD") != "":
 		_tod = OS.get_environment("TROPA_TOD")
-	TimeOfDayScript.apply(_tod, _env, _sun, _sky_mat)
-	_tod_fog = _env.fog_density
+	_apply_time_of_day()
 	if OS.get_environment("TROPA_NO_POST") != "1":
 		var post := PostFXScript.new()
 		add_child(post)
@@ -126,14 +129,24 @@ func _ready() -> void:
 	hud.show_notice("Костёр гаснет. Лес ждёт.", 4.0)
 
 
+func _apply_time_of_day() -> void:
+	TimeOfDayScript.apply(_tod, _env, _sun, _sky_mat)
+	_tod_fog = _env.fog_density
+	var preset: Dictionary = TimeOfDayScript.PRESETS.get(_tod, TimeOfDayScript.PRESETS["night"])
+	var mdir: Vector3 = preset["moon_dir"]
+	var mint: float = preset["moon"]
+	for mat in _puddle_mats:
+		var pm := mat as ShaderMaterial
+		pm.set_shader_parameter("moon_dir", mdir.normalized())
+		pm.set_shader_parameter("moon_intensity", mint)
+
 func _input(event: InputEvent) -> void:
 	if not (event is InputEventKey) or not event.pressed or event.echo:
 		return
 	var key := event as InputEventKey
 	if key.keycode == KEY_T:
 		_tod = TimeOfDayScript.next_key(_tod)
-		TimeOfDayScript.apply(_tod, _env, _sun, _sky_mat)
-		_tod_fog = _env.fog_density
+		_apply_time_of_day()
 		hud.show_notice("Время суток: " + TimeOfDayScript.label(_tod), 2.5)
 	elif key.keycode == KEY_R:
 		_toggle_rain()
@@ -180,6 +193,8 @@ func _update_rain(delta: float) -> void:
 	_wet = move_toward(_wet, target, delta * 0.25)
 	if _rain != null and player != null:
 		_rain.global_position = player.global_position + Vector3(0.0, 12.0, 0.0)
+	for mat in _puddle_mats:
+		(mat as ShaderMaterial).set_shader_parameter("rain", _wet)
 	if _terrain_mat is ShaderMaterial:
 		(_terrain_mat as ShaderMaterial).set_shader_parameter("wet", _wet)
 	if _env != null:
@@ -373,11 +388,14 @@ func _build_terrain() -> void:
 	terrain.name = "Terrain"
 	add_child(terrain)
 
+	# трава строится позже: ей нужны тропы, кусты и план луж
+
+func _build_grass() -> void:
 	var grass = GrassScript.new()
 	grass.name = "Grass"
 	add_child(grass)
 	if OS.get_environment("TROPA_NO_GRASS") != "1":
-		grass.populate(terrain, QualityScript.grass_amount(), QualityScript.grass_radius(), _paths, _bush_points)
+		grass.populate(terrain, QualityScript.grass_amount(), QualityScript.grass_radius(), _paths, _bush_points, _puddle_plan)
 
 # --- лес ---
 
@@ -922,73 +940,117 @@ func _build_stream_fog() -> void:
 				volume.extents = Vector3(11.0, 4.5, 11.0)
 				var vm := mat.duplicate() as ShaderMaterial
 				vm.set_shader_parameter("base_height", ground)
-				vm.set_shader_parameter("density", 0.22)
+				vm.set_shader_parameter("density", 0.13)
 				volume.material = vm
 				volume.position = Vector3(p.x, ground + 3.6, p.y)
 				add_child(volume)
 				made += 1
 	print("[stream fog] ", made)
 
-func _build_puddles() -> void:
-	var water_mat := _make_puddle_material(7.0, 0.34)
+func _plan_puddles() -> void:
+	_puddle_plan.clear()
 
-	var mud_mat := StandardMaterial3D.new()
-	mud_mat.albedo_color = Color(0.09, 0.068, 0.045, 0.85)
-	mud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mud_mat.roughness = 0.45
-	mud_mat.metallic_specular = 0.6
+	# колеи на тропах: две узкие полосы воды вдоль направления
+	for path in _paths:
+		var pts: Array = path["points"]
+		var i := 6
+		while i < pts.size() - 4:
+			var p: Vector3 = pts[i]
+			var prev: Vector3 = pts[i - 1]
+			var nxt: Vector3 = pts[i + 1]
+			var dir: Vector3 = nxt - prev
+			dir.y = 0.0
+			dir = dir.normalized()
+			var side := Vector3(-dir.z, 0.0, dir.x)
+			if terrain.slope_at(p.x, p.z) < 0.22 and int(i / 14) % 2 == 0:
+				for k in [-1.0, 1.0]:
+					var q: Vector3 = p + side * (0.62 * k)
+					_puddle_plan.append({
+						"pos": q,
+						"radius": 0.40,
+						"elongation": 3.6,
+						"yaw": atan2(dir.x, dir.z),
+						"rut": true,
+					})
+			i += 14
 
+	# лужи в низинах
 	var made := 0
 	var attempts := 0
-	while made < 14 and attempts < 900:
+	while made < 12 and attempts < 500:
 		attempts += 1
-		var use_path := _rng.randf() < 0.75 and _path_points.size() > 4
-		var x := 0.0
-		var z := 0.0
-		if use_path and not _paths.is_empty():
-			var path: Dictionary = _paths[_rng.randi_range(0, _paths.size() - 1)]
-			var pts: Array = path["points"]
-			var p: Vector3 = pts[_rng.randi_range(0, pts.size() - 1)]
-			x = p.x + _rng.randf_range(-2.2, 2.2)
-			z = p.z + _rng.randf_range(-1.4, 1.4)
-		else:
-			var angle := _rng.randf_range(0.0, TAU)
-			var dist := sqrt(_rng.randf()) * 55.0
-			x = cos(angle) * dist
-			z = sin(angle) * dist
-		if Vector2(x, z).length() < 4.0:
-			continue
+		var angle := _rng.randf_range(0.0, TAU)
+		var dist: float = sqrt(_rng.randf()) * 55.0
+		var x: float = cos(angle) * dist
+		var z: float = sin(angle) * dist
 		var h: float = terrain.height_at(x, z)
-		if h < TerrainScript.WATER_LEVEL + 0.3:
+		if h < TerrainScript.WATER_LEVEL + 0.4:
 			continue
-		if terrain.slope_at(x, z) > 0.30:
+		if terrain.slope_at(x, z) > 0.18:
 			continue
-
-		var is_water := _rng.randf() < 0.72
-		var radius := _rng.randf_range(0.8, 2.1)
-		var elongation := _rng.randf_range(1.25, 2.0)
-		var yaw := _rng.randf_range(0.0, TAU)
-		var node := MeshInstance3D.new()
-		if is_water:
-			node.mesh = _puddle_patch(x, z, radius, 24, elongation, yaw)
-			node.material_override = water_mat
-		else:
-			var disc := CylinderMesh.new()
-			disc.top_radius = radius * 1.25
-			disc.bottom_radius = disc.top_radius
-			disc.height = 0.04
-			node.mesh = disc
-			node.material_override = mud_mat
-		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		add_child(node)
-		node.global_position = Vector3(x, h + 0.015, z) if not is_water else Vector3.ZERO
-		if is_water:
-			node.position = Vector3.ZERO
+		var higher := 0
+		for d in [Vector2(2.5, 0.0), Vector2(-2.5, 0.0), Vector2(0.0, 2.5), Vector2(0.0, -2.5)]:
+			if terrain.height_at(x + d.x, z + d.y) > h + 0.04:
+				higher += 1
+		if higher < 3:
+			continue
+		_puddle_plan.append({
+			"pos": Vector3(x, h, z),
+			"radius": _rng.randf_range(0.7, 1.7),
+			"elongation": _rng.randf_range(1.15, 1.9),
+			"yaw": _rng.randf_range(0.0, TAU),
+			"rut": false,
+		})
 		made += 1
-		if made <= 3:
-			print("[puddle] ", made, " at ", x, ", ", z)
 
-	print("[puddles] ", made)
+	print("[puddle plan] ", _puddle_plan.size())
+
+func _build_puddles() -> void:
+	var water_mat := _make_puddle_material(7.0, 0.45)
+	_puddle_mats.append(water_mat)
+
+	var mud_mat := StandardMaterial3D.new()
+	mud_mat.albedo_color = Color(0.10, 0.078, 0.055, 0.85)
+	mud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mud_mat.albedo_texture = _soft_radial()
+	mud_mat.roughness = 0.35
+	mud_mat.metallic_specular = 0.7
+
+	for item in _puddle_plan:
+		var p: Vector3 = item["pos"]
+		var radius: float = item["radius"]
+		var elong: float = item["elongation"]
+		var yaw: float = item["yaw"]
+
+		# мокрое пятно вокруг, чуть выше земли — лужа «в ложбинке»
+		var mud := MeshInstance3D.new()
+		mud.mesh = _puddle_patch(p.x, p.z, radius * 1.55, 26, elong, yaw)
+		mud.material_override = mud_mat
+		mud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		mud.position.y = 0.010
+		add_child(mud)
+
+		var water := MeshInstance3D.new()
+		water.mesh = _puddle_patch(p.x, p.z, radius, 24, elong, yaw)
+		water.material_override = water_mat
+		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		water.position.y = 0.018
+		add_child(water)
+
+	print("[puddles] ", _puddle_plan.size())
+
+func _soft_radial() -> GradientTexture2D:
+	var grad := Gradient.new()
+	grad.set_color(0, Color(1, 1, 1, 1))
+	grad.set_color(1, Color(1, 1, 1, 0))
+	var tex := GradientTexture2D.new()
+	tex.gradient = grad
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	tex.width = 128
+	tex.height = 128
+	return tex
 
 func _build_rocks() -> void:
 	var transforms: Array = []

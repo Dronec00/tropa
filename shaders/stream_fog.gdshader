@@ -4,7 +4,7 @@ shader_type fog;
 
 uniform float density : hint_range(0.0, 1.0) = 0.30;
 uniform vec3 albedo_color : source_color = vec3(0.55, 0.62, 0.74);
-uniform float height_falloff = 1.1;
+uniform float height_falloff = 1.7;
 uniform float base_height = 0.0;
 uniform float noise_scale = 0.22;
 uniform float drift = 0.25;

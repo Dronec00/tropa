@@ -8,7 +8,7 @@ const TerrainScript := preload("res://scripts/terrain.gd")
 const GrassShader := preload("res://shaders/grass.gdshader")
 const TuftPath := "res://assets/textures/grass_tuft.png"
 
-func populate(terrain: Object, amount: int = 40000, radius: float = 42.0, paths: Array = [], bushes: Array = []) -> void:
+func populate(terrain: Object, amount: int = 40000, radius: float = 42.0, paths: Array = [], bushes: Array = [], puddles: Array = []) -> void:
 	var tuft_mesh := make_tuft_mesh()
 
 	var material := ShaderMaterial.new()
@@ -50,6 +50,17 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0, paths:
 			if near < 2.0:
 				continue
 			if near < 4.0 and rng.randf() > 0.45:
+				continue
+
+		# не растём из воды
+		if not puddles.is_empty():
+			var in_water := false
+			for pd in puddles:
+				var pp: Vector3 = pd["pos"]
+				if Vector2(pp.x - x, pp.z - z).length() < float(pd["radius"]) * 1.25:
+					in_water = true
+					break
+			if in_water:
 				continue
 
 		# гуще у кустов: вне кустов часть кандидатов отбрасываем
