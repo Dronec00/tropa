@@ -84,6 +84,12 @@ var _breath_timer := 2.0
 var _flash := 0.0
 var _flash_timer := 12.0
 var _ambient_base := 0.5
+var _thunder: AudioStreamPlayer
+var _thunder_pb: AudioStreamGeneratorPlayback
+var _thunder_delay := -1.0
+var _thunder_left := 0.0
+var _thunder_env := 0.0
+var _thunder_prev := 0.0
 var _terrain_mat: Material
 var _tod_fog := 0.035
 const TREE_CHUNK := 80.0
@@ -126,6 +132,7 @@ func _ready() -> void:
 		var post := PostFXScript.new()
 		add_child(post)
 	_build_rain()
+	_setup_thunder()
 	_build_breath()
 	_build_fireflies()
 	var perf := PerfOverlay.new()
@@ -189,27 +196,72 @@ func _build_rain() -> void:
 		_rain_on = true
 		_rain.emitting = true
 		_wet = 1.0
+		_flash = 1.0
+		_thunder_delay = 0.6
+
+func _setup_thunder() -> void:
+	var gen := AudioStreamGenerator.new()
+	gen.mix_rate = 22050.0
+	gen.buffer_length = 0.5
+	_thunder = AudioStreamPlayer.new()
+	_thunder.stream = gen
+	_thunder.volume_db = -3.0
+	add_child(_thunder)
+
+func _start_thunder() -> void:
+	_thunder.play()
+	_thunder_pb = _thunder.get_stream_playback() as AudioStreamGeneratorPlayback
+	_thunder_left = 2.8
+	_thunder_env = 0.0
+	_thunder_prev = 0.0
+	print("[thunder] start, frames=", _thunder_pb.get_frames_available() if _thunder_pb != null else -1)
+
+func _update_thunder(delta: float) -> void:
+	if _thunder_delay > 0.0:
+		_thunder_delay -= delta
+		if _thunder_delay <= 0.0:
+			_start_thunder()
+
+	if _thunder_left <= 0.0 or _thunder_pb == null:
+		return
+
+	var frames := mini(_thunder_pb.get_frames_available(), 1024)
+	for i in frames:
+		# коричневый шум: низкий гул
+		var white := _rng.randf_range(-1.0, 1.0)
+		_thunder_prev = (_thunder_prev + white * 0.02) * 0.996
+		# огибающая: быстрый вход, длинный хвост с рокотом
+		var t := 2.8 - _thunder_left
+		var attack := clampf(t / 0.12, 0.0, 1.0)
+		var decay := exp(-t * 1.15)
+		var rumble := 0.75 + 0.25 * sin(t * 9.0 + sin(t * 3.0) * 2.0)
+		var env := attack * decay * rumble
+		var sample := _thunder_prev * env * 2.4
+		_thunder_pb.push_frame(Vector2(sample, sample))
+		_thunder_left -= 1.0 / 22050.0
+		if _thunder_left <= 0.0:
+			break
 
 func _build_breath() -> void:
 	if player == null:
 		return
 	_breath = CPUParticles3D.new()
-	_breath.amount = 8
-	_breath.lifetime = 1.4
+	_breath.amount = 6
+	_breath.lifetime = 2.3
 	_breath.one_shot = true
-	_breath.explosiveness = 0.85
+	_breath.explosiveness = 0.45
 	_breath.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	_breath.emission_sphere_radius = 0.05
 	_breath.direction = Vector3(0.0, 0.1, -1.0)
-	_breath.spread = 12.0
-	_breath.gravity = Vector3(0.0, 0.35, 0.0)
-	_breath.initial_velocity_min = 0.25
-	_breath.initial_velocity_max = 0.55
-	_breath.scale_amount_min = 0.4
-	_breath.scale_amount_max = 1.0
-	_breath.color = Color(0.75, 0.80, 0.85, 0.22)
+	_breath.spread = 18.0
+	_breath.gravity = Vector3(0.0, 0.16, 0.0)
+	_breath.initial_velocity_min = 0.12
+	_breath.initial_velocity_max = 0.3
+	_breath.scale_amount_min = 0.8
+	_breath.scale_amount_max = 1.5
+	_breath.color = Color(0.72, 0.77, 0.82, 0.10)
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.12, 0.12)
+	quad.size = Vector2(0.30, 0.30)
 	_breath.mesh = quad
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -218,6 +270,21 @@ func _build_breath() -> void:
 	mat.vertex_color_use_as_albedo = true
 	mat.albedo_texture = _soft_radial()
 	_breath.material_override = mat
+
+	# плавное появление и рост клуба
+	var grow := Curve.new()
+	grow.add_point(Vector2(0.0, 0.6))
+	grow.add_point(Vector2(0.45, 1.4))
+	grow.add_point(Vector2(1.0, 2.1))
+	_breath.scale_amount_curve = grow
+
+	var ramp := Gradient.new()
+	ramp.set_color(0, Color(0.72, 0.77, 0.82, 0.0))
+	ramp.add_point(0.18, Color(0.72, 0.77, 0.82, 0.10))
+	ramp.add_point(0.65, Color(0.70, 0.75, 0.80, 0.06))
+	ramp.set_color(1, Color(0.70, 0.75, 0.80, 0.0))
+	_breath.color_ramp = ramp
+
 	_breath.position = Vector3(0.0, 1.72, -0.10)
 	_breath.emitting = false
 	player.add_child(_breath)
@@ -286,6 +353,7 @@ func _update_lightning(delta: float) -> void:
 		if _flash_timer <= 0.0:
 			_flash = 1.0
 			_flash_timer = _rng.randf_range(9.0, 22.0)
+			_thunder_delay = _rng.randf_range(0.9, 2.6)
 		_flash = move_toward(_flash, 0.0, delta * 3.2)
 
 	if _env != null:
@@ -329,6 +397,7 @@ func _process(delta: float) -> void:
 	_update_rain(delta)
 	_update_breath(delta)
 	_update_lightning(delta)
+	_update_thunder(delta)
 	_time_wreath += delta
 	for w in _wreaths:
 		var node: Node3D = w["node"]
