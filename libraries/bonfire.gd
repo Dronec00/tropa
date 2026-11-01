@@ -45,7 +45,7 @@ static func build(parent: Node3D, pos: Vector3) -> Dictionary:
 	flame_mat.albedo_color = Color(1.0, 0.45, 0.12)
 	flame_mat.emission_enabled = true
 	flame_mat.emission = Color(1.0, 0.42, 0.1)
-	flame_mat.emission_energy_multiplier = 4.0
+	flame_mat.emission_energy_multiplier = 9.0
 	flame.material_override = flame_mat
 	flame.position.y = 0.55
 	root.add_child(flame)
@@ -63,7 +63,7 @@ static func build(parent: Node3D, pos: Vector3) -> Dictionary:
 	fire.initial_velocity_max = 0.85
 	fire.scale_amount_min = 0.6
 	fire.scale_amount_max = 1.5
-	fire.color = Color(1.0, 0.5, 0.12, 0.9)
+	fire.color = Color(2.6, 1.3, 0.35, 0.9)
 	var fire_quad := QuadMesh.new()
 	fire_quad.size = Vector2(0.5, 0.5)
 	fire.mesh = fire_quad
@@ -73,7 +73,7 @@ static func build(parent: Node3D, pos: Vector3) -> Dictionary:
 	fire_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	fire_mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	fire_mat.vertex_color_use_as_albedo = true
-	fire_mat.albedo_color = Color(1.0, 0.55, 0.15, 0.9)
+	fire_mat.albedo_color = Color(3.4, 1.7, 0.5, 0.9)
 	fire_mat.albedo_texture = _soft_texture()
 	fire.material_override = fire_mat
 	root.add_child(fire)
@@ -83,7 +83,7 @@ static func build(parent: Node3D, pos: Vector3) -> Dictionary:
 	light.light_color = Color(1.0, 0.52, 0.20)
 	light.light_energy = 2.4
 	light.omni_range = 15.0
-	light.shadow_enabled = true
+	light.shadow_enabled = false
 	root.add_child(light)
 
 	return {"root": root, "light": light, "flame": flame}
