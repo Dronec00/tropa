@@ -114,6 +114,7 @@ func _build_model() -> void:
 func _process(delta: float) -> void:
 	if _lock_marker.visible:
 		_lock_marker.rotate_y(0.04)
+	model.visible = arm.get_hit_length() > 0.9
 	if torch_lit:
 		_torch_time += delta
 		torch_fuel = maxf(0.0, torch_fuel - delta)

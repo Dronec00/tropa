@@ -33,6 +33,13 @@ var _encounter_index := 0
 var _encounter_enemy = null
 var _path_points: Array[Vector3] = []
 var _edge_cooldown := 0.0
+var _hut_parts: Dictionary = {}
+var _hut_door: Node3D
+var _hut_hearth_pos := Vector3.ZERO
+var _amulet: Node3D
+var _amulet_taken := false
+var _door_open := false
+var _checkpoint := Vector3(2.8, 0.0, 5.4)
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
 var _dropped_souls := 0
@@ -71,6 +78,12 @@ func _process(delta: float) -> void:
 	_clamp_to_world(delta)
 	_update_encounters(delta)
 
+	var inside_hut := false
+	if not _hut_parts.is_empty():
+		inside_hut = player.global_position.distance_to(_hut_parts["root"].global_position) < 3.3
+	var target_arm := 2.0 if inside_hut else 4.3
+	player.arm.spring_length = lerpf(player.arm.spring_length, target_arm, 4.0 * delta)
+
 	for enemy in _enemies:
 		if is_instance_valid(enemy):
 			enemy.set_torch_bonus(1.4 if player.torch_lit else 1.0)
@@ -88,8 +101,9 @@ func _process(delta: float) -> void:
 			hud.hide_levels()
 		return
 
-	if Input.is_action_just_pressed("interact") and player.global_position.distance_to(bonfire_pos) < 3.6:
-		_rest()
+	if Input.is_action_just_pressed("interact"):
+		if not _try_hut_interaction() and player.global_position.distance_to(bonfire_pos) < 3.6:
+			_rest()
 
 	if _soul_orb and is_instance_valid(_soul_orb):
 		if player.global_position.distance_to(_soul_orb.global_position) < 2.0:
@@ -495,7 +509,11 @@ func _marker_birch(pos: Vector3) -> void:
 
 func _build_hut() -> void:
 	var pos := Vector3(HUT_POS.x, terrain.height_at(HUT_POS.x, HUT_POS.z), HUT_POS.z)
-	HutScript.build(self, pos, deg_to_rad(35.0))
+	_hut_parts = HutScript.build(self, pos, deg_to_rad(35.0))
+	_hut_door = _hut_parts["door"]
+	_hut_hearth_pos = _hut_parts["hearth"].global_position
+	_amulet = _hut_parts["amulet"]
+	_checkpoint = Vector3(2.8, terrain.height_at(2.8, 5.4) + 0.25, 5.4)
 
 func _build_boundary() -> void:
 	var mesh := CylinderMesh.new()
@@ -578,6 +596,12 @@ func _spawn_player() -> void:
 	player = PlayerScene.instantiate()
 	add_child(player)
 	var spawn := Vector3(2.8, 0.0, 5.4)
+	var args := OS.get_cmdline_user_args()
+	for i in args.size():
+		if args[i] == "--at" and i + 1 < args.size():
+			var parts := args[i + 1].split(",")
+			if parts.size() == 2:
+				spawn = Vector3(float(parts[0]), 0.0, float(parts[1]))
 	spawn.y = terrain.height_at(spawn.x, spawn.z) + 0.25
 	player.global_position = spawn
 	player.notice.connect(_on_notice)
@@ -609,8 +633,53 @@ func _build_hud() -> void:
 
 # --- события ---
 
+func _try_hut_interaction() -> bool:
+	if _amulet != null and is_instance_valid(_amulet) and not _amulet_taken:
+		if player.global_position.distance_to(_amulet.global_position) < 1.3:
+			_take_amulet()
+			return true
+	if _hut_hearth_pos != Vector3.ZERO and player.global_position.distance_to(_hut_hearth_pos) < 2.6:
+		_rest_at_hut()
+		return true
+	if not _door_open and _hut_door != null and is_instance_valid(_hut_door):
+		if player.global_position.distance_to(_hut_door.global_position) < 3.4:
+			_open_hut_door()
+			return true
+	return false
+
+func _open_hut_door() -> void:
+	_door_open = true
+	var tween := create_tween()
+	tween.tween_property(_hut_door, "rotation:y", deg_to_rad(-108.0), 0.9).set_trans(Tween.TRANS_SINE)
+	hud.show_notice("Дверь поддалась. Внутри пахнет дымом.", 3.0)
+
+func _rest_at_hut() -> void:
+	var at: Vector3 = _hut_parts["root"].to_global(Vector3(0.0, 0.25, 0.9))
+	_checkpoint = at
+	player.revive(at)
+	player.flasks = 3
+	player.refill_torch()
+	_respawn_enemies()
+	hud.show_notice("Очаг принял тебя. Теперь смерть вернёт сюда.", 3.5)
+
+func _take_amulet() -> void:
+	_amulet_taken = true
+	player.max_health += 25.0
+	player.health = player.max_health
+	player.flasks += 1
+	player.health_changed.emit(player.health, player.max_health)
+	player.stats_changed.emit()
+	if _amulet and is_instance_valid(_amulet):
+		_amulet.queue_free()
+	_amulet = null
+	var light = _hut_parts.get("amulet_light")
+	if light and is_instance_valid(light):
+		light.queue_free()
+	hud.show_notice("Оберег матери: +25 к здоровью, +1 фляга. Лес стал тише.", 5.0)
+
 func _rest() -> void:
 	var at := Vector3(2.8, terrain.height_at(2.8, 5.4) + 0.25, 5.4)
+	_checkpoint = at
 	player.revive(at)
 	player.flasks = 3
 	player.refill_torch()
@@ -629,8 +698,7 @@ func _on_player_died() -> void:
 	player.souls_changed.emit(0)
 	_spawn_soul_orb(player.global_position)
 	await get_tree().create_timer(1.4).timeout
-	var at := Vector3(2.8, terrain.height_at(2.8, 5.4) + 0.25, 5.4)
-	player.revive(at)
+	player.revive(_checkpoint)
 	_respawn_enemies()
 	hud.show_notice("Ты очнулся у костра. Души остались в лесу.", 4.0)
 
