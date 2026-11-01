@@ -301,33 +301,50 @@ static func _ash(b: Builder, rng: RandomNumberGenerator) -> void:
 # --- хвойные ---
 
 static func _conifer(b: Builder, rng: RandomNumberGenerator, narrow: bool) -> void:
-	var h := rng.randf_range(9.0, 13.0) if narrow else rng.randf_range(7.0, 10.0)
+	var h := rng.randf_range(9.0, 13.0) if narrow else rng.randf_range(7.0, 10.5)
 	b.height = h
-	var width := 2.2 if narrow else 3.0
-	var needle := Color(0.055, 0.11, 0.065) if narrow else Color(0.07, 0.13, 0.075)
+	var max_r := 2.4 if narrow else 3.0
+	var needle := Color(0.085, 0.155, 0.085) if narrow else Color(0.10, 0.175, 0.095)
+	var bark := BARK_CONIFER
 
+	# ствол
 	var p0 := Vector3.ZERO
-	var r := 0.2
-	for i in 3:
-		var t := float(i + 1) / 3.0
+	var r := 0.19
+	for i in 4:
+		var t := float(i + 1) / 4.0
 		var p1 := Vector3(0.0, h * t, 0.0)
-		b.tube(p0, p1, r, r * 0.75, 6, BARK_CONIFER)
+		b.tube(p0, p1, r, r * 0.72, 6, bark)
 		p0 = p1
-		r *= 0.75
+		r *= 0.72
 
-	var tiers := 6
-	for i in tiers:
-		var t := float(i) / float(tiers)
-		var y := h * (0.28 + t * 0.66)
-		var radius := width * (1.0 - t) * 0.9 + 0.25
-		b.tube(Vector3(0.0, y, 0.0), Vector3(0.0, y + h * 0.16, 0.0), radius, 0.05, 8, needle)
+	# ярусы ветвей
+	var levels := 19
+	for i in levels:
+		var t := float(i) / float(levels)
+		var y := h * (0.20 + t * 0.74)
+		var radius := max_r * pow(1.0 - t, 1.15) + 0.12
+		var branches := 8 if t < 0.45 else 6
+		var a0 := rng.randf() * TAU
+		for j in branches:
+			var a := a0 + TAU * float(j) / float(branches) + rng.randf_range(-0.12, 0.12)
+			var dir := Vector3(cos(a), 0.0, sin(a))
+			var base := Vector3(0.0, y, 0.0)
+			var tip := base + dir * radius + Vector3(0.0, -rng.randf_range(0.06, 0.28), 0.0)
+			var mid := base.lerp(tip, 0.6) + Vector3(0.0, 0.07, 0.0)
+			b.tube(base, mid, 0.042, 0.026, 4, bark)
+			b.tube(mid, tip, 0.026, 0.010, 4, bark)
+			for c in 4:
+				var tt := rng.randf_range(0.25, 1.0)
+				var cp := mid.lerp(tip, tt) + Vector3(
+					rng.randf_range(-0.18, 0.18),
+					rng.randf_range(-0.10, 0.14),
+					rng.randf_range(-0.18, 0.18)
+				)
+				b.card(cp, rng.randf_range(0.85, 1.30), rng.randf() * TAU, rng.randf_range(-0.8, 0.8), needle)
 
-	# лапы
-	for i in 7:
-		var t := rng.randf_range(0.35, 0.85)
-		var y := h * t
-		var a := rng.randf() * TAU
-		var len := (width * (1.0 - t) + 0.4) * 0.9
-		var base := Vector3(0.0, y, 0.0)
-		var tip := base + Vector3(cos(a) * len, rng.randf_range(-0.35, 0.1), sin(a) * len)
-		b.tube(base, tip, 0.09, 0.02, 4, needle)
+	# макушка-шпиль
+	for i in 6:
+		var top_base := Vector3(0.0, h * 0.94, 0.0)
+		var tip := Vector3(rng.randf_range(-0.18, 0.18), h + rng.randf_range(-0.05, 0.22), rng.randf_range(-0.18, 0.18))
+		b.tube(top_base, tip, 0.022, 0.004, 3, bark)
+		b.card(tip, rng.randf_range(0.30, 0.5), rng.randf() * TAU, rng.randf_range(-0.4, 0.4), needle)
