@@ -11,7 +11,7 @@ const LabStateScript := preload("res://scripts/lab_state.gd")
 const PauseScript := preload("res://scripts/pause_menu.gd")
 
 const TREE_COUNT := 950
-const WORLD_LIMIT := 92.0
+const WORLD_LIMIT := 89.0
 const WORLD_EDGE := 82.0
 const HUT_POS := Vector3(-34.0, 0.0, -52.0)
 
@@ -71,7 +71,6 @@ func _ready() -> void:
 	_create_tree_materials()
 	_build_path()
 	_build_hut()
-	_build_boundary()
 	_build_forest()
 	_build_bonfire()
 	_build_undergrowth()

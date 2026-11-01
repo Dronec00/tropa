@@ -11,6 +11,9 @@ const STEP := 1.0
 const GRID := 201
 
 const WATER_LEVEL := -1.7
+const EDGE_RIVER_IN := 84.0
+const EDGE_RIVER_OUT := 97.0
+const EDGE_HILL_TOP := 105.0
 
 var STREAMS := [
 	PackedVector2Array([
@@ -45,6 +48,7 @@ func _ready() -> void:
 	_build_mesh()
 	_build_water()
 	_build_streams()
+	_build_edge_river()
 
 # --- высоты ---
 
@@ -68,6 +72,17 @@ func _raw_height(x: float, z: float) -> float:
 	var sd := stream_distance(x, z)
 	if sd < 5.0:
 		h -= (1.0 - smoothstep(1.1, 4.5, sd)) * 1.3
+
+	# кольцевая река по краю мира
+	var r := Vector2(x, z).length()
+	var ring := smoothstep(EDGE_RIVER_IN - 3.0, EDGE_RIVER_IN, r) * (1.0 - smoothstep(EDGE_RIVER_OUT - 3.0, EDGE_RIVER_OUT, r))
+	if ring > 0.001:
+		h = lerpf(h, WATER_LEVEL - 2.8, ring)
+
+	# низкие холмы за рекой
+	if r > EDGE_RIVER_OUT - 2.0:
+		var hill := smoothstep(EDGE_RIVER_OUT - 2.0, EDGE_HILL_TOP, r)
+		h = lerpf(h, 3.4 + _noise.get_noise_2d(x * 0.5, z * 0.5) * 1.4, hill)
 
 	# русло реки
 	var influence := river_influence(x, z)
@@ -116,6 +131,8 @@ func stream_distance(x: float, z: float) -> float:
 	return best
 
 func is_water(x: float, z: float) -> bool:
+	if Vector2(x, z).length() > EDGE_RIVER_IN - 1.0 and Vector2(x, z).length() < EDGE_RIVER_OUT:
+		return true
 	if absf(x - river_center(z)) > 16.0:
 		return false
 	return height_at(x, z) < WATER_LEVEL
@@ -340,6 +357,52 @@ func _build_streams() -> void:
 		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(water)
 
+
+func _build_edge_river() -> void:
+	var segs := 160
+	var verts := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var r_in := EDGE_RIVER_IN + 1.0
+	var r_out := EDGE_RIVER_OUT - 2.0
+
+	for i in segs + 1:
+		var a := TAU * float(i) / float(segs)
+		var dir := Vector2(cos(a), sin(a))
+		for k in 2:
+			var rr := r_in if k == 0 else r_out
+			var p := dir * rr
+			verts.append(Vector3(p.x, WATER_LEVEL, p.y))
+			uvs.append(Vector2(float(k), float(i) / float(segs) * 8.0))
+		if i > 0:
+			var a0 := (i - 1) * 2
+			indices.append(a0)
+			indices.append(a0 + 2)
+			indices.append(a0 + 1)
+			indices.append(a0 + 1)
+			indices.append(a0 + 2)
+			indices.append(a0 + 3)
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+	var mat := ShaderMaterial.new()
+	mat.shader = WATER_SHADER
+	mat.set_shader_parameter("ripple", _make_ripple_texture())
+	mat.set_shader_parameter("shallow_color", Color(0.10, 0.16, 0.17, 1.0))
+	mat.set_shader_parameter("deep_color", Color(0.02, 0.05, 0.06, 1.0))
+	mat.set_shader_parameter("flow", 0.05)
+
+	var inst := MeshInstance3D.new()
+	inst.mesh = mesh
+	inst.material_override = mat
+	inst.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(inst)
 
 func _resample(points: PackedVector2Array, step: float) -> Array[Vector2]:
 	var result: Array[Vector2] = []
