@@ -74,7 +74,15 @@ func _raw_height(x: float, z: float) -> float:
 	# рваная кромка русла: ширина гуляет шумом
 	sd *= 0.82 + 0.36 * (0.5 + 0.5 * _detail.get_noise_2d(x * 0.12 + 40.0, z * 0.12 - 20.0))
 	if sd < 6.5:
-		h -= (1.0 - smoothstep(1.0, 6.0, sd)) * 1.35
+		# у истоков и устьев русло мельче — нет тупого обрыва
+		var best_end := 9999.0
+		for st in STREAMS:
+			if st.size() < 2:
+				continue
+			best_end = minf(best_end, Vector2(x, z).distance_to(st[0]))
+			best_end = minf(best_end, Vector2(x, z).distance_to(st[st.size() - 1]))
+		var end_fade := clampf(best_end / 10.0, 0.0, 1.0)
+		h -= (1.0 - smoothstep(1.0, 6.0, sd)) * 1.35 * end_fade
 
 	# кольцевая река по краю мира
 	var r := Vector2(x, z).length()
@@ -313,6 +321,7 @@ func _build_streams() -> void:
 	material.set_shader_parameter("deep_color", Color(0.03, 0.07, 0.08, 1.0))
 	material.set_shader_parameter("flow", 0.09)
 	material.set_shader_parameter("deep_color", Color(0.02, 0.05, 0.06, 1.0))
+	material.set_shader_parameter("has_ends", 1.0)
 
 	for stream in STREAMS:
 		var samples := _resample(stream, 1.6)
@@ -320,8 +329,10 @@ func _build_streams() -> void:
 			continue
 		var verts := PackedVector3Array()
 		var uvs := PackedVector2Array()
+		var uvs2 := PackedVector2Array()
 		var indices := PackedInt32Array()
 		var half := 1.95
+		var total := maxf(float(samples.size() - 1), 1.0)
 
 		for i in samples.size():
 			var p: Vector2 = samples[i]
@@ -330,10 +341,18 @@ func _build_streams() -> void:
 			var dir := (next - prev).normalized()
 			var side := Vector2(-dir.y, dir.x)
 			var y := height_at(p.x, p.y) + 0.26
-			verts.append(Vector3(p.x + side.x * half, y, p.y + side.y * half))
-			verts.append(Vector3(p.x - side.x * half, y, p.y - side.y * half))
+
+			# концы ручья сужаются и растворяются
+			var tt := float(i) / total
+			var taper := smoothstep(0.0, 0.10, tt) * smoothstep(1.0, 0.90, tt)
+			var w := half * (0.25 + 0.75 * taper)
+
+			verts.append(Vector3(p.x + side.x * w, y, p.y + side.y * w))
+			verts.append(Vector3(p.x - side.x * w, y, p.y - side.y * w))
 			uvs.append(Vector2(0.0, float(i) * 0.3))
 			uvs.append(Vector2(1.0, float(i) * 0.3))
+			uvs2.append(Vector2(tt, 0.0))
+			uvs2.append(Vector2(tt, 0.0))
 
 			if i > 0:
 				var a := (i - 1) * 2
@@ -353,6 +372,7 @@ func _build_streams() -> void:
 		arrays.resize(Mesh.ARRAY_MAX)
 		arrays[Mesh.ARRAY_VERTEX] = verts
 		arrays[Mesh.ARRAY_TEX_UV] = uvs
+		arrays[Mesh.ARRAY_TEX_UV2] = uvs2
 		arrays[Mesh.ARRAY_INDEX] = indices
 
 		var mesh := ArrayMesh.new()

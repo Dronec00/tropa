@@ -7,6 +7,7 @@ uniform vec4 sky_color : source_color = vec4(0.16, 0.21, 0.28, 1.0);
 uniform sampler2D ripple : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform float flow = 0.035;
 uniform float edge_fade = 0.14;
+uniform float has_ends = 0.0;
 
 void fragment() {
 	vec2 uv_a = UV * vec2(5.0, 1.6) + vec2(TIME * flow, TIME * flow * 2.0);
@@ -22,6 +23,9 @@ void fragment() {
 	float edge_u = smoothstep(0.0, edge_fade, UV.x) * smoothstep(1.0, 1.0 - edge_fade, UV.x);
 	float edge_noise = texture(ripple, UV * vec2(2.0, 6.0)).g;
 	edge_u *= mix(0.45, 1.0, smoothstep(0.25, 0.75, edge_noise));
+	if (has_ends > 0.5) {
+		edge_u *= smoothstep(0.0, 0.09, UV2.x) * smoothstep(1.0, 0.91, UV2.x);
+	}
 	ALPHA = 0.94 * edge_u;
 	ROUGHNESS = 0.04;
 	METALLIC = 0.15;
