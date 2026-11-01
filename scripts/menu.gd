@@ -57,18 +57,37 @@ func _setup_background() -> void:
 	glow.offset_top = 300.0
 	add_child(glow)
 
+var _scroll: ScrollContainer
+
 func _setup_layout() -> void:
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(center)
+	var margin := MarginContainer.new()
+	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	margin.add_theme_constant_override("margin_left", 24)
+	margin.add_theme_constant_override("margin_right", 24)
+	margin.add_theme_constant_override("margin_top", 36)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	add_child(margin)
+
+	_scroll = ScrollContainer.new()
+	_scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+	_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	margin.add_child(_scroll)
+
 	_box = VBoxContainer.new()
+	_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_box.add_theme_constant_override("separation", 12)
-	_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	center.add_child(_box)
+	_box.alignment = BoxContainer.ALIGNMENT_BEGIN
+	_scroll.add_child(_box)
 
 func _clear() -> void:
 	for child in _box.get_children():
 		child.queue_free()
+	if _scroll != null:
+		_scroll.scroll_vertical = 0
+		await get_tree().process_frame
 
 func _label(text: String, size: int, alpha: float = 1.0) -> void:
 	var l := Label.new()
@@ -82,6 +101,7 @@ func _button(text: String, callback: Callable) -> void:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(460, 52)
+	b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	b.add_theme_font_size_override("font_size", 20)
 	b.add_theme_color_override("font_color", Color(0.86, 0.84, 0.78))
 	b.add_theme_color_override("font_hover_color", Color(1.0, 0.94, 0.82))

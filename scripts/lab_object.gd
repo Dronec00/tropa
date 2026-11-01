@@ -219,6 +219,15 @@ func _patch(cx: float, cz: float, radius: float) -> ArrayMesh:
 	return mesh
 
 func _build_camera() -> void:
+	if _kind() == "hut":
+		_cam = Camera3D.new()
+		_cam.fov = 62.0
+		_cam.position = Vector3(0.0, 7.0, 17.0)
+		_pitch = -0.22
+		_yaw = 0.0
+		_cam.rotation = Vector3(_pitch, _yaw, 0.0)
+		add_child(_cam)
+		return
 	var row_half := _span * 0.5
 	var cam_z := row_half * 2.4
 	var cam_y := row_half * 1.2 + 2.0
