@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Запуск игры и отдельных верстаков.
 #
-#   ./run.sh                — игра
+#   ./run.sh                — меню
+#   ./run.sh world          — сразу мир
 #   ./run.sh character      — верстак персонажа (рыцарь, анимации)
 #   ./run.sh enemies        — витрина врагов
 #   ./run.sh -- --at -30,-46 — игра с телепортом к избе
@@ -10,7 +11,11 @@ cd "$(dirname "$0")"
 
 MODE="${1:-world}"
 case "$MODE" in
-  world|"")
+  world)
+    shift || true
+    exec "${GODOT:-godot}" --path . res://scenes/main.tscn "$@"
+    ;;
+  menu|"")
     shift || true
     exec "${GODOT:-godot}" --path . "$@"
     ;;

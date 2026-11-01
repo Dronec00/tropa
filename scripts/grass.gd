@@ -73,8 +73,8 @@ func populate(terrain: Node3D, amount: int = 12000, radius: float = 55.0) -> voi
 
 		var basis := Basis(Vector3.UP, rng.randf() * TAU)
 		basis = basis.scaled(Vector3(
-			rng.randf_range(0.7, 1.15),
-			rng.randf_range(0.28, 0.6),
+			rng.randf_range(0.6, 1.0),
+			rng.randf_range(0.16, 0.38),
 			rng.randf_range(0.7, 1.15)
 		))
 		multimesh.set_instance_transform(placed, Transform3D(basis, Vector3(x, h - 0.05, z)))
@@ -89,8 +89,8 @@ func _make_blade_mesh() -> ArrayMesh:
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
 
-	var half_w := 0.045
-	var tip_w := 0.008
+	var half_w := 0.028
+	var tip_w := 0.004
 
 	# два скрещённых лепестка
 	for axis in 2:

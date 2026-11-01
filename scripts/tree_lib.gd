@@ -201,23 +201,34 @@ static func _deciduous(b: Builder, rng: RandomNumberGenerator, trunks: int) -> v
 # --- ива ---
 
 static func _willow(b: Builder, rng: RandomNumberGenerator) -> void:
-	var h := rng.randf_range(4.5, 6.5)
+	var h := rng.randf_range(4.2, 5.8)
 	b.height = h
-	var top := _curved_trunk(b, rng, Vector3.ZERO, h, Vector3(rng.randf_range(-0.2, 0.2), 0.0, rng.randf_range(-0.2, 0.2)), 0.28, BARK_ASH)
+	var top := _curved_trunk(b, rng, Vector3.ZERO, h,
+		Vector3(rng.randf_range(-0.15, 0.15), 0.0, rng.randf_range(-0.15, 0.15)), 0.26, BARK_ASH)
 
-	for i in 14:
-		var a := TAU * float(i) / 14.0 + rng.randf_range(-0.25, 0.25)
+	# крона: купол из листвы
+	for i in 40:
+		var a := rng.randf() * TAU
+		var r := rng.randf_range(0.3, 1.6)
+		var p := top + Vector3(cos(a) * r, rng.randf_range(-0.2, 0.6), sin(a) * r)
+		b.card(p, rng.randf_range(0.7, 1.1), rng.randf() * TAU, rng.randf_range(-0.6, 0.6), LEAF_WILLOW)
+
+	# пряди: тонкие нити, уходящие вниз
+	for i in 46:
+		var a := TAU * float(i) / 46.0 + rng.randf_range(-0.12, 0.12)
 		var out := Vector3(cos(a), 0.0, sin(a))
-		var base := top + out * rng.randf_range(0.0, 0.7)
-		var branch_len := rng.randf_range(2.2, 3.4)
-		var mid := base + out * branch_len * 0.55 + Vector3(0.0, rng.randf_range(-0.1, 0.35), 0.0)
-		var tip := mid + out * branch_len * 0.3 + Vector3(0.0, -branch_len * 0.85, 0.0)
-		b.tube(base, mid, 0.06, 0.03, 4, BARK_ASH)
-		b.tube(mid, tip, 0.03, 0.01, 4, BARK_ASH)
-		for c in 10:
-			var cp := mid.lerp(tip, rng.randf_range(0.05, 1.0)) \
-				+ Vector3(rng.randf_range(-0.18, 0.18), 0.0, rng.randf_range(-0.18, 0.18))
-			b.card(cp, rng.randf_range(0.7, 1.1), rng.randf() * TAU, rng.randf_range(-0.35, 0.35), LEAF_WILLOW)
+		var start := top + out * rng.randf_range(0.2, 1.2) + Vector3(0.0, rng.randf_range(-0.1, 0.5), 0.0)
+		var drop := rng.randf_range(2.0, 3.4)
+		var p1 := start + out * 0.45 + Vector3(0.0, 0.18, 0.0)
+		var p2 := p1 + out * 0.35 + Vector3(0.0, -drop * 0.55, 0.0)
+		var p3 := p2 + out * 0.15 + Vector3(0.0, -drop * 0.45, 0.0)
+		b.tube(start, p1, 0.022, 0.016, 3, BARK_ASH)
+		b.tube(p1, p2, 0.016, 0.010, 3, BARK_ASH)
+		b.tube(p2, p3, 0.010, 0.004, 3, BARK_ASH)
+		for c in 5:
+			var t01 := rng.randf_range(0.0, 1.0)
+			var cp := p2.lerp(p3, t01) + Vector3(rng.randf_range(-0.12, 0.12), 0.0, rng.randf_range(-0.12, 0.12))
+			b.card(cp, rng.randf_range(0.38, 0.62), rng.randf() * TAU, rng.randf_range(-0.3, 0.3), LEAF_WILLOW)
 
 # --- куст ---
 

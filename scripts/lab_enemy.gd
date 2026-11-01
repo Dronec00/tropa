@@ -4,6 +4,7 @@ extends Node3D
 ## ./run.sh enemies
 
 const EnemyScene := preload("res://scenes/enemy.tscn")
+const LabStateScript := preload("res://scripts/lab_state.gd")
 
 var _turntable: Node3D
 var _camera: Camera3D
@@ -69,14 +70,24 @@ func _setup_showcase() -> void:
 	_turntable = Node3D.new()
 	add_child(_turntable)
 
-	for i in KINDS.size():
+	var only: String = LabStateScript.enemy
+	var kinds: Array = KINDS
+	var names: Array = NAMES
+	if only != "" and KINDS.has(only):
+		var idx := KINDS.find(only)
+		kinds = [only]
+		names = [NAMES[idx]]
+		_distance = 6.0
+
+	for i in kinds.size():
 		var enemy = EnemyScene.instantiate()
-		enemy.setup(KINDS[i])
+		enemy.setup(kinds[i])
 		_turntable.add_child(enemy)
-		enemy.global_position = Vector3((float(i) - 2.0) * 2.6, 0.2, 0.0)
+		var x := 0.0 if kinds.size() == 1 else (float(i) - float(kinds.size() - 1) * 0.5) * 2.6
+		enemy.global_position = Vector3(x, 0.2, 0.0)
 
 		var label := Label3D.new()
-		label.text = NAMES[i]
+		label.text = names[i]
 		label.font_size = 48
 		label.pixel_size = 0.006
 		label.modulate = Color(0.85, 0.83, 0.78)
@@ -99,6 +110,10 @@ func _process(_delta: float) -> void:
 	pass
 
 func _unhandled_input(event: InputEvent) -> void:
+	if event.is_action_pressed("ui_cancel"):
+		LabStateScript.enemy = ""
+		get_tree().change_scene_to_file("res://scenes/menu.tscn")
+		return
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_dragging = event.pressed

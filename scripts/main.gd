@@ -7,6 +7,7 @@ const TerrainScript := preload("res://scripts/terrain.gd")
 const GrassScript := preload("res://scripts/grass.gd")
 const WindScript := preload("res://scripts/wind.gd")
 const HutScript := preload("res://scripts/hut.gd")
+const LabStateScript := preload("res://scripts/lab_state.gd")
 
 const TREE_COUNT := 380
 const WORLD_LIMIT := 92.0
@@ -277,7 +278,7 @@ func _build_terrain() -> void:
 	var grass = GrassScript.new()
 	grass.name = "Grass"
 	add_child(grass)
-	grass.populate(terrain, 42000, 46.0)
+	grass.populate(terrain, 60000, 40.0)
 
 # --- лес ---
 
@@ -301,7 +302,7 @@ func _create_tree_materials() -> void:
 	for i in SPECIES.size():
 		for v in 2:
 			var mesh := TreeLibScript.build(SPECIES[i], 1000 + i * 17 + v * 5)
-			var material := _mat_dark if SPECIES[i] in ["cedar", "spruce"] else _mat_light
+			var material := _mat_dark if SPECIES[i] in ["cedar", "spruce", "willow"] else _mat_light
 			_tree_variants.append({"mesh": mesh, "species": SPECIES[i], "material": material})
 			_tree_instances.append([])
 
@@ -790,6 +791,8 @@ func _spawn_player() -> void:
 	player = PlayerScene.instantiate()
 	add_child(player)
 	var spawn := Vector3(2.8, 0.0, 5.4)
+	if LabStateScript.spawn_at.is_finite():
+		spawn = Vector3(LabStateScript.spawn_at.x, 0.0, LabStateScript.spawn_at.z)
 	var args := OS.get_cmdline_user_args()
 	for i in args.size():
 		if args[i] == "--at" and i + 1 < args.size():
