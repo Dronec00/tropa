@@ -865,6 +865,8 @@ class StackAnimator extends Node:
 	var _attacking: bool = false
 	var _attack_time: float = 0.0
 	var _mirror: bool = false
+	var _ik_ready: bool = false
+	var _ankle_offset: float = 0.10
 	var _block: bool = false
 
 	func setup(rig: Dictionary) -> void:
@@ -930,6 +932,48 @@ class StackAnimator extends Node:
 
 	func set_block(active: bool) -> void:
 		_block = active
+
+	func _foot_hit(pos: Vector3) -> Dictionary:
+		if _hips == null:
+			return {}
+		var space: PhysicsDirectSpaceState3D = _hips.get_world_3d().direct_space_state
+		if space == null:
+			return {}
+		var query := PhysicsRayQueryParameters3D.create(pos + Vector3.UP * 0.8, pos + Vector3.DOWN * 0.7, 1)
+		return space.intersect_ray(query)
+
+	func _apply_ground_snap() -> void:
+		if _ankle_r == null or _ankle_l == null or _hips == null:
+			return
+		if not _ik_ready:
+			_ankle_offset = 0.11
+			_ik_ready = true
+
+		var hit_r := _foot_hit(_ankle_r.global_position)
+		var hit_l := _foot_hit(_ankle_l.global_position)
+		if hit_r.is_empty() and hit_l.is_empty():
+			return
+
+		var err_r: float = 999.0
+		var err_l: float = 999.0
+		if not hit_r.is_empty():
+			err_r = _ankle_r.global_position.y - ((hit_r["position"] as Vector3).y + _ankle_offset)
+		if not hit_l.is_empty():
+			err_l = _ankle_l.global_position.y - ((hit_l["position"] as Vector3).y + _ankle_offset)
+
+		var err := minf(err_r, err_l)
+		if absf(err) < 0.01 or err > 900.0:
+			pass
+		else:
+			_hips.position.y -= clampf(err, -0.28, 0.28) * 0.85
+
+		if not hit_r.is_empty():
+			var n: Vector3 = hit_r["normal"]
+			_ankle_r.rotation.x += clampf(atan2(n.z, n.y), -0.5, 0.5) * 0.6
+		if not hit_l.is_empty():
+			var n2: Vector3 = hit_l["normal"]
+			_ankle_l.rotation.x += clampf(atan2(n2.z, n2.y), -0.5, 0.5) * 0.6
+
 
 	# --- кадры удара ---
 
@@ -1225,6 +1269,9 @@ class StackAnimator extends Node:
 				sin(_phase * 2.0) * 0.008 * amp * walk_w)
 		_elbow_r.rotation = _rv("el_r")
 		_wrist_r.rotation = _rv("wr_r")
+
+		# --- foot IK: стопы ищут землю ---
+		_apply_ground_snap()
 
 		# --- удар поверх локомоции ---
 		if _attacking:
