@@ -443,12 +443,9 @@ func _build_bog() -> void:
 	var center := Vector2(-42.0, 30.0)
 	var base: float = terrain.height_at(center.x, center.y)
 
-	var water_mat := StandardMaterial3D.new()
-	water_mat.albedo_color = Color(0.05, 0.08, 0.08, 0.92)
-	water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water_mat.roughness = 0.08
-	water_mat.metallic = 0.35
-	water_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var water_mat := _make_puddle_material(3.0, 0.35)
+	water_mat.set_shader_parameter("water_color", Color(0.025, 0.05, 0.045, 1.0))
+	water_mat.set_shader_parameter("sky_color", Color(0.09, 0.12, 0.14, 1.0))
 
 	for i in 7:
 		var angle := TAU * float(i) / 7.0 + _rng.randf_range(-0.2, 0.2)
@@ -604,22 +601,27 @@ func _add_rock(list: Array, x: float, z: float) -> void:
 	else:
 		_rock_dry.append(Transform3D(basis, Vector3(x, h + 0.02, z)))
 
+func _make_puddle_material(scale: float, soft: float) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/puddle.gdshader")
+	mat.set_shader_parameter("ripple", terrain._make_ripple_texture())
+	mat.set_shader_parameter("ripple_scale", scale)
+	mat.set_shader_parameter("edge_softness", soft)
+	return mat
+
 func _build_puddles() -> void:
-	var water_mat := StandardMaterial3D.new()
-	water_mat.albedo_color = Color(0.05, 0.075, 0.08, 0.92)
-	water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	water_mat.roughness = 0.06
-	water_mat.metallic = 0.4
-	water_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+	var water_mat := _make_puddle_material(5.0, 0.22)
 
 	var mud_mat := StandardMaterial3D.new()
-	mud_mat.albedo_color = Color(0.12, 0.09, 0.06, 0.85)
+	mud_mat.albedo_color = Color(0.10, 0.075, 0.05, 0.9)
 	mud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mud_mat.roughness = 1.0
+	mud_mat.roughness = 0.35
+	mud_mat.metallic = 0.05
+	mud_mat.metallic_specular = 0.7
 
 	var made := 0
 	var attempts := 0
-	while made < 34 and attempts < 600:
+	while made < 48 and attempts < 900:
 		attempts += 1
 		var use_path := _rng.randf() < 0.65 and _path_points.size() > 4
 		var x := 0.0
