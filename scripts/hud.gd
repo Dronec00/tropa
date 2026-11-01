@@ -19,6 +19,7 @@ var _hurt: ColorRect
 var _notice_timer := 0.0
 var _hurt_alpha := 0.0
 var _last_health := -1.0
+var _water_overlay: ColorRect
 
 func _ready() -> void:
 	layer = 10
@@ -33,6 +34,12 @@ func _ready() -> void:
 	_hurt.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_hurt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_hurt)
+
+	_water_overlay = ColorRect.new()
+	_water_overlay.color = Color(0.05, 0.22, 0.26, 0.0)
+	_water_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_water_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_water_overlay)
 
 	var vignette := ColorRect.new()
 	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -199,6 +206,11 @@ func set_souls(total: int) -> void:
 	if player:
 		lvl = player.soul_level
 	_souls_label.text = "Уровень %d   Души: %d" % [lvl, total]
+
+func set_underwater(active: bool) -> void:
+	if _water_overlay == null:
+		return
+	_water_overlay.color = Color(0.05, 0.22, 0.26, 0.42 if active else 0.0)
 
 func show_notice(text: String, duration: float = 2.0) -> void:
 	_notice_label.text = text

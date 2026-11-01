@@ -53,6 +53,8 @@ var _mat_dark: ShaderMaterial
 var _mat_fern: ShaderMaterial
 var _tree_variants: Array = []
 var _tree_chunks: Dictionary = {}
+var _env: Environment
+var _underwater := false
 const TREE_CHUNK := 80.0
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
@@ -106,6 +108,7 @@ func _process(delta: float) -> void:
 
 	_clamp_to_world(delta)
 	_update_encounters(delta)
+	_update_underwater()
 
 	var inside_hut := false
 	if not _hut_parts.is_empty():
@@ -218,6 +221,7 @@ func _build_environment() -> void:
 	env.adjustment_contrast = 1.10
 	env.adjustment_brightness = 0.97
 
+	_env = env
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
@@ -581,17 +585,24 @@ func _build_path_strips() -> void:
 	strip.material_override = mat
 	add_child(strip)
 
+var _rock_wet: Array = []
+var _rock_dry: Array = []
+
 func _add_rock(list: Array, x: float, z: float) -> void:
 	var h: float = terrain.height_at(x, z)
 	if h < TerrainScript.WATER_LEVEL - 0.4:
 		return
+	var wet := h < TerrainScript.WATER_LEVEL + 1.4
 	var s := _rng.randf_range(0.35, 0.95)
 	var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(
 		s * _rng.randf_range(0.9, 1.5),
 		s * _rng.randf_range(0.5, 0.8),
 		s * _rng.randf_range(0.9, 1.5)
 	))
-	list.append(Transform3D(basis, Vector3(x, h + 0.02, z)))
+	if wet:
+		_rock_wet.append(Transform3D(basis, Vector3(x, h + 0.02, z)))
+	else:
+		_rock_dry.append(Transform3D(basis, Vector3(x, h + 0.02, z)))
 
 func _build_puddles() -> void:
 	var water_mat := StandardMaterial3D.new()
@@ -703,8 +714,19 @@ func _build_rocks() -> void:
 		stone.normal_texture = load("res://assets/textures/photo/moss_normal.jpg")
 		stone.uv1_scale = Vector3(2.0, 2.0, 1.0)
 
-	_spawn_multimesh(rock, stone, transforms)
-	print("[rocks] ", transforms.size())
+	var stone_wet := StandardMaterial3D.new()
+	stone_wet.albedo_color = Color(0.16, 0.17, 0.16)
+	stone_wet.roughness = 0.28
+	stone_wet.metallic = 0.15
+	if ResourceLoader.exists("res://assets/textures/photo/moss_color.jpg"):
+		stone_wet.albedo_texture = load("res://assets/textures/photo/moss_color.jpg")
+		stone_wet.normal_enabled = true
+		stone_wet.normal_texture = load("res://assets/textures/photo/moss_normal.jpg")
+		stone_wet.uv1_scale = Vector3(2.0, 2.0, 1.0)
+
+	_spawn_multimesh(rock, stone, _rock_dry)
+	_spawn_multimesh(rock, stone_wet, _rock_wet)
+	print("[rocks] dry: ", _rock_dry.size(), " wet: ", _rock_wet.size())
 
 func _finish_trees() -> void:
 	var detail_nodes := 0
@@ -977,6 +999,25 @@ func _path_point_at(dist: float) -> Vector3:
 			return _path_points[i].lerp(_path_points[i + 1], t)
 		acc += seg
 	return _path_points[_path_points.size() - 1]
+
+func _update_underwater() -> void:
+	if _env == null or player == null:
+		return
+	var cam_y: float = player.camera.global_position.y
+	var under := cam_y < TerrainScript.WATER_LEVEL - 0.05
+	if under == _underwater:
+		return
+	_underwater = under
+	if under:
+		_env.fog_density = 0.16
+		_env.fog_light_color = Color(0.02, 0.06, 0.08)
+		_env.ambient_light_energy = 0.12
+		_env.background_color = Color(0.01, 0.03, 0.04)
+	else:
+		_env.fog_density = 0.052
+		_env.fog_light_color = Color(0.035, 0.04, 0.055)
+		_env.ambient_light_energy = 0.24
+	hud.set_underwater(under)
 
 func _update_encounters(delta: float) -> void:
 	if _encounter_index >= _encounters.size():
