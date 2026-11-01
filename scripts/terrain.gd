@@ -167,6 +167,7 @@ func _build_mesh() -> void:
 	var dry_grass := Color(0.17, 0.16, 0.10)
 	var rock := Color(0.16, 0.16, 0.15)
 	var mud := Color(0.10, 0.09, 0.07)
+	var litter := Color(0.19, 0.15, 0.09)
 
 	for j in GRID:
 		var z := -HALF + float(j) * STEP
@@ -186,6 +187,7 @@ func _build_mesh() -> void:
 
 			var slope := 1.0 - n.y
 			var base := grass.lerp(dry_grass, clampf(_detail.get_noise_2d(x * 0.7, z * 0.7) * 0.5 + 0.5, 0.0, 1.0))
+			base = base.lerp(litter, clampf(_detail.get_noise_2d(x * 0.35 + 11.0, z * 0.35) * 0.5 + 0.3, 0.0, 1.0) * 0.55)
 			base = base.lerp(rock, smoothstep(0.16, 0.44, slope))
 			base = base.lerp(mud, 1.0 - smoothstep(WATER_LEVEL + 0.1, WATER_LEVEL + 1.5, h))
 			var shade := 0.85 + _detail.get_noise_2d(x * 2.3, z * 2.3) * 0.15
@@ -300,6 +302,7 @@ func _build_streams() -> void:
 	material.set_shader_parameter("shallow_color", Color(0.17, 0.23, 0.23, 1.0))
 	material.set_shader_parameter("deep_color", Color(0.03, 0.07, 0.08, 1.0))
 	material.set_shader_parameter("flow", 0.09)
+	material.set_shader_parameter("deep_color", Color(0.02, 0.05, 0.06, 1.0))
 
 	for stream in STREAMS:
 		var samples := _resample(stream, 1.6)
@@ -308,7 +311,7 @@ func _build_streams() -> void:
 		var verts := PackedVector3Array()
 		var uvs := PackedVector2Array()
 		var indices := PackedInt32Array()
-		var half := 1.25
+		var half := 1.95
 
 		for i in samples.size():
 			var p: Vector2 = samples[i]
@@ -316,7 +319,7 @@ func _build_streams() -> void:
 			var next: Vector2 = samples[mini(i + 1, samples.size() - 1)]
 			var dir := (next - prev).normalized()
 			var side := Vector2(-dir.y, dir.x)
-			var y := height_at(p.x, p.y) + 0.5
+			var y := height_at(p.x, p.y) + 0.26
 			verts.append(Vector3(p.x + side.x * half, y, p.y + side.y * half))
 			verts.append(Vector3(p.x - side.x * half, y, p.y - side.y * half))
 			uvs.append(Vector2(0.0, float(i) * 0.3))

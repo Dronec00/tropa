@@ -9,7 +9,7 @@ const WindScript := preload("res://scripts/wind.gd")
 const HutScript := preload("res://scripts/hut.gd")
 const LabStateScript := preload("res://scripts/lab_state.gd")
 
-const TREE_COUNT := 620
+const TREE_COUNT := 950
 const WORLD_LIMIT := 92.0
 const WORLD_EDGE := 82.0
 const HUT_POS := Vector3(-34.0, 0.0, -52.0)
@@ -240,9 +240,13 @@ func _build_environment() -> void:
 	env.ambient_light_energy = 0.6
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.10, 0.11, 0.13)
-	env.fog_density = 0.038
+	env.fog_density = 0.046
 	env.fog_sky_affect = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 1.15
+	env.ssao_enabled = true
+	env.ssao_intensity = 1.1
+	env.ssao_radius = 1.4
 	env.glow_enabled = true
 	env.glow_intensity = 0.42
 	env.glow_bloom = 0.08
@@ -255,7 +259,7 @@ func _build_environment() -> void:
 	env.volumetric_fog_ambient_inject = 0.2
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 0.92
-	env.adjustment_contrast = 1.06
+	env.adjustment_contrast = 1.10
 	env.adjustment_brightness = 0.97
 
 	var world_env := WorldEnvironment.new()
@@ -434,7 +438,7 @@ func _build_ferns() -> void:
 	var meshes: Array = [TreeLibScript.build("fern", 301), TreeLibScript.build("fern", 907)]
 	var lists: Array = [[], []]
 	var attempts := 0
-	while lists[0].size() + lists[1].size() < 520 and attempts < 9000:
+	while lists[0].size() + lists[1].size() < 1200 and attempts < 16000:
 		attempts += 1
 		var angle := _rng.randf_range(0.0, TAU)
 		var dist := sqrt(_rng.randf()) * WORLD_LIMIT

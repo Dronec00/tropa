@@ -85,8 +85,10 @@ func _gen_ground() -> void:
 			height[y * size + x] = h
 
 			var moss := clampf((n - 0.42) * 3.2, 0.0, 1.0)
+			var litter := clampf((0.55 - n) * 2.6, 0.0, 1.0)
 			var base := Color(0.92, 0.92, 0.88).lerp(Color(0.82, 0.88, 0.74), moss)
-			var speck := 0.78 + f * 0.34
+			base = base.lerp(Color(0.78, 0.66, 0.50), litter * 0.8)
+			var speck := 0.70 + f * 0.46
 			base = Color(base.r * speck, base.g * speck, base.b * speck)
 			if f > 0.84:
 				base = base.lightened(0.10)
