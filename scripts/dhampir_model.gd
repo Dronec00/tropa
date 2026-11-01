@@ -154,6 +154,8 @@ class Kit:
 	var lining: StandardMaterial3D
 	var lining_dark: StandardMaterial3D
 	var hat: StandardMaterial3D
+	var scarf: StandardMaterial3D
+	var scarf_trim: StandardMaterial3D
 	var leather: StandardMaterial3D
 	var leather_dark: StandardMaterial3D
 	var gold: StandardMaterial3D
@@ -226,6 +228,16 @@ static func _make_kit() -> Kit:
 	kit.hat.metallic_specular = 0.07
 	kit.hat.albedo_texture = grain
 	kit.hat.uv1_scale = Vector3(5.0, 5.0, 5.0)
+	kit.scarf = _mat(Color(0.012, 0.012, 0.018), 0.0, 0.90)
+	kit.scarf.cull_mode = BaseMaterial3D.CULL_DISABLED
+	kit.scarf.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	kit.scarf.albedo_texture = grain
+	kit.scarf.uv1_scale = Vector3(5.0, 5.0, 5.0)
+	kit.scarf_trim = _mat(Color(0.380, 0.170, 0.035), 0.0, 0.80)
+	kit.scarf_trim.cull_mode = BaseMaterial3D.CULL_DISABLED
+	kit.scarf_trim.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	kit.scarf_trim.albedo_texture = grain
+	kit.scarf_trim.uv1_scale = Vector3(6.0, 6.0, 6.0)
 	kit.leather = _mat(Color(0.034, 0.024, 0.020), 0.04, 0.46)
 	kit.leather.metallic_specular = 0.26
 	kit.leather.albedo_texture = grain
@@ -797,26 +809,7 @@ static func _build_head(head: Node3D, kit: Kit) -> Array:
 	_add(head, _box(Vector3(0.0080, 0.012, 0.007)), kit.skin_shade,
 			Vector3(0.0, 0.0620, -0.0875))
 
-	# --- губы: тонкие, без белого блина ---
-	for side in [-1.0, 1.0]:
-		_add(head, _box(Vector3(0.0145, 0.0048, 0.010)), kit.lip,
-				Vector3(side * 0.0115, 0.0584, -0.0912),
-				Vector3(0.14, 0.0, side * 0.22))
-		_add(head, _sphere(0.0028, 6, 6), kit.lip,
-				Vector3(side * 0.0172, 0.0562, -0.0898))
-		_add(head, _cone(0.0022, 0.0038, 0.009, 6), kit.fang,
-				Vector3(side * 0.0125, 0.0535, -0.0915), Vector3(PI, 0.0, 0.0))
-	_add(head, _box(Vector3(0.0170, 0.0050, 0.011)), kit.lip,
-			Vector3(0.0, 0.0608, -0.0920), Vector3(0.16, 0.0, 0.0))
-	_add(head, _box(Vector3(0.0260, 0.0048, 0.010)), kit.lip,
-			Vector3(0.0, 0.0520, -0.0908), Vector3(0.08, 0.0, 0.0))
-	_add(head, _box(Vector3(0.0300, 0.0014, 0.007)), kit.brow,
-			Vector3(0.0, 0.0552, -0.0930))
-	# подбородок: только тень, без шара
-	_add(head, _sphere(0.0060, 8, 6), kit.skin_shade, Vector3(0.0, 0.0260, -0.0710),
-			Vector3.ZERO, Vector3(1.2, 0.6, 0.4))
-	_add(head, _box(Vector3(0.028, 0.0030, 0.007)), kit.skin_shade,
-			Vector3(0.0, 0.0448, -0.0855), Vector3(0.10, 0.0, 0.0))
+	_build_scarf(head, kit)
 
 	# --- уши: острые, с завитком и козелком ---
 	for side in [-1.0, 1.0]:
@@ -894,6 +887,9 @@ static func _head_mesh() -> ArrayMesh:
 	for r in range(rings.size() - 1):
 		for s in range(seg):
 			var s2: int = (s + 1) % seg
+			if not _above_scarf(grid[r][s]) and not _above_scarf(grid[r][s2]) \
+					and not _above_scarf(grid[r + 1][s2]) and not _above_scarf(grid[r + 1][s]):
+				continue
 			_add_face_uvn(st, grid[r][s], uv_grid[r][s], ngrid[r][s],
 					grid[r][s2], uv_grid[r][s2], ngrid[r][s2],
 					grid[r + 1][s2], uv_grid[r + 1][s2], ngrid[r + 1][s2])
@@ -907,12 +903,95 @@ static func _head_mesh() -> ArrayMesh:
 		_add_face_uvn(st, grid[rings.size() - 1][s2], uv_grid[rings.size() - 1][s2], Vector3.UP,
 				grid[rings.size() - 1][s], uv_grid[rings.size() - 1][s], Vector3.UP,
 				top_center, top_uv, Vector3.UP)
-	var bottom: Vector3 = Vector3(0.0, -0.012, 0.0)
-	var bottom_uv: Vector2 = Vector2(0.5, 0.0)
-	for s in range(seg):
-		var s2: int = (s + 1) % seg
-		_add_face_uvn(st, grid[0][s], uv_grid[0][s], Vector3.DOWN,
-				grid[0][s2], uv_grid[0][s2], Vector3.DOWN, bottom, bottom_uv, Vector3.DOWN)
+	return st.commit()
+
+## Оставляем череп только выше линии платка: ниже лица всё равно нет.
+static func _above_scarf(v: Vector3) -> bool:
+	var ang: float = atan2(v.x, -v.z)
+	var top: float = 0.058 + 0.044 * pow(absf(sin(ang)), 1.3)
+	return v.y >= top - 0.006
+
+## Платок на нижнюю половину лица: закрывает рот, подбородок и шею.
+static func _build_scarf(head: Node3D, kit: Kit) -> void:
+	var scarf: Node3D = _pivot(head, "Scarf", Vector3.ZERO)
+	# плотная подложка: закрывает кожу/дыры под платком
+	_add(scarf, _cyl(0.105, 0.090, 0.150, 24), kit.scarf, Vector3(0.0, -0.010, 0.0))
+	var outer: MeshInstance3D = MeshInstance3D.new()
+	outer.mesh = _scarf_mesh(0.0, 0.0)
+	outer.material_override = kit.scarf
+	scarf.add_child(outer)
+	var trim: MeshInstance3D = MeshInstance3D.new()
+	trim.mesh = _scarf_mesh(0.002, 0.006, 0.0, 0.08)
+	trim.material_override = kit.scarf_trim
+	scarf.add_child(trim)
+	# узел сзади-слева
+	var knot: Node3D = _pivot(scarf, "ScarfKnot", Vector3(-0.065, -0.010, 0.070),
+			Vector3(0.2, 0.4, 0.2))
+	_add(knot, _sphere(0.030, 12, 8), kit.scarf, Vector3.ZERO,
+			Vector3.ZERO, Vector3(1.2, 0.9, 1.0))
+	_add(knot, _torus(0.026, 0.038, 12, 5), kit.scarf_trim, Vector3.ZERO,
+			Vector3(PI * 0.5, 0.0, 0.0))
+	# два конца платка
+	for k in range(2):
+		var tail: Node3D = _pivot(knot, "ScarfTail%d" % k,
+				Vector3(0.0, -0.02 - float(k) * 0.02, 0.01 + float(k) * 0.015),
+				Vector3(0.15 + float(k) * 0.1, 0.0, -0.1 + float(k) * 0.2))
+		var panel: ArrayMesh = _cloth(0.040, 0.050, 0.22 + float(k) * 0.05,
+				3, 5, 0.012, 0.020, 0.016, 1.3 + float(k))
+		var mi: MeshInstance3D = MeshInstance3D.new()
+		mi.mesh = panel
+		mi.material_override = kit.scarf
+		tail.add_child(mi)
+		_add(tail, _box(Vector3(0.052, 0.010, 0.010)), kit.scarf_trim,
+				Vector3(0.0, -0.20 - float(k) * 0.05, 0.0))
+	# застёжка на скуле
+	_add(scarf, _torus(0.012, 0.020, 12, 5), kit.gold,
+			Vector3(-0.073, 0.082, -0.058), Vector3(PI * 0.5, 0.0, 0.0))
+	_add(scarf, _sphere(0.007, 8, 6), kit.gem,
+			Vector3(-0.073, 0.082, -0.064), Vector3.ZERO, Vector3(1.0, 1.0, 0.5))
+
+## Полотно платка: кольцо вокруг лица с верхней кромкой под носом.
+static func _scarf_mesh(y_shift: float, trim: float,
+		v_from: float = 0.0, v_to: float = 1.0) -> ArrayMesh:
+	var cols: int = 40
+	var rows: int = 7 if v_from <= 0.0 and v_to >= 1.0 else 2
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var grid: Array = []
+	var ngrid: Array = []
+	for j in range(rows + 1):
+		var v: float = lerpf(v_from, v_to, float(j) / float(rows))
+		var row: Array = []
+		var nrow: Array = []
+		for i in range(cols + 1):
+			var u: float = float(i) / float(cols)
+			var ang: float = (u - 0.5) * TAU
+			var top_y: float = 0.058 + 0.044 * pow(absf(sin(ang)), 1.3)
+			var bottom_y: float = -0.075
+			var y: float = lerpf(top_y, bottom_y, v) + y_shift
+			var r: float = 0.112 - 0.010 * v
+			r += 0.004 * sin(v * PI * 2.0 + ang * 3.0)
+			r += 0.003 * sin(ang * 9.0 + v * 2.0)
+			if trim > 0.0:
+				r += trim * (1.0 - v)
+			var x: float = sin(ang) * r
+			var z: float = -cos(ang) * r
+			row.append(Vector3(x, y, z))
+			nrow.append(Vector3(x, 0.0, z).normalized())
+		grid.append(row)
+		ngrid.append(nrow)
+	for j in range(rows):
+		for i in range(cols):
+			var a: Vector3 = grid[j][i]
+			var b: Vector3 = grid[j][i + 1]
+			var c: Vector3 = grid[j + 1][i + 1]
+			var d: Vector3 = grid[j + 1][i]
+			var na: Vector3 = ngrid[j][i]
+			var nb: Vector3 = ngrid[j][i + 1]
+			var nc: Vector3 = ngrid[j + 1][i + 1]
+			var nd: Vector3 = ngrid[j + 1][i]
+			_add_face_n(st, a, na, b, nb, c, nc)
+			_add_face_n(st, a, na, c, nc, d, nd)
 	return st.commit()
 
 ## 24 кольца: линейная интерполяция базовых 15 по высоте.
