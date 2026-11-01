@@ -97,6 +97,7 @@ func _show_main() -> void:
 	_button("Локация", _show_locations)
 	_button("Персонаж", _open_character)
 	_button("Враги", _show_enemies)
+	_button("Трава", func() -> void: get_tree().change_scene_to_file("res://scenes/grass_lab.tscn"))
 	_button("Выход", func() -> void: get_tree().quit())
 
 func _show_locations() -> void:

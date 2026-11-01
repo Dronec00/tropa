@@ -8,7 +8,7 @@ const TerrainScript := preload("res://scripts/terrain.gd")
 const GrassShader := preload("res://shaders/grass.gdshader")
 const TuftPath := "res://assets/textures/grass_tuft.png"
 
-func populate(terrain: Node3D, amount: int = 40000, radius: float = 42.0) -> void:
+func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> void:
 	var tuft_mesh := _make_tuft_mesh()
 
 	var material := ShaderMaterial.new()
@@ -40,23 +40,27 @@ func populate(terrain: Node3D, amount: int = 40000, radius: float = 42.0) -> voi
 		var basis := Basis(Vector3.UP, rng.randf() * TAU)
 		basis = basis.scaled(Vector3(
 			rng.randf_range(0.75, 1.25),
-			rng.randf_range(0.30, 0.62),
+			rng.randf_range(0.34, 0.58),
 			rng.randf_range(0.75, 1.25)
 		))
 		var key := Vector2i(int(floor(x / chunk_size)), int(floor(z / chunk_size)))
 		if not chunks.has(key):
 			chunks[key] = []
-		(chunks[key] as Array).append(Transform3D(basis, Vector3(x, h - 0.03, z)))
+		var tint := rng.randf()
+		(chunks[key] as Array).append([Transform3D(basis, Vector3(x, h - 0.03, z)), tint])
 		placed += 1
 
 	for key in chunks:
 		var transforms: Array = chunks[key]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.use_colors = true
 		mm.mesh = tuft_mesh
 		mm.instance_count = transforms.size()
 		for i in transforms.size():
-			mm.set_instance_transform(i, transforms[i])
+			var entry: Array = transforms[i]
+			mm.set_instance_transform(i, entry[0])
+			mm.set_instance_color(i, Color(entry[1], entry[1], entry[1]))
 		var node := MultiMeshInstance3D.new()
 		node.multimesh = mm
 		node.material_override = material
@@ -74,7 +78,7 @@ func _make_tuft_mesh() -> ArrayMesh:
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
 
-	var half_w := 0.55
+	var half_w := 0.34
 
 	for k in 3:
 		var a := PI * float(k) / 3.0
@@ -83,8 +87,8 @@ func _make_tuft_mesh() -> ArrayMesh:
 
 		verts.append(dir * -half_w)
 		verts.append(dir * half_w)
-		verts.append(dir * half_w + Vector3(0.0, 1.0, 0.0))
-		verts.append(dir * -half_w + Vector3(0.0, 1.0, 0.0))
+		verts.append(dir * half_w + Vector3(0.0, 0.78, 0.0))
+		verts.append(dir * -half_w + Vector3(0.0, 0.78, 0.0))
 
 		for i in 4:
 			normals.append(Vector3.UP)

@@ -208,41 +208,48 @@ func _gen_leaf_atlas() -> void:
 # --- пучок травы: несколько изогнутых стеблей с альфой ---
 
 func _gen_grass_tuft() -> void:
-	var size := 256
+	var size := 512
 	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color(0, 0, 0, 0))
 
-	for blade in 12:
-		var base_x := _rng.randf_range(0.10, 0.90) * size
-		var tall := _rng.randf_range(0.55, 1.0)
+	for blade in 22:
+		var base_x := _rng.randf_range(0.08, 0.92) * size
+		var tall := _rng.randf_range(0.5, 1.0)
 		var bend := _rng.randf_range(-0.4, 0.4)
-		var width := _rng.randf_range(4.0, 8.0)
-		var tip_green := _rng.randf_range(0.30, 0.50)
-		var dark := _rng.randf_range(0.10, 0.20)
+		var width := _rng.randf_range(2.6, 5.5)
+		var tip_green := _rng.randf_range(0.32, 0.55)
+		var dark := _rng.randf_range(0.08, 0.18)
 
-		var steps := 140
+		var steps := 260
 		for i in steps:
 			var t := float(i) / float(steps)
 			var y := float(size) - t * float(size) * tall
 			var x := base_x + bend * float(size) * 0.32 * t * t
-			var r := width * (1.0 - t * 0.9) * 0.5
-			if r < 0.6:
-				r = 0.6
+			var r := width * (1.0 - t * 0.92) * 0.5
+			if r < 0.8:
+				r = 0.8
 			var shade := lerpf(dark, tip_green, t)
 			var col := Color(shade * 0.55, shade, shade * 0.33, 1.0)
 
-			for dy in range(int(-r), int(r) + 1):
-				for dx in range(int(-r), int(r) + 1):
+			for dy in range(int(-r) - 1, int(r) + 2):
+				for dx in range(int(-r) - 1, int(r) + 2):
 					var d := sqrt(float(dx * dx + dy * dy))
-					if d > r + 0.5:
-						continue
 					var px := int(x) + dx
 					var py := int(y) + dy
 					if px < 0 or py < 1 or px >= size or py >= size:
 						continue
-					var a := clampf(r - d + 0.5, 0.0, 1.0)
+					var a := clampf((r - d) * 1.4 + 0.5, 0.0, 1.0)
+					if a <= 0.0:
+						continue
 					var prev := img.get_pixel(px, py)
-					if a > prev.a:
-						img.set_pixel(px, py, Color(col.r, col.g, col.b, a))
+					var na := a + prev.a * (1.0 - a)
+					if na <= prev.a + 0.001:
+						continue
+					var rgb := Color(
+						(col.r * a + prev.r * prev.a * (1.0 - a)) / maxf(na, 0.001),
+						(col.g * a + prev.g * prev.a * (1.0 - a)) / maxf(na, 0.001),
+						(col.b * a + prev.b * prev.a * (1.0 - a)) / maxf(na, 0.001)
+					)
+					img.set_pixel(px, py, Color(rgb.r, rgb.g, rgb.b, na))
 
 	img.save_png(OUT + "grass_tuft.png")
