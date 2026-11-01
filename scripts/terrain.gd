@@ -5,24 +5,24 @@ extends Node3D
 ## Высоты считаются один раз в массив, меш и коллизия строятся из него же,
 ## поэтому визуал и физика всегда совпадают.
 
-const SIZE := 200.0
-const HALF := 100.0
+const SIZE := 340.0
+const HALF := 170.0
 const STEP := 1.0
-const GRID := 201
+const GRID := 341
 
 const WATER_LEVEL := -1.7
-const EDGE_RIVER_IN := 84.0
-const EDGE_RIVER_OUT := 97.0
-const EDGE_HILL_TOP := 105.0
+const EDGE_RIVER_IN := 143.0
+const EDGE_RIVER_OUT := 165.0
+const EDGE_HILL_TOP := 178.0
 
 var STREAMS := [
 	PackedVector2Array([
-		Vector2(-30, -70), Vector2(-18, -48), Vector2(-4, -28),
-		Vector2(10, -12), Vector2(24, -2), Vector2(33, 3),
+		Vector2(-44, -102), Vector2(-26, -70), Vector2(-6, -41),
+		Vector2(15, -17), Vector2(35, -3), Vector2(48, 4),
 	]),
 	PackedVector2Array([
-		Vector2(-55, -8), Vector2(-38, -2), Vector2(-20, 8),
-		Vector2(-2, 18), Vector2(16, 28), Vector2(31, 37), Vector2(38, 41),
+		Vector2(-80, -12), Vector2(-55, -3), Vector2(-29, 12),
+		Vector2(-3, 26), Vector2(23, 41), Vector2(45, 54), Vector2(55, 59),
 	]),
 ]
 const RIVER_BED := -4.2

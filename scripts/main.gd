@@ -15,10 +15,15 @@ const QualityScript := preload("res://libraries/quality.gd")
 const PerfOverlay := preload("res://scripts/perf_overlay.gd")
 const PostFXScript := preload("res://scripts/post_fx.gd")
 
-const TREE_COUNT := 950
-const WORLD_LIMIT := 89.0
-const WORLD_EDGE := 82.0
-const HUT_POS := Vector3(-34.0, 0.0, -52.0)
+const TREE_COUNT := 2600
+const WORLD_LIMIT := 152.0
+const WORLD_EDGE := 140.0
+const HUT_POS := Vector3(-58.0, 0.0, -88.0)
+const HUTS := [
+	{"pos": Vector3(-58.0, 0.0, -88.0), "main": true},
+	{"pos": Vector3(56.0, 0.0, -34.0), "main": false},
+	{"pos": Vector3(-22.0, 0.0, 92.0), "main": false},
+]
 
 const TREE_SHADER := preload("res://shaders/tree.gdshader")
 
@@ -41,6 +46,7 @@ var _encounters := [
 var _encounter_index := 0
 var _encounter_enemy = null
 var _path_points: Array[Vector3] = []
+var _paths: Array = []
 var _edge_cooldown := 0.0
 var _hut_parts: Dictionary = {}
 var _hut_door: Node3D
@@ -587,6 +593,10 @@ func _dead_tree(pos: Vector3) -> void:
 	_add_tree_collision(root, 0.2, h)
 
 func _build_path_strips() -> void:
+	for path in _paths:
+		_build_single_strip(path["points"])
+
+func _build_single_strip(_path_points: Array) -> void:
 	if _path_points.size() < 3:
 		return
 	var verts := PackedVector3Array()
@@ -742,8 +752,10 @@ func _build_puddles() -> void:
 		var use_path := _rng.randf() < 0.75 and _path_points.size() > 4
 		var x := 0.0
 		var z := 0.0
-		if use_path:
-			var p: Vector3 = _path_points[_rng.randi_range(0, _path_points.size() - 1)]
+		if use_path and not _paths.is_empty():
+			var path: Dictionary = _paths[_rng.randi_range(0, _paths.size() - 1)]
+			var pts: Array = path["points"]
+			var p: Vector3 = pts[_rng.randi_range(0, pts.size() - 1)]
 			x = p.x + _rng.randf_range(-2.2, 2.2)
 			z = p.z + _rng.randf_range(-1.4, 1.4)
 		else:
@@ -814,12 +826,14 @@ func _build_rocks() -> void:
 					_add_rock(transforms, q.x, q.y)
 
 	# тропа к избе
-	for i in range(0, _path_points.size(), 3):
-		var p: Vector3 = _path_points[i]
-		for k in [-1.0, 1.0]:
-			if _rng.randf() < 0.5:
-				continue
-			_add_rock(transforms, p.x + k * _rng.randf_range(2.0, 3.6), p.z)
+	for path in _paths:
+		var pts: Array = path["points"]
+		for i in range(0, pts.size(), 4):
+			var p: Vector3 = pts[i]
+			for k in [-1.0, 1.0]:
+				if _rng.randf() < 0.5:
+					continue
+				_add_rock(transforms, p.x + k * _rng.randf_range(2.0, 3.6), p.z)
 
 	# просто по лесу
 	for i in 150:
@@ -979,6 +993,14 @@ func _marker_birch(pos: Vector3, index: int = 0) -> void:
 	_add_tree_collision(root, 0.24, 7.0)
 
 func _near_path(x: float, z: float, radius: float) -> bool:
+	for path in _paths:
+		for i in range(0, (path["points"] as Array).size(), 6):
+			var p: Vector3 = path["points"][i]
+			if absf(p.x - x) < radius and absf(p.z - z) < radius:
+				return true
+	return _near_path_legacy(x, z, radius)
+
+func _near_path_legacy(x: float, z: float, radius: float) -> bool:
 	var step := 2
 	for i in range(0, _path_points.size(), step):
 		var p := _path_points[i]
@@ -1039,37 +1061,61 @@ func _build_bonfire() -> void:
 # --- тропа, изба, тьма по краю ---
 
 func _build_path() -> void:
-	var start := Vector3.ZERO
-	var control := Vector3(-6.0, 0.0, -26.0)
-	var end := Vector3(HUT_POS.x, 0.0, HUT_POS.z)
-	var count := 46
-	for i in count + 1:
-		var t := float(i) / float(count)
-		var p := start * (1.0 - t) * (1.0 - t) + control * 2.0 * (1.0 - t) * t + end * t * t
-		p.y = terrain.height_at(p.x, p.z)
-		_path_points.append(p)
+	_paths = [
+		{"from": Vector3(0.0, 0.0, 0.0), "control": Vector3(-14.0, 0.0, -46.0), "to": HUTS[0]["pos"], "count": 78},
+		{"from": Vector3(2.0, 0.0, 4.0), "control": Vector3(26.0, 0.0, -26.0), "to": HUTS[1]["pos"], "count": 60},
+		{"from": Vector3(-3.0, 0.0, 2.0), "control": Vector3(-32.0, 0.0, 42.0), "to": HUTS[2]["pos"], "count": 60},
+	]
 
+	for path in _paths:
+		var points: Array[Vector3] = []
+		var a: Vector3 = path["from"]
+		var control: Vector3 = path["control"]
+		var b: Vector3 = path["to"]
+		var count: int = path["count"]
+		for i in count + 1:
+			var t := float(i) / float(count)
+			var p := a * (1.0 - t) * (1.0 - t) + control * 2.0 * (1.0 - t) * t + b * t * t
+			p.y = terrain.height_at(p.x, p.z)
+			points.append(p)
+		path["points"] = points
+		if _path_points.is_empty():
+			_path_points = points
+
+	# маркерные берёзы вдоль каждой тропы
 	var marker := 0
-	for i in range(4, _path_points.size() - 3, 9):
-		var p := _path_points[i]
-		var dir := _path_points[i + 1] - _path_points[i - 1]
-		dir.y = 0.0
-		dir = dir.normalized()
-		var side := Vector3(-dir.z, 0.0, dir.x)
-		for s in [-1.0, 1.0]:
-			var pos: Vector3 = p + side * (2.3 * s)
-			pos.y = terrain.height_at(pos.x, pos.z)
-			if Vector2(pos.x - HUT_POS.x, pos.z - HUT_POS.z).length() < 9.0:
-				continue
-			_marker_birch(pos, marker)
-			marker += 1
+	for path in _paths:
+		var points: Array = path["points"]
+		for i in range(4, points.size() - 3, 9):
+			var p: Vector3 = points[i]
+			var prev_p: Vector3 = points[i - 1]
+			var next_p: Vector3 = points[i + 1]
+			var dir: Vector3 = next_p - prev_p
+			dir.y = 0.0
+			dir = dir.normalized()
+			var side := Vector3(-dir.z, 0.0, dir.x)
+			for sgn in [-1.0, 1.0]:
+				var pos: Vector3 = p + side * (2.3 * sgn)
+				pos.y = terrain.height_at(pos.x, pos.z)
+				var near_hut := false
+				for hut in HUTS:
+					if Vector2(pos.x - hut["pos"].x, pos.z - hut["pos"].z).length() < 10.0:
+						near_hut = true
+				if near_hut:
+					continue
+				_marker_birch(pos, marker)
+				marker += 1
 
 func _build_hut() -> void:
-	var pos := Vector3(HUT_POS.x, terrain.height_at(HUT_POS.x, HUT_POS.z), HUT_POS.z)
-	_hut_parts = HutScript.build(self, pos, deg_to_rad(35.0))
-	_hut_door = _hut_parts["door"]
-	_hut_hearth_pos = _hut_parts["hearth"].global_position
-	_amulet = _hut_parts["amulet"]
+	for hut in HUTS:
+		var hp: Vector3 = hut["pos"]
+		var hpos := Vector3(hp.x, terrain.height_at(hp.x, hp.z), hp.z)
+		var parts := HutScript.build(self, hpos, deg_to_rad(35.0 + float(hut["main"]) * 0.0))
+		if hut["main"]:
+			_hut_parts = parts
+			_hut_door = parts["door"]
+			_hut_hearth_pos = parts["hearth"].global_position
+			_amulet = parts["amulet"]
 	_checkpoint = Vector3(2.8, terrain.height_at(2.8, 5.4) + 0.25, 5.4)
 
 func _build_boundary() -> void:
