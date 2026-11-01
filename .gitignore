@@ -8,3 +8,7 @@ export_presets.cfg
 
 # сборки
 build/
+
+# референсы: картинки локально, в репозиторий не идут
+references/*
+!references/README.md
