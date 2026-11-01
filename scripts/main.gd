@@ -261,7 +261,9 @@ func _build_environment() -> void:
 	moon.rotation_degrees = Vector3(-46, 28, 0)
 	moon.light_color = Color(0.50, 0.64, 0.92)
 	moon.light_energy = 1.3
-	moon.shadow_enabled = true
+	moon.shadow_enabled = OS.get_environment("TROPA_NO_SHADOWS") != "1"
+	moon.directional_shadow_max_distance = 55.0
+	moon.shadow_blur = 1.4
 	moon.directional_shadow_max_distance = 80.0
 	moon.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_AND_SKY
 	add_child(moon)
@@ -276,7 +278,8 @@ func _build_terrain() -> void:
 	var grass = GrassScript.new()
 	grass.name = "Grass"
 	add_child(grass)
-	grass.populate(terrain, 120000, 46.0)
+	if OS.get_environment("TROPA_NO_GRASS") != "1":
+		grass.populate(terrain, 120000, 46.0)
 
 # --- лес ---
 
@@ -314,7 +317,7 @@ func _create_tree_materials() -> void:
 	for i in SPECIES.size():
 		for v in 2:
 			var mesh := TreeLibScript.build(SPECIES[i], 1000 + i * 17 + v * 5, false)
-			var simple_mesh := TreeLibScript.build(SPECIES[i], 1000 + i * 17 + v * 5, true)
+			var simple_mesh := mesh
 			var material := _mat_dark if SPECIES[i] in ["cedar", "spruce", "willow"] else _mat_light
 			_tree_variants.append({
 				"mesh": mesh,
@@ -819,27 +822,29 @@ func _finish_trees() -> void:
 	var simple_nodes := 0
 	for key in _tree_chunks:
 		var lists: Array = _tree_chunks[key]
+		var origin := Vector3(float(key.x) * TREE_CHUNK, 0.0, float(key.y) * TREE_CHUNK)
 		for i in lists.size():
 			var transforms: Array = lists[i]
 			if transforms.is_empty():
 				continue
 			var variant: Dictionary = _tree_variants[i]
-			_spawn_mm(variant["mesh"], variant["material"], transforms, 0.0, 85.0)
-			_spawn_mm(variant["simple_mesh"], variant["material"], transforms, 80.0, 170.0)
+			_spawn_mm(variant["mesh"], variant["material"], transforms, origin, 0.0, 52.0)
 			detail_nodes += 1
 			simple_nodes += 1
 	print("[trees lod] detail: ", detail_nodes, " simple: ", simple_nodes)
 
-func _spawn_mm(mesh: Mesh, material: Material, transforms: Array, begin: float, end: float) -> void:
+func _spawn_mm(mesh: Mesh, material: Material, transforms: Array, origin: Vector3, begin: float, end: float) -> void:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = mesh
 	mm.instance_count = transforms.size()
 	for j in transforms.size():
-		mm.set_instance_transform(j, transforms[j])
+		var t: Transform3D = transforms[j]
+		mm.set_instance_transform(j, Transform3D(t.basis, t.origin - origin))
 	var node := MultiMeshInstance3D.new()
 	node.multimesh = mm
 	node.material_override = material
+	node.position = origin
 	if end > 0.0:
 		node.visibility_range_end = end
 		node.visibility_range_end_margin = 6.0

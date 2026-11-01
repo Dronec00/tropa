@@ -53,6 +53,7 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> voi
 
 	for key in chunks:
 		var transforms: Array = chunks[key]
+		var origin := Vector3(float(key.x) * chunk_size, 0.0, float(key.y) * chunk_size)
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
 		mm.use_colors = true
@@ -60,14 +61,16 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> voi
 		mm.instance_count = transforms.size()
 		for i in transforms.size():
 			var entry: Array = transforms[i]
-			mm.set_instance_transform(i, entry[0])
+			var t: Transform3D = entry[0]
+			mm.set_instance_transform(i, Transform3D(t.basis, t.origin - origin))
 			mm.set_instance_color(i, Color(entry[1], entry[2], 0.0))
 		var node := MultiMeshInstance3D.new()
 		node.multimesh = mm
 		node.material_override = material
+		node.position = origin
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		node.visibility_range_end = radius + 18.0
-		node.visibility_range_end_margin = 8.0
+		node.visibility_range_end = minf(radius + 18.0, 42.0)
+		node.visibility_range_end_margin = 5.0
 		add_child(node)
 
 	multimesh = null
