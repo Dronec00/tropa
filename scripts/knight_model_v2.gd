@@ -854,6 +854,8 @@ class StackAnimator extends Node:
 	var _cape_rest: Array[Vector3] = []
 	var _rest: Dictionary = {}
 	var _frames: Array[Dictionary] = []
+	var _frames_chop: Array[Dictionary] = []
+	var _frames_thrust: Array[Dictionary] = []
 
 	var _time: float = 0.0
 	var _idle_time: float = 0.0
@@ -923,7 +925,8 @@ class StackAnimator extends Node:
 	func play_attack(variant: int = 0) -> void:
 		_attacking = true
 		_attack_time = 0.0
-		_mirror = (variant % 2) == 1
+		_mirror = variant == 2
+		_frames = _frames_thrust if variant == 1 else _frames_chop
 
 	func set_block(active: bool) -> void:
 		_block = active
@@ -931,8 +934,111 @@ class StackAnimator extends Node:
 	# --- кадры удара ---
 
 	func _build_attack_frames() -> void:
-		# Смещения относительно позы покоя. Удар с шагом вперёд правой ногой.
-		_frames = [
+		_build_thrust()
+		_build_chop()
+		_frames = _frames_chop
+
+	func _build_chop() -> void:
+		# Рубящий сверху: меч уходит над головой и падает вниз перед собой.
+		_frames_chop = [
+			{
+				"t": 0.0,
+				"sh_r": Vector3.ZERO, "el_r": Vector3.ZERO, "wr_r": Vector3.ZERO,
+				"sh_l": Vector3.ZERO, "el_l": Vector3.ZERO, "wr_l": Vector3.ZERO,
+				"torso": Vector3.ZERO, "head": Vector3.ZERO,
+				"hips_rot": Vector3.ZERO, "hips_pos": Vector3.ZERO,
+				"thigh_r": Vector3.ZERO, "knee_r": Vector3.ZERO, "ankle_r": Vector3.ZERO,
+				"thigh_l": Vector3.ZERO, "knee_l": Vector3.ZERO, "ankle_l": Vector3.ZERO,
+			},
+			{
+				"t": 0.20,
+				"sh_r": Vector3(-2.05, 0.06, -0.10),
+				"el_r": Vector3(-0.60, 0.0, 0.0),
+				"wr_r": Vector3(0.55, 0.0, 0.0),
+				"sh_l": Vector3(-0.30, -0.10, -0.10),
+				"el_l": Vector3(-0.35, 0.0, 0.0),
+				"wr_l": Vector3.ZERO,
+				"torso": Vector3(-0.18, 0.12, 0.02),
+				"head": Vector3(-0.12, -0.05, 0.0),
+				"hips_rot": Vector3(0.0, 0.06, 0.0),
+				"hips_pos": Vector3(0.0, -0.02, 0.04),
+				"thigh_r": Vector3(0.10, 0.0, 0.0), "knee_r": Vector3(-0.12, 0.0, 0.0), "ankle_r": Vector3(0.0, 0.0, 0.0),
+				"thigh_l": Vector3(-0.14, 0.0, 0.0), "knee_l": Vector3(-0.18, 0.0, 0.0), "ankle_l": Vector3(0.06, 0.0, 0.0),
+			},
+			{
+				"t": 0.32,
+				"sh_r": Vector3(-2.20, 0.08, -0.12),
+				"el_r": Vector3(-0.75, 0.0, 0.0),
+				"wr_r": Vector3(0.70, 0.0, 0.0),
+				"sh_l": Vector3(-0.36, -0.12, -0.12),
+				"el_l": Vector3(-0.45, 0.0, 0.0),
+				"wr_l": Vector3.ZERO,
+				"torso": Vector3(-0.24, 0.16, 0.03),
+				"head": Vector3(-0.16, -0.06, 0.0),
+				"hips_rot": Vector3(0.0, 0.08, 0.0),
+				"hips_pos": Vector3(0.0, -0.03, 0.05),
+				"thigh_r": Vector3(0.12, 0.0, 0.0), "knee_r": Vector3(-0.14, 0.0, 0.0), "ankle_r": Vector3(0.0, 0.0, 0.0),
+				"thigh_l": Vector3(-0.16, 0.0, 0.0), "knee_l": Vector3(-0.20, 0.0, 0.0), "ankle_l": Vector3(0.08, 0.0, 0.0),
+			},
+			{
+				"t": 0.46,
+				"sh_r": Vector3(1.05, 0.04, 0.0),
+				"el_r": Vector3(-0.18, 0.0, 0.0),
+				"wr_r": Vector3(-0.85, 0.0, 0.0),
+				"sh_l": Vector3(-0.10, 0.0, 0.06),
+				"el_l": Vector3(0.10, 0.0, 0.0),
+				"wr_l": Vector3.ZERO,
+				"torso": Vector3(0.34, -0.06, -0.02),
+				"head": Vector3(0.16, 0.04, 0.0),
+				"hips_rot": Vector3(0.0, -0.05, 0.0),
+				"hips_pos": Vector3(0.0, -0.06, -0.12),
+				"thigh_r": Vector3(0.52, 0.0, 0.0), "knee_r": Vector3(-0.34, 0.0, 0.0), "ankle_r": Vector3(0.12, 0.0, 0.0),
+				"thigh_l": Vector3(-0.32, 0.0, 0.0), "knee_l": Vector3(-0.16, 0.0, 0.0), "ankle_l": Vector3(-0.06, 0.0, 0.0),
+			},
+			{
+				"t": 0.58,
+				"sh_r": Vector3(1.40, 0.06, 0.02),
+				"el_r": Vector3(-0.10, 0.0, 0.0),
+				"wr_r": Vector3(-1.00, 0.0, 0.0),
+				"sh_l": Vector3(-0.06, 0.0, 0.04),
+				"el_l": Vector3(0.08, 0.0, 0.0),
+				"wr_l": Vector3.ZERO,
+				"torso": Vector3(0.42, -0.08, -0.03),
+				"head": Vector3(0.20, 0.05, 0.0),
+				"hips_rot": Vector3(0.0, -0.04, 0.0),
+				"hips_pos": Vector3(0.0, -0.07, -0.13),
+				"thigh_r": Vector3(0.50, 0.0, 0.0), "knee_r": Vector3(-0.30, 0.0, 0.0), "ankle_r": Vector3(0.10, 0.0, 0.0),
+				"thigh_l": Vector3(-0.30, 0.0, 0.0), "knee_l": Vector3(-0.14, 0.0, 0.0), "ankle_l": Vector3(-0.04, 0.0, 0.0),
+			},
+			{
+				"t": 0.80,
+				"sh_r": Vector3(0.40, 0.02, 0.0),
+				"el_r": Vector3(-0.06, 0.0, 0.0),
+				"wr_r": Vector3(-0.30, 0.0, 0.0),
+				"sh_l": Vector3(-0.02, 0.0, 0.01),
+				"el_l": Vector3(0.04, 0.0, 0.0),
+				"wr_l": Vector3.ZERO,
+				"torso": Vector3(0.14, -0.03, -0.01),
+				"head": Vector3(0.07, 0.02, 0.0),
+				"hips_rot": Vector3(0.0, -0.01, 0.0),
+				"hips_pos": Vector3(0.0, -0.02, -0.04),
+				"thigh_r": Vector3(0.18, 0.0, 0.0), "knee_r": Vector3(-0.10, 0.0, 0.0), "ankle_r": Vector3(0.04, 0.0, 0.0),
+				"thigh_l": Vector3(-0.10, 0.0, 0.0), "knee_l": Vector3(-0.06, 0.0, 0.0), "ankle_l": Vector3(0.0, 0.0, 0.0),
+			},
+			{
+				"t": 1.0,
+				"sh_r": Vector3.ZERO, "el_r": Vector3.ZERO, "wr_r": Vector3.ZERO,
+				"sh_l": Vector3.ZERO, "el_l": Vector3.ZERO, "wr_l": Vector3.ZERO,
+				"torso": Vector3.ZERO, "head": Vector3.ZERO,
+				"hips_rot": Vector3.ZERO, "hips_pos": Vector3.ZERO,
+				"thigh_r": Vector3.ZERO, "knee_r": Vector3.ZERO, "ankle_r": Vector3.ZERO,
+				"thigh_l": Vector3.ZERO, "knee_l": Vector3.ZERO, "ankle_l": Vector3.ZERO,
+			},
+		]
+
+	func _build_thrust() -> void:
+		# Смещения относительно позы покоя. Прежний удар с шагом вперёд правой ногой.
+		_frames_thrust = [
 			{
 				"t": 0.0,
 				"sh_r": Vector3.ZERO, "el_r": Vector3.ZERO, "wr_r": Vector3.ZERO,
