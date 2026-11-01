@@ -8,7 +8,7 @@ uniform float wind_strength = 0.16;
 
 varying vec3 v_world;
 uniform float wind_speed = 1.35;
-uniform float topdown_fade = 0.42;
+uniform float topdown_fade = 0.30;
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -38,7 +38,7 @@ void fragment() {
 	// взгляд сверху: часть стеблей убираем, чтобы трава не закрывала обзор
 	vec3 to_cam = normalize(v_world - CAMERA_POSITION_WORLD);
 	float look_down = clamp(-to_cam.y, 0.0, 1.0);
-	float thin = smoothstep(0.45, 0.95, look_down) * topdown_fade;
+	float thin = smoothstep(0.60, 1.0, look_down) * topdown_fade;
 	float dither = fract(sin(dot(floor(FRAGCOORD.xy * 0.75), vec2(12.9898, 78.233))) * 43758.5453);
 	if (dither < thin) {
 		discard;

@@ -212,25 +212,30 @@ func _build_mesh() -> void:
 	_mesh = ArrayMesh.new()
 	_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-	var material := StandardMaterial3D.new()
-	material.vertex_color_use_as_albedo = true
-	material.roughness = 1.0
-	material.uv1_scale = Vector3(4.0, 4.0, 1.0)
-
-	if ResourceLoader.exists("res://assets/textures/photo/ground_color.jpg"):
-		material.albedo_color = Color(0.95, 0.66, 0.44)
-		material.albedo_texture = load("res://assets/textures/photo/ground_color.jpg")
-		material.roughness_texture = load("res://assets/textures/photo/ground_rough.jpg")
-		material.normal_enabled = true
-		material.normal_texture = load("res://assets/textures/photo/ground_normal.jpg")
-		material.normal_scale = 1.0
-	elif ResourceLoader.exists("res://assets/textures/ground_albedo.png"):
-		material.albedo_texture = load("res://assets/textures/ground_albedo.png")
-		material.roughness_texture = load("res://assets/textures/ground_rough.png")
-		material.normal_enabled = true
-		material.normal_texture = load("res://assets/textures/ground_normal.png")
-		material.normal_scale = 0.9
-	material.metallic_specular = 0.0
+	var material: Material
+	if ResourceLoader.exists("res://assets/textures/photo4k/ground_a_color.jpg"):
+		var mat := ShaderMaterial.new()
+		mat.shader = load("res://shaders/ground.gdshader")
+		mat.set_shader_parameter("albedo_a", load("res://assets/textures/photo4k/ground_a_color.jpg"))
+		mat.set_shader_parameter("albedo_b", load("res://assets/textures/photo4k/ground_b_color.jpg"))
+		mat.set_shader_parameter("normal_a", load("res://assets/textures/photo4k/ground_a_normal.jpg"))
+		mat.set_shader_parameter("normal_b", load("res://assets/textures/photo4k/ground_b_normal.jpg"))
+		mat.set_shader_parameter("rough_a", load("res://assets/textures/photo4k/ground_a_rough.jpg"))
+		mat.set_shader_parameter("rough_b", load("res://assets/textures/photo4k/ground_b_rough.jpg"))
+		mat.set_shader_parameter("tint", Color(0.85, 0.71, 0.52))
+		material = mat
+	else:
+		var std := StandardMaterial3D.new()
+		std.vertex_color_use_as_albedo = true
+		std.roughness = 1.0
+		std.uv1_scale = Vector3(4.0, 4.0, 1.0)
+		if ResourceLoader.exists("res://assets/textures/photo/ground_color.jpg"):
+			std.albedo_color = Color(0.95, 0.66, 0.44)
+			std.albedo_texture = load("res://assets/textures/photo/ground_color.jpg")
+			std.roughness_texture = load("res://assets/textures/photo/ground_rough.jpg")
+			std.normal_enabled = true
+			std.normal_texture = load("res://assets/textures/photo/ground_normal.jpg")
+		material = std
 	_mesh.surface_set_material(0, material)
 
 	var view := MeshInstance3D.new()
