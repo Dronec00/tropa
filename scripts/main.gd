@@ -424,7 +424,7 @@ func _build_undergrowth() -> void:
 		(bush_lists[idx] as Array).append(Transform3D(basis, Vector3(x, h, z)))
 
 	for i in 2:
-		_spawn_multimesh(bush_meshes[i], _mat_light, bush_lists[i])
+		_spawn_multimesh(bush_meshes[i], _mat_dark, bush_lists[i])
 	print("[bushes] ", bush_lists[0].size() + bush_lists[1].size())
 
 func _add_rock(list: Array, x: float, z: float) -> void:
