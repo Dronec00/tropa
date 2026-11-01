@@ -10,6 +10,7 @@ const HutScript := preload("res://scripts/hut.gd")
 const LabStateScript := preload("res://scripts/lab_state.gd")
 const PauseScript := preload("res://scripts/pause_menu.gd")
 const BonfireScript := preload("res://libraries/bonfire.gd")
+const PerfOverlay := preload("res://scripts/perf_overlay.gd")
 
 const TREE_COUNT := 950
 const WORLD_LIMIT := 89.0
@@ -87,6 +88,8 @@ func _ready() -> void:
 	_build_rocks()
 	_spawn_player()
 	_build_hud()
+	var perf := PerfOverlay.new()
+	add_child(perf)
 	var pause = PauseScript.new()
 	add_child(pause)
 	pause.game = self
@@ -239,8 +242,9 @@ func _build_environment() -> void:
 	env.adjustment_brightness = 0.96
 
 	# SDFGI: мягкий отражённый свет. Энергию держим низкой, иначе ночь пересвечивает.
-	env.sdfgi_enabled = true
-	env.sdfgi_cascades = 2
+	var sdfgi_mode := OS.get_environment("TROPA_SDFGI")
+	env.sdfgi_enabled = sdfgi_mode != "off"
+	env.sdfgi_cascades = 1
 	env.sdfgi_min_cell_size = 0.15
 	env.sdfgi_energy = 0.22
 	env.sdfgi_use_occlusion = true
