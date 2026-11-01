@@ -24,29 +24,7 @@ var STREAMS := [
 ]
 const RIVER_BED := -4.2
 
-const WATER_SHADER := """
-shader_type spatial;
-render_mode blend_mix, depth_draw_never, cull_disabled, specular_schlick_ggx;
-
-uniform vec4 shallow_color : source_color = vec4(0.13, 0.21, 0.22, 1.0);
-uniform vec4 deep_color : source_color = vec4(0.02, 0.06, 0.07, 1.0);
-uniform sampler2D ripple : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform float flow = 0.035;
-
-void fragment() {
-	vec2 uv_a = UV * vec2(5.0, 1.6) + vec2(TIME * flow, TIME * flow * 2.0);
-	vec2 uv_b = UV * vec2(2.4, 0.9) - vec2(TIME * flow * 0.7, TIME * flow * 1.3);
-	vec3 n_a = texture(ripple, uv_a).xyz * 2.0 - 1.0;
-	vec3 n_b = texture(ripple, uv_b).xyz * 2.0 - 1.0;
-	NORMAL = normalize(vec3((n_a.x + n_b.x) * 0.55, 1.0, (n_a.y + n_b.y) * 0.55));
-	float fres = pow(1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0), 2.5);
-	ALBEDO = mix(deep_color.rgb, shallow_color.rgb, fres * 0.8 + 0.15);
-	ALPHA = 0.92;
-	ROUGHNESS = 0.04;
-	SPECULAR = 0.8;
-	EMISSION = shallow_color.rgb * fres * 0.35;
-}
-"""
+const WATER_SHADER := preload("res://shaders/water.gdshader")
 
 var _heights := PackedFloat32Array()
 var _noise := FastNoiseLite.new()
@@ -280,8 +258,7 @@ func _build_water() -> void:
 	var water_mesh := ArrayMesh.new()
 	water_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-	var shader := Shader.new()
-	shader.code = WATER_SHADER
+	var shader: Shader = WATER_SHADER
 
 	var material := ShaderMaterial.new()
 	material.shader = shader
@@ -294,8 +271,7 @@ func _build_water() -> void:
 	add_child(water)
 
 func _build_streams() -> void:
-	var shader := Shader.new()
-	shader.code = WATER_SHADER
+	var shader: Shader = WATER_SHADER
 	var material := ShaderMaterial.new()
 	material.shader = shader
 	material.set_shader_parameter("ripple", _make_ripple_texture())

@@ -15,58 +15,7 @@ const WORLD_LIMIT := 92.0
 const WORLD_EDGE := 82.0
 const HUT_POS := Vector3(-34.0, 0.0, -52.0)
 
-const TREE_SHADER := """
-shader_type spatial;
-render_mode cull_disabled;
-
-uniform sampler2D bark_tex : source_color, filter_linear_mipmap, repeat_enable;
-uniform sampler2D leaf_tex : source_color, filter_linear_mipmap, repeat_disable;
-uniform float wind = 0.22;
-
-global uniform vec3 player_pos;
-
-varying float v_height;
-varying float v_leaf;
-varying vec3 v_world;
-
-void vertex() {
-	v_height = UV2.x;
-	v_leaf = UV2.y;
-	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	v_world = world;
-
-	float phase = world.x * 0.22 + world.z * 0.19;
-	float gust = 0.62 + 0.38 * sin(TIME * 0.33 + world.x * 0.02);
-	float sway = (sin(TIME * 0.9 + phase) + 0.4 * sin(TIME * 2.3 + phase * 1.7)) * gust;
-	float amount = v_height * v_height;
-	VERTEX.x += sway * wind * amount;
-	VERTEX.z += sway * wind * 0.55 * amount;
-
-	vec3 to_player = world - player_pos;
-	float d = length(to_player.xz);
-	float push = smoothstep(2.8, 0.6, d);
-	vec2 dir = normalize(to_player.xz + vec2(0.001));
-	VERTEX.x += dir.x * push * 0.2 * v_height;
-	VERTEX.z += dir.y * push * 0.2 * v_height;
-}
-
-void fragment() {
-	vec3 albedo;
-	if (v_leaf > 0.5) {
-		vec4 c = texture(leaf_tex, UV);
-		if (c.a < 0.35) {
-			discard;
-		}
-		albedo = COLOR.rgb * c.rgb * 2.2;
-	} else {
-		albedo = COLOR.rgb * texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.5;
-	}
-	float variation = 0.88 + 0.12 * sin(v_world.x * 0.7 + v_world.z * 0.6);
-	ALBEDO = albedo * variation;
-	ROUGHNESS = 1.0;
-	BACKLIGHT = COLOR.rgb * 0.4;
-}
-"""
+const TREE_SHADER := preload("res://shaders/tree.gdshader")
 
 var player
 var hud
@@ -101,6 +50,7 @@ const SPECIES := ["birch", "birch_multi", "oak", "ash", "cedar", "spruce", "will
 var _tree_shader: Shader
 var _mat_light: ShaderMaterial
 var _mat_dark: ShaderMaterial
+var _mat_fern: ShaderMaterial
 var _tree_variants: Array = []
 var _tree_instances: Array = []
 var _soul_orb: Node3D
@@ -252,6 +202,10 @@ func _build_environment() -> void:
 	env.ssao_enabled = true
 	env.ssao_intensity = 1.1
 	env.ssao_radius = 1.4
+	env.ssr_enabled = true
+	env.ssr_max_steps = 48
+	env.ssr_fade_in = 0.15
+	env.ssr_fade_out = 2.0
 	env.glow_enabled = true
 	env.glow_intensity = 0.42
 	env.glow_bloom = 0.08
@@ -295,8 +249,7 @@ func _build_terrain() -> void:
 # --- лес ---
 
 func _create_tree_materials() -> void:
-	_tree_shader = Shader.new()
-	_tree_shader.code = TREE_SHADER
+	_tree_shader = TREE_SHADER
 
 	var bark_light: Texture2D = null
 	var bark_dark: Texture2D = null
@@ -310,6 +263,8 @@ func _create_tree_materials() -> void:
 
 	_mat_light = _make_tree_material(bark_light, leaf)
 	_mat_dark = _make_tree_material(bark_dark, leaf)
+	_mat_fern = _make_tree_material(bark_dark, leaf)
+	_mat_fern.set_shader_parameter("wind", 0.42)
 
 	for i in SPECIES.size():
 		for v in 2:
@@ -462,7 +417,7 @@ func _build_ferns() -> void:
 		(lists[idx] as Array).append(Transform3D(basis, Vector3(x, h, z)))
 
 	for i in 2:
-		_spawn_multimesh(meshes[i], _mat_dark, lists[i])
+		_spawn_multimesh(meshes[i], _mat_fern, lists[i])
 	print("[ferns] ", lists[0].size() + lists[1].size())
 
 func _build_bog() -> void:
