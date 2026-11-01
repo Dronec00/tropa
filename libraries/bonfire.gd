@@ -29,7 +29,7 @@ static func build(parent: Node3D, pos: Vector3) -> Dictionary:
 
 static func _add_ash(root: Node3D) -> void:
 	var ash_mat := StandardMaterial3D.new()
-	ash_mat.albedo_color = Color(0.30, 0.285, 0.27, 0.62)
+	ash_mat.albedo_color = Color(0.26, 0.24, 0.21, 0.38)
 	ash_mat.roughness = 1.0
 	ash_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	ash_mat.albedo_texture = _soft_texture()
@@ -38,8 +38,8 @@ static func _add_ash(root: Node3D) -> void:
 
 	var disc := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.92
-	cyl.bottom_radius = 0.85
+	cyl.top_radius = 0.78
+	cyl.bottom_radius = 0.72
 	cyl.height = 0.02
 	cyl.radial_segments = 32
 	disc.mesh = cyl
@@ -47,20 +47,6 @@ static func _add_ash(root: Node3D) -> void:
 	disc.position.y = 0.012
 	root.add_child(disc)
 
-	var char_mat := StandardMaterial3D.new()
-	char_mat.albedo_color = Color(0.055, 0.05, 0.045)
-	char_mat.roughness = 1.0
-	for i in 5:
-		var patch := MeshInstance3D.new()
-		var p := CylinderMesh.new()
-		p.top_radius = 0.22 + float(i % 3) * 0.06
-		p.bottom_radius = p.top_radius
-		p.height = 0.02
-		patch.mesh = p
-		patch.material_override = char_mat
-		var a := TAU * float(i) / 5.0 + 0.4
-		patch.position = Vector3(cos(a) * 0.35, 0.03, sin(a) * 0.35)
-		root.add_child(patch)
 
 # --- камни ---
 
@@ -82,8 +68,8 @@ static func _add_stones(root: Node3D) -> void:
 		var r := 0.92 + float(i % 3) * 0.05
 		var entry := {
 			"seed": 5100 + i * 53,
-			"radius": 0.13 + float(i % 4) * 0.025,
-			"squash": 0.55 + float(i % 3) * 0.08,
+			"radius": 0.10 + float(i % 4) * 0.02,
+			"squash": 0.62 + float(i % 3) * 0.07,
 			"yaw": a,
 		}
 		var mesh := ObjectLibrary.make_stone(entry)
@@ -282,11 +268,11 @@ static func _add_flames(root: Node3D) -> Node3D:
 	bed_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	bed_mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	bed_mat.albedo_texture = soft
-	bed_mat.albedo_color = Color(1.6, 0.55, 0.12, 0.55)
+	bed_mat.albedo_color = Color(1.1, 0.38, 0.09, 0.22)
 	var bed := MeshInstance3D.new()
 	var bed_mesh := CylinderMesh.new()
-	bed_mesh.top_radius = 0.42
-	bed_mesh.bottom_radius = 0.42
+	bed_mesh.top_radius = 0.28
+	bed_mesh.bottom_radius = 0.28
 	bed_mesh.height = 0.01
 	bed_mesh.radial_segments = 20
 	bed.mesh = bed_mesh

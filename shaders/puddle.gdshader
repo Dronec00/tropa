@@ -3,11 +3,11 @@ render_mode blend_mix, depth_draw_never, cull_disabled, specular_schlick_ggx;
 
 uniform sampler2D ripple : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform vec4 water_color : source_color = vec4(0.020, 0.030, 0.038, 1.0);
-uniform vec4 sheen_color : source_color = vec4(0.16, 0.20, 0.26, 1.0);
+uniform vec4 sheen_color : source_color = vec4(0.10, 0.13, 0.17, 1.0);
 uniform float ripple_scale = 6.0;
 uniform float flow = 0.02;
 uniform float edge_softness = 0.45;
-uniform float opacity = 0.93;
+uniform float opacity = 0.80;
 uniform vec3 moon_dir = vec3(0.45, 0.55, -0.70);
 uniform float moon_intensity = 1.0;
 uniform float rain = 0.0;
