@@ -45,10 +45,12 @@ void sky() {
 	float h = clamp(dir.y, 0.0, 1.0);
 	vec3 col = mix(horizon_color, top_color, pow(h, 0.55));
 
-	// облака: шум на плоскости, снесённый по высоте
-	vec2 cuv = dir.xz / max(dir.y, 0.10) * cloud_scale + vec2(TIME * 0.004, TIME * 0.0015);
-	float n = fbm(cuv);
-	float cover = smoothstep(0.42, 0.78, n) * smoothstep(0.02, 0.22, dir.y);
+	// облака: два слоя с разной скоростью — нижний быстрее, верхний медленнее
+	vec2 plane = dir.xz / max(dir.y, 0.10);
+	vec2 cuv_a = plane * cloud_scale + vec2(TIME * 0.038, TIME * 0.010);
+	vec2 cuv_b = plane * cloud_scale * 1.9 + vec2(TIME * 0.019, TIME * 0.006);
+	float n = fbm(cuv_a) * 0.65 + fbm(cuv_b) * 0.45;
+	float cover = smoothstep(0.40, 0.76, n) * smoothstep(0.02, 0.22, dir.y);
 
 	// луна
 	vec3 mdir = normalize(moon_dir);
