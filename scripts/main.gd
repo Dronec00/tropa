@@ -800,14 +800,6 @@ func _build_puddles() -> void:
 func _build_rocks() -> void:
 	var transforms: Array = []
 
-	# берега реки
-	for z in range(-90, 91, 5):
-		var c: float = terrain.river_center(float(z))
-		for side in [-1.0, 1.0]:
-			if _rng.randf() < 0.45:
-				continue
-			_add_rock(transforms, c + side * _rng.randf_range(8.5, 12.0), float(z))
-
 	# берега ручьёв
 	for stream in terrain.stream_points():
 		for i in stream.size() - 1:

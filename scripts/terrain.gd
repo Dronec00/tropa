@@ -46,7 +46,7 @@ func _ready() -> void:
 
 	_generate_heights()
 	_build_mesh()
-	_build_water()
+	pass
 	_build_streams()
 	_build_edge_river()
 
@@ -55,9 +55,9 @@ func _ready() -> void:
 func river_center(z: float) -> float:
 	return 30.0 + 7.0 * sin(z * 0.015 + 0.6) + 3.0 * sin(z * 0.05)
 
-func river_influence(x: float, z: float) -> float:
-	var d := absf(x - river_center(z))
-	return 1.0 - smoothstep(7.0, 15.0, d)
+func river_influence(_x: float, _z: float) -> float:
+	# Большая река убрана: остались только ручьи и кольцевая река по краю мира.
+	return 0.0
 
 func _raw_height(x: float, z: float) -> float:
 	var h := 2.5 + _noise.get_noise_2d(x, z) * 9.0
@@ -131,9 +131,10 @@ func stream_distance(x: float, z: float) -> float:
 	return best
 
 func is_water(x: float, z: float) -> bool:
-	if Vector2(x, z).length() > EDGE_RIVER_IN - 1.0 and Vector2(x, z).length() < EDGE_RIVER_OUT:
+	var r := Vector2(x, z).length()
+	if r > EDGE_RIVER_IN - 1.0 and r < EDGE_RIVER_OUT:
 		return true
-	if absf(x - river_center(z)) > 16.0:
+	if stream_distance(x, z) > 5.0:
 		return false
 	return height_at(x, z) < WATER_LEVEL
 
@@ -320,9 +321,6 @@ func _build_streams() -> void:
 
 		for i in samples.size():
 			var p: Vector2 = samples[i]
-			# ручей заканчивается на берегу реки, не заходя в русло
-			if absf(p.x - river_center(p.y)) < 8.6:
-				break
 			var prev: Vector2 = samples[maxi(i - 1, 0)]
 			var next: Vector2 = samples[mini(i + 1, samples.size() - 1)]
 			var dir := (next - prev).normalized()
