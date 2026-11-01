@@ -5,6 +5,7 @@ const EnemyScene := preload("res://scenes/enemy.tscn")
 const HudScript := preload("res://scripts/hud.gd")
 const TerrainScript := preload("res://scripts/terrain.gd")
 const GrassScript := preload("res://scripts/grass.gd")
+const WindScript := preload("res://scripts/wind.gd")
 
 const TREE_COUNT := 240
 const WORLD_LIMIT := 92.0
@@ -41,6 +42,9 @@ func _process(delta: float) -> void:
 	_time += delta
 	if _fire_light:
 		_fire_light.light_energy = 2.3 + sin(_time * 9.0) * 0.35 + sin(_time * 23.0) * 0.12
+
+	WindScript.strength = 0.75 + sin(_time * 0.4) * 0.25 + sin(_time * 1.9) * 0.1
+	WindScript.direction = Vector3(0.8, 0.0, 0.6).normalized().rotated(Vector3.UP, sin(_time * 0.11) * 0.5)
 
 	if _soul_orb and is_instance_valid(_soul_orb):
 		_soul_orb.rotate_y(delta * 1.6)
@@ -371,10 +375,16 @@ func _spawn_player() -> void:
 func _spawn_enemies() -> void:
 	_spawn_points = [
 		{"pos": Vector2(15.0, -13.0), "kind": "wolf"},
-		{"pos": Vector2(-24.0, -20.0), "kind": "leshy"},
-		{"pos": Vector2(30.0, 16.0), "kind": "kikimora"},
 		{"pos": Vector2(-18.0, 24.0), "kind": "wolf"},
+		{"pos": Vector2(-24.0, -20.0), "kind": "leshy"},
 		{"pos": Vector2(9.0, -34.0), "kind": "leshy"},
+		{"pos": Vector2(20.0, 18.0), "kind": "kikimora"},
+		{"pos": Vector2(18.0, -4.0), "kind": "cultist"},
+		{"pos": Vector2(-30.0, 6.0), "kind": "cultist"},
+		{"pos": Vector2(2.0, -26.0), "kind": "cultist"},
+		{"pos": Vector2(-38.0, -10.0), "kind": "cultist"},
+		{"pos": Vector2(-10.0, 32.0), "kind": "wailer"},
+		{"pos": Vector2(22.0, -30.0), "kind": "wailer"},
 	]
 	for entry in _spawn_points:
 		_spawn_enemy(entry["pos"], entry["kind"])

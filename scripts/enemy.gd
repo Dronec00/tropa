@@ -6,6 +6,7 @@ enum State { IDLE, CHASE, WINDUP, STRIKE, RECOVER, STAGGER }
 
 const GRAVITY := 18.0
 const BoltScript := preload("res://scripts/bolt.gd")
+const RobeBuilderScript := preload("res://scripts/robe.gd")
 
 var kind := "wolf"
 var target: Node3D
@@ -16,6 +17,9 @@ var speed := 3.3
 var aggro_range := 22.0
 var attack_range := 2.5
 var souls_reward := 45
+var ranged := false
+var min_range := 5.0
+var _bob := 0.0
 
 var state: State = State.IDLE
 var _timer := 0.0
@@ -44,6 +48,24 @@ func setup(new_kind: String) -> void:
 			aggro_range = 24.0
 			attack_range = 11.0
 			souls_reward = 90
+			ranged = true
+			min_range = 5.0
+		"cultist":
+			max_health = 120.0
+			damage = 22.0
+			speed = 2.4
+			aggro_range = 21.0
+			attack_range = 2.4
+			souls_reward = 70
+		"wailer":
+			max_health = 85.0
+			damage = 16.0
+			speed = 1.7
+			aggro_range = 24.0
+			attack_range = 10.0
+			souls_reward = 95
+			ranged = true
+			min_range = 6.0
 		_:
 			kind = "wolf"
 			max_health = 90.0
@@ -68,6 +90,10 @@ func marker_height() -> float:
 			return 3.2
 		"kikimora":
 			return 2.2
+		"cultist":
+			return 2.1
+		"wailer":
+			return 2.5
 		_:
 			return 2.1
 
@@ -85,6 +111,10 @@ func _build_model() -> void:
 			_build_leshy()
 		"kikimora":
 			_build_kikimora()
+		"cultist":
+			_build_robe(Color(0.075, 0.065, 0.085), 1.6, Color(0.55, 0.9, 1.0), false)
+		"wailer":
+			_build_robe(Color(0.34, 0.35, 0.32), 1.9, Color(0.85, 1.0, 0.95), true)
 		_:
 			_build_wolf()
 
@@ -135,6 +165,13 @@ func _build_leshy() -> void:
 	var club := _add(_cyl(0.10, 0.16, 1.3), _body_mat, Vector3(0, 0.6, 0))
 	club.rotation.x = 0.15
 
+func _build_robe(color: Color, height: float, eye_color: Color, pale: bool) -> void:
+	_body_mat = _mat(color)
+	RobeBuilderScript.build(_model, color, height, eye_color, pale)
+	_weapon_pivot = Node3D.new()
+	_weapon_pivot.position = Vector3(0.0, height - 0.5, 0.0)
+	_model.add_child(_weapon_pivot)
+
 func _build_kikimora() -> void:
 	_body_mat = _mat(Color(0.16, 0.20, 0.17))
 	_eye_mat.albedo_color = Color(0.4, 0.95, 0.9)
@@ -162,7 +199,10 @@ func _physics_process(delta: float) -> void:
 	if _dead:
 		return
 
-	if not is_on_floor():
+	_bob += delta
+	if kind == "wailer":
+		_model.position.y = 0.18 + sin(_bob * 1.8) * 0.06
+	elif not is_on_floor():
 		velocity.y -= GRAVITY * delta
 
 	if target == null or not is_instance_valid(target):
@@ -211,8 +251,8 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 
 func _chase(dist: float, dir: Vector3, delta: float) -> void:
-	if kind == "kikimora":
-		if dist < 5.0:
+	if ranged:
+		if dist < min_range:
 			velocity.x = -dir.x * speed
 			velocity.z = -dir.z * speed
 			_face(dir, delta, 6.0)
@@ -239,6 +279,12 @@ func _chase(dist: float, dir: Vector3, delta: float) -> void:
 func _strike(dist: float) -> void:
 	if kind == "kikimora":
 		_cast_bolt()
+		return
+	if kind == "wailer":
+		if dist < attack_range + 1.5 and target.has_method("take_damage"):
+			target.take_damage(damage, self)
+			if target.has_method("apply_impulse"):
+				target.apply_impulse((target.global_position - global_position).normalized() * 4.0)
 		return
 
 	var reach := attack_range + (0.7 if kind == "wolf" else 0.6)

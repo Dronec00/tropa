@@ -21,6 +21,7 @@ const MOUSE_SENSITIVITY := 0.0024
 const GRAVITY := 18.0
 const INVULN_TIME := 0.30
 const KnightModelScript := preload("res://scripts/knight_model.gd")
+const CapeScript := preload("res://scripts/cape.gd")
 
 var max_health := 100.0
 var health := 100.0
@@ -71,6 +72,7 @@ const SWORD_HAND_POS := Vector3(0.30, 1.14, -0.16)
 
 func _ready() -> void:
 	_build_model()
+	_build_cape()
 	_build_lock_marker()
 	arm.add_excluded_object(get_rid())
 	arm.rotation.x = -0.14
@@ -78,6 +80,11 @@ func _ready() -> void:
 	health_changed.emit(health, max_health)
 	stamina_changed.emit(stamina, max_stamina)
 	souls_changed.emit(souls)
+
+func _build_cape() -> void:
+	var cape = CapeScript.new()
+	model.add_child(cape)
+	cape.body = self
 
 func _build_lock_marker() -> void:
 	_lock_marker = MeshInstance3D.new()
