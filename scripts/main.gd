@@ -18,7 +18,7 @@ var _rng := RandomNumberGenerator.new()
 var _time := 0.0
 var _fire_light: OmniLight3D
 var _enemies: Array = []
-var _spawn_points: Array[Vector2] = []
+var _spawn_points: Array = []
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
 var _dropped_souls := 0
@@ -37,7 +37,6 @@ func _ready() -> void:
 	_build_hud()
 	hud.show_notice("Костёр гаснет. Лес ждёт.", 4.0)
 
-
 func _process(delta: float) -> void:
 	_time += delta
 	if _fire_light:
@@ -48,6 +47,23 @@ func _process(delta: float) -> void:
 		_soul_orb.position.y = _orb_base_y + sin(_time * 2.0) * 0.15
 
 	if player == null or player.is_dead():
+		return
+
+	for enemy in _enemies:
+		if is_instance_valid(enemy):
+			enemy.set_torch_bonus(1.4 if player.torch_lit else 1.0)
+
+	if hud.levels_visible:
+		if Input.is_action_just_pressed("upgrade_1"):
+			player.spend_souls("strength")
+		elif Input.is_action_just_pressed("upgrade_2"):
+			player.spend_souls("endurance")
+		elif Input.is_action_just_pressed("upgrade_3"):
+			player.spend_souls("perception")
+		elif Input.is_action_just_pressed("upgrade_4"):
+			player.spend_souls("craft")
+		elif Input.is_action_just_pressed("interact") or Input.is_action_just_pressed("ui_cancel"):
+			hud.hide_levels()
 		return
 
 	if Input.is_action_just_pressed("interact") and player.global_position.distance_to(bonfire_pos) < 3.6:
@@ -69,6 +85,11 @@ func _register_input() -> void:
 	_add_key("interact", KEY_E)
 	_add_key("heal", KEY_Q)
 	_add_key("torch", KEY_F)
+	_add_key("lock", KEY_TAB)
+	_add_key("upgrade_1", KEY_1)
+	_add_key("upgrade_2", KEY_2)
+	_add_key("upgrade_3", KEY_3)
+	_add_key("upgrade_4", KEY_4)
 	_add_mouse("attack", MOUSE_BUTTON_LEFT)
 
 func _add_key(action: StringName, keycode: Key) -> void:
@@ -349,17 +370,18 @@ func _spawn_player() -> void:
 
 func _spawn_enemies() -> void:
 	_spawn_points = [
-		Vector2(15.0, -13.0),
-		Vector2(-20.0, -16.0),
-		Vector2(26.0, 12.0),
-		Vector2(-16.0, 22.0),
-		Vector2(9.0, -32.0),
+		{"pos": Vector2(15.0, -13.0), "kind": "wolf"},
+		{"pos": Vector2(-24.0, -20.0), "kind": "leshy"},
+		{"pos": Vector2(30.0, 16.0), "kind": "kikimora"},
+		{"pos": Vector2(-18.0, 24.0), "kind": "wolf"},
+		{"pos": Vector2(9.0, -34.0), "kind": "leshy"},
 	]
-	for point in _spawn_points:
-		_spawn_enemy(point)
+	for entry in _spawn_points:
+		_spawn_enemy(entry["pos"], entry["kind"])
 
-func _spawn_enemy(point: Vector2) -> void:
+func _spawn_enemy(point: Vector2, kind: String = "wolf") -> void:
 	var enemy = EnemyScene.instantiate()
+	enemy.setup(kind)
 	add_child(enemy)
 	var y: float = terrain.height_at(point.x, point.y) + 0.3
 	enemy.global_position = Vector3(point.x, y, point.y)
@@ -388,10 +410,12 @@ func _rest() -> void:
 	player.refill_torch()
 	_respawn_enemies()
 	hud.show_notice("Костёр принял тебя. Лес снова полон.", 3.5)
+	hud.show_levels(player)
 
 func _on_enemy_died(reward: int, at: Vector3) -> void:
-	player.add_souls(reward)
-	hud.show_notice("Души +%d" % reward, 1.5)
+	var gained := int(round(reward * (1.0 + player.perception * 0.1)))
+	player.add_souls(gained)
+	hud.show_notice("Души +%d" % gained, 1.5)
 
 func _on_player_died() -> void:
 	_dropped_souls = player.souls

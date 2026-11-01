@@ -5,6 +5,8 @@ signal stamina_changed(current: float, maximum: float)
 signal souls_changed(total: int)
 signal notice(text: String)
 signal died
+signal stats_changed
+signal lock_changed(target)
 
 const MOVE_SPEED := 4.4
 const ROLL_SPEED := 10.5
@@ -27,6 +29,18 @@ var stamina := 100.0
 var souls := 0
 var flasks := 3
 var damage_bonus := 0.0
+var flask_heal := 45.0
+
+var soul_level := 1
+var strength := 0
+var endurance := 0
+var perception := 0
+var craft := 0
+
+var lock_target: Node3D
+var lock_range := 20.0
+var _lock_marker: MeshInstance3D
+var _impulse := Vector3.ZERO
 
 var _dead := false
 var _roll_timer := 0.0
@@ -57,12 +71,31 @@ const SWORD_HAND_POS := Vector3(0.30, 1.14, -0.16)
 
 func _ready() -> void:
 	_build_model()
+	_build_lock_marker()
 	arm.add_excluded_object(get_rid())
 	arm.rotation.x = -0.14
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	health_changed.emit(health, max_health)
 	stamina_changed.emit(stamina, max_stamina)
 	souls_changed.emit(souls)
+
+func _build_lock_marker() -> void:
+	_lock_marker = MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.26
+	torus.outer_radius = 0.34
+	torus.rings = 16
+	torus.ring_segments = 8
+	_lock_marker.mesh = torus
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(1.0, 0.78, 0.35)
+	mat.emission_enabled = true
+	mat.emission = Color(1.0, 0.7, 0.25)
+	mat.emission_energy_multiplier = 3.0
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	_lock_marker.material_override = mat
+	_lock_marker.visible = false
+	add_child(_lock_marker)
 
 func _build_model() -> void:
 	var parts := KnightModelScript.build(model)
@@ -72,6 +105,8 @@ func _build_model() -> void:
 	_torch_particles = parts["torch_particles"]
 
 func _process(delta: float) -> void:
+	if _lock_marker.visible:
+		_lock_marker.rotate_y(0.04)
 	if torch_lit:
 		_torch_time += delta
 		torch_fuel = maxf(0.0, torch_fuel - delta)
@@ -146,6 +181,13 @@ func _physics_process(delta: float) -> void:
 			var target_yaw := atan2(-move_dir.x, -move_dir.z)
 			model.rotation.y = lerp_angle(model.rotation.y, target_yaw, 14.0 * delta)
 
+	velocity.x += _impulse.x
+	velocity.z += _impulse.z
+	_impulse = _impulse.move_toward(Vector3.ZERO, 30.0 * delta)
+
+	if lock_target and is_instance_valid(lock_target):
+		_update_lock_camera(delta)
+
 	move_and_slide()
 
 	var regen := 12.0 if _roll_timer <= 0.0 and _attack_cd <= 0.0 else 4.0
@@ -160,6 +202,101 @@ func _physics_process(delta: float) -> void:
 		_try_heal()
 	if Input.is_action_just_pressed("torch"):
 		toggle_torch()
+	if Input.is_action_just_pressed("lock"):
+		toggle_lock()
+
+	if lock_target and (not is_instance_valid(lock_target) or not lock_target.is_alive()
+			or global_position.distance_to(lock_target.global_position) > lock_range * 1.4):
+		release_lock()
+
+# --- лок-он ---
+
+func toggle_lock() -> void:
+	if lock_target and is_instance_valid(lock_target):
+		release_lock()
+		return
+	var best: Node3D = null
+	var best_score := 1e9
+	var forward := -camera.global_transform.basis.z
+	for enemy in get_tree().get_nodes_in_group("enemies"):
+		if not is_instance_valid(enemy) or not enemy.is_alive():
+			continue
+		var dist: float = global_position.distance_to(enemy.global_position)
+		if dist > lock_range:
+			continue
+		var to: Vector3 = (enemy.global_position - global_position).normalized()
+		var facing: float = forward.dot(to)
+		if facing < 0.15:
+			continue
+		var score: float = dist * (1.7 - facing)
+		if score < best_score:
+			best_score = score
+			best = enemy
+	if best:
+		lock_target = best
+		_lock_marker.reparent(best)
+		_lock_marker.position = Vector3(0, best.marker_height(), 0)
+		_lock_marker.visible = true
+		lock_changed.emit(best)
+
+func release_lock() -> void:
+	if _lock_marker.get_parent() != self:
+		_lock_marker.reparent(self)
+	_lock_marker.position = Vector3.ZERO
+	_lock_marker.visible = false
+	lock_target = null
+	lock_changed.emit(null)
+
+func _update_lock_camera(delta: float) -> void:
+	var aim := lock_target.global_position + Vector3.UP * 1.1
+	var to_aim := aim - (global_position + Vector3.UP * 1.5)
+	var yaw := atan2(-to_aim.x, -to_aim.z)
+	rig.rotation.y = lerp_angle(rig.rotation.y, yaw, 7.0 * delta)
+	var flat := Vector2(to_aim.x, to_aim.z).length()
+	var pitch := clampf(atan2(to_aim.y, flat), -0.75, 0.45)
+	arm.rotation.x = lerp_angle(arm.rotation.x, pitch, 5.0 * delta)
+
+# --- прокачка ---
+
+func level_cost() -> int:
+	return 45 + 40 * (soul_level - 1)
+
+func spend_souls(branch: String) -> bool:
+	var cost := level_cost()
+	if souls < cost:
+		notice.emit("Не хватает душ: нужно %d" % cost)
+		return false
+	souls -= cost
+	soul_level += 1
+	match branch:
+		"strength":
+			strength += 1
+			damage_bonus += 6.0
+			notice.emit("Сила +1 — урон меча вырос")
+		"endurance":
+			endurance += 1
+			max_health += 15.0
+			max_stamina += 12.0
+			health = minf(max_health, health + 15.0)
+			notice.emit("Выносливость +1 — здоровья и сил больше")
+		"perception":
+			perception += 1
+			lock_range += 3.0
+			notice.emit("Чутьё +1 — лок-он дальше")
+		"craft":
+			craft += 1
+			flask_heal += 15.0
+			torch_max += 15.0
+			notice.emit("Ремесло +1 — фляга и факел крепче")
+	souls_changed.emit(souls)
+	stats_changed.emit()
+	health_changed.emit(health, max_health)
+	stamina_changed.emit(stamina, max_stamina)
+	return true
+
+func apply_impulse(force: Vector3) -> void:
+	force.y = 0.0
+	_impulse += force
 
 func _try_roll(move_dir: Vector3) -> void:
 	if _roll_timer > 0.0 or _attack_cd > 0.0 or stamina < ROLL_COST:
@@ -219,7 +356,7 @@ func _try_heal() -> void:
 		return
 	flasks -= 1
 	_heal_cd = 1.0
-	health = minf(max_health, health + 45.0)
+	health = minf(max_health, health + flask_heal)
 	health_changed.emit(health, max_health)
 	notice.emit("Фляга: осталось %d" % flasks)
 

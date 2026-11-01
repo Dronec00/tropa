@@ -9,6 +9,11 @@ var _souls_label: Label
 var _flask_label: Label
 var _torch_label: Label
 var _notice_label: Label
+var _level_panel: Control
+var _level_title: Label
+var _level_cost: Label
+var _level_rows: Array[Label] = []
+var levels_visible := false
 var _hurt: ColorRect
 
 var _notice_timer := 0.0
@@ -35,6 +40,8 @@ func _ready() -> void:
 	_flask_label = _make_label(Vector2(36, 596), Vector2(320, 24), 16)
 	_flask_label.text = "Фляга: 3"
 
+	_build_level_panel()
+
 	_torch_label = _make_label(Vector2(36, 570), Vector2(320, 24), 16)
 	_torch_label.text = "Факел: 100%"
 
@@ -49,7 +56,69 @@ func _ready() -> void:
 	var hint := _make_label(Vector2(0, 690), Vector2(1280, 24), 14)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.modulate = Color(1, 1, 1, 0.45)
-	hint.text = "WASD — идти    ЛКМ — удар    Пробел — перекат    Q — фляга    F — факел    E — костёр    Esc — мышь"
+	hint.text = "WASD — идти    ЛКМ — удар    Пробел — перекат    Tab — захват    Q — фляга    F — факел    E — костёр"
+
+func _build_level_panel() -> void:
+	_level_panel = Control.new()
+	_level_panel.position = Vector2(320, 150)
+	_level_panel.size = Vector2(640, 360)
+	_level_panel.visible = false
+	_level_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_root.add_child(_level_panel)
+
+	var bg := ColorRect.new()
+	bg.color = Color(0.02, 0.02, 0.025, 0.88)
+	bg.size = Vector2(640, 360)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_level_panel.add_child(bg)
+
+	var frame := ColorRect.new()
+	frame.color = Color(0.35, 0.30, 0.22, 0.9)
+	frame.position = Vector2(0, 0)
+	frame.size = Vector2(640, 2)
+	_level_panel.add_child(frame)
+	var frame2 := ColorRect.new()
+	frame2.color = Color(0.35, 0.30, 0.22, 0.9)
+	frame2.position = Vector2(0, 358)
+	frame2.size = Vector2(640, 2)
+	_level_panel.add_child(frame2)
+
+	_level_title = _make_label(Vector2(28, 22), Vector2(580, 34), 24, _level_panel)
+	_level_title.text = "У КОСТРА"
+
+	_level_cost = _make_label(Vector2(28, 62), Vector2(580, 26), 16, _level_panel)
+	_level_cost.text = ""
+
+	for i in 4:
+		var row := _make_label(Vector2(28, 110 + i * 44), Vector2(584, 34), 18, _level_panel)
+		_level_rows.append(row)
+
+	var foot := _make_label(Vector2(28, 300), Vector2(584, 26), 15, _level_panel)
+	foot.modulate = Color(1, 1, 1, 0.6)
+	foot.text = "1-4 — вложить души    E — закрыть"
+
+func show_levels(target) -> void:
+	levels_visible = true
+	_level_panel.visible = true
+	refresh_levels(target)
+
+func hide_levels() -> void:
+	levels_visible = false
+	_level_panel.visible = false
+
+func refresh_levels(target) -> void:
+	if target == null:
+		return
+	_level_title.text = "УРОВЕНЬ %d" % target.soul_level
+	_level_cost.text = "Души: %d      Следующий уровень: %d" % [target.souls, target.level_cost()]
+	var rows := [
+		"1   Сила              %d      урон +%d" % [target.strength, int(target.strength * 6)],
+		"2   Выносливость      %d      здоровье +%d" % [target.endurance, int(target.endurance * 15)],
+		"3   Чутьё             %d      захват +%d м" % [target.perception, int(target.perception * 3)],
+		"4   Ремесло           %d      фляга +%d" % [target.craft, int(target.craft * 15)],
+	]
+	for i in rows.size():
+		_level_rows[i].text = rows[i]
 
 func _make_bar(pos: Vector2, size: Vector2, fill_color: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
@@ -72,7 +141,7 @@ func _make_bar(pos: Vector2, size: Vector2, fill_color: Color) -> ProgressBar:
 	_root.add_child(bar)
 	return bar
 
-func _make_label(pos: Vector2, size: Vector2, font_size: int) -> Label:
+func _make_label(pos: Vector2, size: Vector2, font_size: int, parent: Control = null) -> Label:
 	var label := Label.new()
 	label.position = pos
 	label.size = size
@@ -82,7 +151,9 @@ func _make_label(pos: Vector2, size: Vector2, font_size: int) -> Label:
 	label.add_theme_constant_override("shadow_offset_x", 1)
 	label.add_theme_constant_override("shadow_offset_y", 1)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_root.add_child(label)
+	if parent == null:
+		parent = _root
+	parent.add_child(label)
 	return label
 
 func bind(target) -> void:
@@ -90,6 +161,7 @@ func bind(target) -> void:
 	player.health_changed.connect(set_health)
 	player.stamina_changed.connect(set_stamina)
 	player.souls_changed.connect(set_souls)
+	player.stats_changed.connect(func(): set_souls(player.souls))
 	set_health(player.health, player.max_health)
 	set_stamina(player.stamina, player.max_stamina)
 	set_souls(player.souls)
@@ -106,7 +178,10 @@ func set_stamina(current: float, maximum: float) -> void:
 	_sp.value = current
 
 func set_souls(total: int) -> void:
-	_souls_label.text = "Души: %d" % total
+	var lvl: int = 1
+	if player:
+		lvl = player.soul_level
+	_souls_label.text = "Уровень %d   Души: %d" % [lvl, total]
 
 func show_notice(text: String, duration: float = 2.0) -> void:
 	_notice_label.text = text
@@ -124,6 +199,8 @@ func _process(delta: float) -> void:
 
 	if player and is_instance_valid(player):
 		_flask_label.text = "Фляга: %d" % player.flasks
+		if levels_visible:
+			refresh_levels(player)
 		var fuel := int(round(player.torch_fuel / player.torch_max * 100.0))
 		var state := "горит" if player.torch_lit else "погашен"
 		_torch_label.text = "Факел: %d%% (%s)" % [fuel, state]
