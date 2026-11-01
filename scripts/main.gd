@@ -84,6 +84,8 @@ var _mat_birch_trunk: ShaderMaterial
 var _mat_birch_leaf: ShaderMaterial
 var _mat_spruce_trunk: ShaderMaterial
 var _mat_spruce_leaf: ShaderMaterial
+var _leaf_transforms: Array[Transform3D] = []
+var _leaf_material: ShaderMaterial
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
 var _dropped_souls := 0
@@ -310,6 +312,75 @@ func _build_forest() -> void:
 			_spruce(pos, bark, needles)
 		placed += 1
 
+	_build_leaves()
+
+func _build_leaves() -> void:
+	if _leaf_transforms.is_empty():
+		return
+
+	var quad := QuadMesh.new()
+	quad.size = Vector2(1.0, 1.0)
+
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode cull_disabled, depth_prepass_alpha;
+
+uniform sampler2D leaf_tex : source_color, filter_linear_mipmap, repeat_disable;
+uniform vec3 tint : source_color = vec3(0.17, 0.26, 0.11);
+uniform float wind = 0.26;
+
+void vertex() {
+	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	float phase = world.x * 0.22 + world.z * 0.19;
+	float gust = 0.65 + 0.35 * sin(TIME * 0.33 + world.x * 0.02);
+	float sway = (sin(TIME * 0.9 + phase) + 0.4 * sin(TIME * 2.3 + phase * 1.7)) * gust;
+	VERTEX.x += sway * wind;
+	VERTEX.z += sway * wind * 0.55;
+}
+
+void fragment() {
+	vec4 c = texture(leaf_tex, UV);
+	if (c.a < 0.35) {
+		discard;
+	}
+	ALBEDO = tint * c.rgb;
+	ROUGHNESS = 1.0;
+	BACKLIGHT = tint * 0.45;
+}
+"""
+
+	_leaf_material = ShaderMaterial.new()
+	_leaf_material.shader = shader
+	_leaf_material.set_shader_parameter("leaf_tex", _leaf_texture())
+
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = quad
+	multimesh.instance_count = _leaf_transforms.size()
+	for i in _leaf_transforms.size():
+		multimesh.set_instance_transform(i, _leaf_transforms[i])
+
+	var node := MultiMeshInstance3D.new()
+	node.multimesh = multimesh
+	node.material_override = _leaf_material
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(node)
+	print("[leaves] clusters: ", _leaf_transforms.size())
+
+func _leaf_texture() -> ImageTexture:
+	var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
+	for y in 64:
+		for x in 64:
+			var uv := Vector2(float(x) / 63.0, float(y) / 63.0) * 2.0 - Vector2.ONE
+			var d := uv.length()
+			var a := 1.0 - smoothstep(0.45, 1.0, d)
+			a *= 0.55 + 0.45 * sin(uv.x * 9.0 + uv.y * 7.0)
+			a = clampf(a, 0.0, 1.0)
+			var shade := 0.75 + 0.25 * sin(uv.y * 5.0)
+			img.set_pixel(x, y, Color(shade, shade, shade, a))
+	return ImageTexture.create_from_image(img)
+
 func _near_path(x: float, z: float, radius: float) -> bool:
 	var step := 2
 	for i in range(0, _path_points.size(), step):
@@ -319,15 +390,16 @@ func _near_path(x: float, z: float, radius: float) -> bool:
 	return false
 
 func _birch(pos: Vector3, bark_mat: Material, leaf_mat: Material) -> void:
+	var yaw := _rng.randf_range(0.0, TAU)
 	var root := Node3D.new()
 	root.position = pos
-	root.rotation.y = _rng.randf_range(0.0, TAU)
+	root.rotation.y = yaw
 	add_child(root)
 
 	var h := _rng.randf_range(5.0, 8.0)
 	var trunk := MeshInstance3D.new()
 	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.09
+	cyl.top_radius = 0.07
 	cyl.bottom_radius = 0.16
 	cyl.height = h
 	trunk.mesh = cyl
@@ -335,14 +407,35 @@ func _birch(pos: Vector3, bark_mat: Material, leaf_mat: Material) -> void:
 	trunk.material_override = bark_mat
 	root.add_child(trunk)
 
-	var crown := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = _rng.randf_range(1.3, 2.1)
-	sphere.height = sphere.radius * 2.0
-	crown.mesh = sphere
-	crown.position.y = h + sphere.radius * 0.3
-	crown.material_override = leaf_mat
-	root.add_child(crown)
+	var basis := Basis(Vector3.UP, yaw)
+	var levels: Array[float] = [0.52, 0.66, 0.8, 0.92]
+	for level in levels:
+		var branch_count: int = 2 if level < 0.8 else 1
+		for b in branch_count:
+			var angle := _rng.randf_range(0.0, TAU)
+			var branch_len := _rng.randf_range(1.1, 1.9)
+			var y := h * level
+			var dir := Vector3(cos(angle), _rng.randf_range(0.25, 0.6), sin(angle)).normalized()
+
+			var branch := MeshInstance3D.new()
+			var bm := CylinderMesh.new()
+			bm.top_radius = 0.025
+			bm.bottom_radius = 0.06
+			bm.height = branch_len
+			branch.mesh = bm
+			branch.material_override = bark_mat
+			var mid := dir * (branch_len * 0.5)
+			branch.position = Vector3(0.0, y, 0.0) + mid
+			branch.quaternion = Quaternion(Vector3.UP, dir)
+			root.add_child(branch)
+
+			var tip := Vector3(0.0, y, 0.0) + dir * branch_len
+			for c in 3:
+				var offset := Vector3(_rng.randf_range(-0.4, 0.4), _rng.randf_range(-0.25, 0.25), _rng.randf_range(-0.4, 0.4))
+				var world_tip := pos + basis * (tip + offset)
+				var rot := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)) * Basis(Vector3.RIGHT, _rng.randf_range(-0.5, 0.5))
+				var scale := _rng.randf_range(0.55, 1.0)
+				_leaf_transforms.append(Transform3D(rot.scaled(Vector3(scale, scale, scale)), world_tip))
 
 	_add_tree_collision(root, 0.3, h)
 
