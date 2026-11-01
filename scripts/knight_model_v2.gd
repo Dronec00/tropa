@@ -925,7 +925,7 @@ class StackAnimator extends Node:
 	# --- кадры удара ---
 
 	func _build_attack_frames() -> void:
-		# Смещения относительно позы покоя.
+		# Смещения относительно позы покоя. Удар с шагом вперёд правой ногой.
 		_frames = [
 			{
 				"t": 0.0,
@@ -933,65 +933,92 @@ class StackAnimator extends Node:
 				"sh_l": Vector3.ZERO, "el_l": Vector3.ZERO, "wr_l": Vector3.ZERO,
 				"torso": Vector3.ZERO, "head": Vector3.ZERO,
 				"hips_rot": Vector3.ZERO, "hips_pos": Vector3.ZERO,
+				"thigh_r": Vector3.ZERO, "knee_r": Vector3.ZERO, "ankle_r": Vector3.ZERO,
+				"thigh_l": Vector3.ZERO, "knee_l": Vector3.ZERO, "ankle_l": Vector3.ZERO,
 			},
 			{
-				"t": 0.30,
-				"sh_r": Vector3(-2.62, -0.18, 0.02),
-				"el_r": Vector3(-0.42, 0.0, 0.0),
-				"wr_r": Vector3(0.12, 0.0, 0.0),
-				"sh_l": Vector3(-0.12, 0.02, 0.03),
-				"el_l": Vector3(0.05, 0.0, 0.0),
+				"t": 0.24,
+				"sh_r": Vector3(-2.30, -0.26, 0.06),
+				"el_r": Vector3(-0.95, 0.0, 0.0),
+				"wr_r": Vector3(0.24, 0.0, 0.0),
+				"sh_l": Vector3(-0.16, 0.03, 0.05),
+				"el_l": Vector3(0.08, 0.0, 0.0),
 				"wr_l": Vector3.ZERO,
-				"torso": Vector3(-0.10, -0.32, 0.03),
-				"head": Vector3(-0.04, 0.26, 0.0),
-				"hips_rot": Vector3(0.0, -0.09, 0.0),
-				"hips_pos": Vector3(0.0, -0.01, 0.015),
+				"torso": Vector3(-0.06, -0.36, 0.04),
+				"head": Vector3(-0.02, 0.30, 0.0),
+				"hips_rot": Vector3(0.0, -0.13, 0.0),
+				"hips_pos": Vector3(0.0, -0.02, 0.06),
+				"thigh_r": Vector3(-0.16, 0.0, 0.0), "knee_r": Vector3(-0.26, 0.0, 0.0), "ankle_r": Vector3(0.10, 0.0, 0.0),
+				"thigh_l": Vector3(0.12, 0.0, 0.0), "knee_l": Vector3(-0.12, 0.0, 0.0), "ankle_l": Vector3(0.0, 0.0, 0.0),
 			},
 			{
-				"t": 0.36,
-				"sh_r": Vector3(-2.68, -0.22, 0.04),
-				"el_r": Vector3(-0.48, 0.0, 0.0),
-				"wr_r": Vector3(0.18, 0.0, 0.0),
-				"sh_l": Vector3(-0.15, 0.02, 0.04),
-				"el_l": Vector3(0.07, 0.0, 0.0),
-				"wr_l": Vector3.ZERO,
-				"torso": Vector3(-0.13, -0.38, 0.04),
-				"head": Vector3(-0.05, 0.30, 0.0),
-				"hips_rot": Vector3(0.0, -0.10, 0.0),
-				"hips_pos": Vector3(0.0, -0.015, 0.02),
-			},
-			{
-				"t": 0.50,
-				"sh_r": Vector3(0.55, 0.22, -0.04),
-				"el_r": Vector3(-0.58, 0.0, 0.0),
-				"wr_r": Vector3(-0.60, 0.0, 0.0),
-				"sh_l": Vector3(-0.10, 0.0, 0.05),
+				"t": 0.34,
+				"sh_r": Vector3(-2.42, -0.30, 0.08),
+				"el_r": Vector3(-1.02, 0.0, 0.0),
+				"wr_r": Vector3(0.28, 0.0, 0.0),
+				"sh_l": Vector3(-0.20, 0.03, 0.06),
 				"el_l": Vector3(0.10, 0.0, 0.0),
 				"wr_l": Vector3.ZERO,
-				"torso": Vector3(0.28, 0.30, -0.04),
-				"head": Vector3(0.12, -0.12, 0.0),
-				"hips_rot": Vector3(0.0, 0.11, -0.02),
-				"hips_pos": Vector3(0.0, -0.04, -0.05),
+				"torso": Vector3(-0.09, -0.42, 0.05),
+				"head": Vector3(-0.03, 0.34, 0.0),
+				"hips_rot": Vector3(0.0, -0.15, 0.0),
+				"hips_pos": Vector3(0.0, -0.03, 0.07),
+				"thigh_r": Vector3(-0.20, 0.0, 0.0), "knee_r": Vector3(-0.30, 0.0, 0.0), "ankle_r": Vector3(0.12, 0.0, 0.0),
+				"thigh_l": Vector3(0.15, 0.0, 0.0), "knee_l": Vector3(-0.14, 0.0, 0.0), "ankle_l": Vector3(0.0, 0.0, 0.0),
 			},
 			{
-				"t": 0.63,
-				"sh_r": Vector3(0.63, 0.26, -0.02),
-				"el_r": Vector3(-0.52, 0.0, 0.0),
-				"wr_r": Vector3(-0.45, 0.0, 0.0),
-				"sh_l": Vector3(-0.06, 0.0, 0.03),
-				"el_l": Vector3(0.06, 0.0, 0.0),
+				"t": 0.48,
+				"sh_r": Vector3(0.85, 0.26, -0.10),
+				"el_r": Vector3(-0.38, 0.0, 0.0),
+				"wr_r": Vector3(-0.55, 0.0, 0.0),
+				"sh_l": Vector3(-0.06, 0.0, 0.04),
+				"el_l": Vector3(0.12, 0.0, 0.0),
 				"wr_l": Vector3.ZERO,
-				"torso": Vector3(0.32, 0.34, -0.03),
-				"head": Vector3(0.16, -0.14, 0.0),
-				"hips_rot": Vector3(0.0, 0.09, 0.0),
-				"hips_pos": Vector3(0.0, -0.05, -0.055),
+				"torso": Vector3(0.26, 0.34, -0.05),
+				"head": Vector3(0.12, -0.16, 0.0),
+				"hips_rot": Vector3(0.0, 0.15, -0.02),
+				"hips_pos": Vector3(0.0, -0.05, -0.12),
+				"thigh_r": Vector3(0.55, 0.0, 0.0), "knee_r": Vector3(-0.36, 0.0, 0.0), "ankle_r": Vector3(0.12, 0.0, 0.0),
+				"thigh_l": Vector3(-0.34, 0.0, 0.0), "knee_l": Vector3(-0.16, 0.0, 0.0), "ankle_l": Vector3(-0.06, 0.0, 0.0),
 			},
 			{
-				"t": 0.98,
+				"t": 0.62,
+				"sh_r": Vector3(0.52, 0.46, -0.16),
+				"el_r": Vector3(-0.30, 0.0, 0.0),
+				"wr_r": Vector3(-0.42, 0.0, 0.0),
+				"sh_l": Vector3(-0.04, 0.0, 0.03),
+				"el_l": Vector3(0.08, 0.0, 0.0),
+				"wr_l": Vector3.ZERO,
+				"torso": Vector3(0.31, 0.43, -0.06),
+				"head": Vector3(0.15, -0.20, 0.0),
+				"hips_rot": Vector3(0.0, 0.13, -0.02),
+				"hips_pos": Vector3(0.0, -0.06, -0.14),
+				"thigh_r": Vector3(0.50, 0.0, 0.0), "knee_r": Vector3(-0.30, 0.0, 0.0), "ankle_r": Vector3(0.10, 0.0, 0.0),
+				"thigh_l": Vector3(-0.30, 0.0, 0.0), "knee_l": Vector3(-0.14, 0.0, 0.0), "ankle_l": Vector3(-0.04, 0.0, 0.0),
+			},
+			{
+				"t": 0.82,
+				"sh_r": Vector3(0.16, 0.16, -0.05),
+				"el_r": Vector3(-0.12, 0.0, 0.0),
+				"wr_r": Vector3(-0.14, 0.0, 0.0),
+				"sh_l": Vector3(-0.02, 0.0, 0.01),
+				"el_l": Vector3(0.04, 0.0, 0.0),
+				"wr_l": Vector3.ZERO,
+				"torso": Vector3(0.10, 0.14, -0.02),
+				"head": Vector3(0.05, -0.07, 0.0),
+				"hips_rot": Vector3(0.0, 0.05, 0.0),
+				"hips_pos": Vector3(0.0, -0.02, -0.04),
+				"thigh_r": Vector3(0.18, 0.0, 0.0), "knee_r": Vector3(-0.10, 0.0, 0.0), "ankle_r": Vector3(0.04, 0.0, 0.0),
+				"thigh_l": Vector3(-0.10, 0.0, 0.0), "knee_l": Vector3(-0.06, 0.0, 0.0), "ankle_l": Vector3(0.0, 0.0, 0.0),
+			},
+			{
+				"t": 1.0,
 				"sh_r": Vector3.ZERO, "el_r": Vector3.ZERO, "wr_r": Vector3.ZERO,
 				"sh_l": Vector3.ZERO, "el_l": Vector3.ZERO, "wr_l": Vector3.ZERO,
 				"torso": Vector3.ZERO, "head": Vector3.ZERO,
 				"hips_rot": Vector3.ZERO, "hips_pos": Vector3.ZERO,
+				"thigh_r": Vector3.ZERO, "knee_r": Vector3.ZERO, "ankle_r": Vector3.ZERO,
+				"thigh_l": Vector3.ZERO, "knee_l": Vector3.ZERO, "ankle_l": Vector3.ZERO,
 			},
 		]
 
@@ -1142,3 +1169,15 @@ class StackAnimator extends Node:
 				_rv("hips") + (p["hips_rot"] as Vector3), w)
 		_hips.position = _hips.position.lerp(
 				_rv("hips_pos") + (p["hips_pos"] as Vector3), w)
+		_thigh_r.rotation = _thigh_r.rotation.lerp(
+				_rv("thigh_r") + (p["thigh_r"] as Vector3), w)
+		_knee_r.rotation = _knee_r.rotation.lerp(
+				_rv("knee_r") + (p["knee_r"] as Vector3), w)
+		_ankle_r.rotation = _ankle_r.rotation.lerp(
+				_rv("ankle_r") + (p["ankle_r"] as Vector3), w)
+		_thigh_l.rotation = _thigh_l.rotation.lerp(
+				_rv("thigh_l") + (p["thigh_l"] as Vector3), w)
+		_knee_l.rotation = _knee_l.rotation.lerp(
+				_rv("knee_l") + (p["knee_l"] as Vector3), w)
+		_ankle_l.rotation = _ankle_l.rotation.lerp(
+				_rv("ankle_l") + (p["ankle_l"] as Vector3), w)

@@ -339,7 +339,7 @@ func _try_attack() -> void:
 	stamina -= ATTACK_COST
 	stamina_changed.emit(stamina, max_stamina)
 	_swing()
-	await get_tree().create_timer(0.42 if _use_v2 else 0.16).timeout
+	await get_tree().create_timer(0.46 if _use_v2 else 0.16).timeout
 	if not _dead:
 		_apply_hit()
 
