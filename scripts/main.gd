@@ -13,6 +13,45 @@ const WORLD_LIMIT := 92.0
 const WORLD_EDGE := 82.0
 const HUT_POS := Vector3(-34.0, 0.0, -52.0)
 
+const TREE_SHADER := """
+shader_type spatial;
+render_mode cull_disabled;
+
+uniform vec3 base_color : source_color = vec3(0.5, 0.5, 0.5);
+uniform float wind = 0.18;
+uniform float rigid = 0.0;
+uniform float rough = 1.0;
+
+global uniform vec3 player_pos;
+
+varying vec3 v_world;
+
+void vertex() {
+	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	v_world = world;
+	float phase = world.x * 0.22 + world.z * 0.19;
+	float gust = 0.65 + 0.35 * sin(TIME * 0.33 + world.x * 0.02);
+	float sway = (sin(TIME * 0.9 + phase) + 0.4 * sin(TIME * 2.3 + phase * 1.7)) * gust;
+	float amount = mix(UV.y * UV.y, 1.0, rigid);
+	vec2 offset = vec2(sway, sway * 0.55) * wind * amount;
+
+	vec3 to_player = world - player_pos;
+	float d = length(to_player.xz);
+	float push = smoothstep(2.8, 0.6, d);
+	offset += normalize(to_player.xz + vec2(0.001)) * push * 0.22 * max(UV.y, 0.3);
+
+	VERTEX.x += offset.x;
+	VERTEX.z += offset.y;
+}
+
+void fragment() {
+	float variation = 0.86 + 0.14 * sin(v_world.x * 0.7 + v_world.z * 0.6);
+	ALBEDO = base_color * variation;
+	ROUGHNESS = rough;
+	BACKLIGHT = base_color * 0.35;
+}
+"""
+
 var player
 var hud
 var terrain
@@ -40,6 +79,11 @@ var _amulet: Node3D
 var _amulet_taken := false
 var _door_open := false
 var _checkpoint := Vector3(2.8, 0.0, 5.4)
+var _tree_shader: Shader
+var _mat_birch_trunk: ShaderMaterial
+var _mat_birch_leaf: ShaderMaterial
+var _mat_spruce_trunk: ShaderMaterial
+var _mat_spruce_leaf: ShaderMaterial
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
 var _dropped_souls := 0
@@ -49,8 +93,10 @@ func _enter_tree() -> void:
 
 func _ready() -> void:
 	_rng.seed = 20261101
+	RenderingServer.global_shader_parameter_add("player_pos", RenderingServer.GLOBAL_VAR_TYPE_VEC3, Vector3.ZERO)
 	_build_environment()
 	_build_terrain()
+	_create_tree_materials()
 	_build_path()
 	_build_hut()
 	_build_boundary()
@@ -64,6 +110,9 @@ func _process(delta: float) -> void:
 	_time += delta
 	if _fire_light:
 		_fire_light.light_energy = 2.3 + sin(_time * 9.0) * 0.35 + sin(_time * 23.0) * 0.12
+
+	if player:
+		RenderingServer.global_shader_parameter_set("player_pos", player.global_position)
 
 	WindScript.strength = 0.75 + sin(_time * 0.4) * 0.25 + sin(_time * 1.9) * 0.1
 	WindScript.direction = Vector3(0.8, 0.0, 0.6).normalized().rotated(Vector3.UP, sin(_time * 0.11) * 0.5)
@@ -211,18 +260,28 @@ func _build_terrain() -> void:
 
 # --- лес ---
 
+func _create_tree_materials() -> void:
+	_tree_shader = Shader.new()
+	_tree_shader.code = TREE_SHADER
+
+	_mat_birch_trunk = _tree_material(Color(0.62, 0.62, 0.57), 0.0, 0.15)
+	_mat_birch_leaf = _tree_material(Color(0.11, 0.18, 0.08), 1.0, 0.26)
+	_mat_spruce_trunk = _tree_material(Color(0.15, 0.14, 0.13), 0.0, 0.10)
+	_mat_spruce_leaf = _tree_material(Color(0.04, 0.085, 0.05), 1.0, 0.22)
+
+func _tree_material(color: Color, rigid: float, wind_power: float) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = _tree_shader
+	mat.set_shader_parameter("base_color", color)
+	mat.set_shader_parameter("rigid", rigid)
+	mat.set_shader_parameter("wind", wind_power)
+	return mat
+
 func _build_forest() -> void:
-	var bark := StandardMaterial3D.new()
-	bark.albedo_color = Color(0.15, 0.14, 0.13)
-
-	var birch_bark := StandardMaterial3D.new()
-	birch_bark.albedo_color = Color(0.62, 0.62, 0.57)
-
-	var needles := StandardMaterial3D.new()
-	needles.albedo_color = Color(0.035, 0.075, 0.045)
-
-	var leaves := StandardMaterial3D.new()
-	leaves.albedo_color = Color(0.10, 0.16, 0.07)
+	var bark := _mat_spruce_trunk
+	var birch_bark := _mat_birch_trunk
+	var needles := _mat_spruce_leaf
+	var leaves := _mat_birch_leaf
 
 	var placed := 0
 	var attempts := 0
@@ -447,8 +506,7 @@ func _marker_birch(pos: Vector3) -> void:
 	root.rotation.y = _rng.randf_range(0.0, TAU)
 	add_child(root)
 
-	var bark := StandardMaterial3D.new()
-	bark.albedo_color = Color(0.66, 0.66, 0.62)
+	var bark := _mat_birch_trunk
 
 	var h := _rng.randf_range(4.4, 5.2)
 	var trunk := MeshInstance3D.new()
@@ -467,9 +525,7 @@ func _marker_birch(pos: Vector3) -> void:
 	sphere.height = 2.3
 	crown.mesh = sphere
 	crown.position.y = h + 0.35
-	var leaf := StandardMaterial3D.new()
-	leaf.albedo_color = Color(0.10, 0.17, 0.08)
-	crown.material_override = leaf
+	crown.material_override = _mat_birch_leaf
 	root.add_child(crown)
 
 	var wreath := MeshInstance3D.new()
