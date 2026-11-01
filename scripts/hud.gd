@@ -73,7 +73,7 @@ void fragment() {
 	var hint := _make_label(Vector2(0, 690), Vector2(1280, 24), 14)
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.modulate = Color(1, 1, 1, 0.45)
-	hint.text = "WASD — идти    ЛКМ — удар    Пробел — перекат    Tab — захват    Q — фляга    F — факел    E — костёр"
+	hint.text = "WASD — идти    ЛКМ — удар    Пробел — перекат    Tab — захват    ПКМ — блок    Q — фляга    F — факел    E — костёр"
 
 func _build_level_panel() -> void:
 	_level_panel = Control.new()

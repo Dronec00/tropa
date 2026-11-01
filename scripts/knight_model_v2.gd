@@ -862,6 +862,8 @@ class StackAnimator extends Node:
 	var _phase: float = 0.0
 	var _attacking: bool = false
 	var _attack_time: float = 0.0
+	var _mirror: bool = false
+	var _block: bool = false
 
 	func setup(rig: Dictionary) -> void:
 		_hips = rig.get("hips") as Node3D
@@ -918,9 +920,13 @@ class StackAnimator extends Node:
 	func set_locomotion(speed: float) -> void:
 		_target_speed = clampf(speed, 0.0, 9.0)
 
-	func play_attack() -> void:
+	func play_attack(variant: int = 0) -> void:
 		_attacking = true
 		_attack_time = 0.0
+		_mirror = (variant % 2) == 1
+
+	func set_block(active: bool) -> void:
+		_block = active
 
 	# --- кадры удара ---
 
@@ -1126,6 +1132,20 @@ class StackAnimator extends Node:
 			if w > 0.001:
 				_apply_attack(t, w)
 
+		# --- стойка блока ---
+		if _block and not _attacking:
+			var guard: float = 0.75
+			_shoulder_l.rotation = _shoulder_l.rotation.lerp(
+				_rv("sh_l") + Vector3(-0.85, 0.55, 0.35), guard)
+			_elbow_l.rotation = _elbow_l.rotation.lerp(
+				_rv("el_l") + Vector3(-1.15, 0.0, 0.0), guard)
+			_shoulder_r.rotation = _shoulder_r.rotation.lerp(
+				_rv("sh_r") + Vector3(-0.55, -0.35, 0.0), guard)
+			_elbow_r.rotation = _elbow_r.rotation.lerp(
+				_rv("el_r") + Vector3(-1.0, 0.0, 0.0), guard)
+			_torso.rotation = _torso.rotation.lerp(
+				_rv("torso") + Vector3(0.08, 0.18, 0.0), guard)
+
 		# --- факел всегда держим вертикально (кисть компенсирует) ---
 		if _torch != null and _torch.is_inside_tree():
 			_torch.global_rotation = Vector3(-0.06, 0.0, 0.05)
@@ -1149,6 +1169,21 @@ class StackAnimator extends Node:
 		var p: Dictionary = _pose_at(t)
 		if p.is_empty():
 			return
+		if _mirror:
+			var mirrored: Dictionary = {}
+			for key in p.keys():
+				if key == "t":
+					mirrored[key] = p[key]
+					continue
+				var v: Vector3 = p[key]
+				mirrored[key] = Vector3(v.x, -v.y, -v.z)
+			mirrored["thigh_r"] = p["thigh_l"]
+			mirrored["knee_r"] = p["knee_l"]
+			mirrored["ankle_r"] = p["ankle_l"]
+			mirrored["thigh_l"] = p["thigh_r"]
+			mirrored["knee_l"] = p["knee_r"]
+			mirrored["ankle_l"] = p["ankle_r"]
+			p = mirrored
 		_shoulder_r.rotation = _shoulder_r.rotation.lerp(
 				_rv("sh_r") + (p["sh_r"] as Vector3), w)
 		_elbow_r.rotation = _elbow_r.rotation.lerp(

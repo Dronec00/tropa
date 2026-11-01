@@ -60,6 +60,11 @@ var _torch_time := 0.0
 var _sword_pivot: Node3D
 var _animator: Node
 var _use_v2 := false
+var blocking := false
+var _parry_timer := 0.0
+var _combo_index := 0
+var _combo_window := 0.0
+var _current_damage := 34.0
 var _torch_flame: Node3D
 var _torch_light: OmniLight3D
 var _torch_particles: CPUParticles3D
@@ -178,6 +183,16 @@ func _physics_process(delta: float) -> void:
 	_invuln = maxf(0.0, _invuln - delta)
 	_attack_cd = maxf(0.0, _attack_cd - delta)
 	_heal_cd = maxf(0.0, _heal_cd - delta)
+	_parry_timer = maxf(0.0, _parry_timer - delta)
+	_combo_window = maxf(0.0, _combo_window - delta)
+
+	if Input.is_action_just_pressed("block"):
+		blocking = true
+		_parry_timer = 0.25
+	if Input.is_action_just_released("block"):
+		blocking = false
+	if _use_v2 and _animator and _animator.has_method("set_block"):
+		_animator.call("set_block", blocking)
 
 	if not is_on_floor():
 		velocity.y -= GRAVITY * delta
@@ -194,8 +209,9 @@ func _physics_process(delta: float) -> void:
 		velocity.x = _roll_dir.x * ROLL_SPEED
 		velocity.z = _roll_dir.z * ROLL_SPEED
 	else:
-		velocity.x = move_dir.x * MOVE_SPEED
-		velocity.z = move_dir.z * MOVE_SPEED
+		var speed := MOVE_SPEED * (0.55 if blocking else 1.0)
+		velocity.x = move_dir.x * speed
+		velocity.z = move_dir.z * speed
 		if move_dir.length() > 0.1:
 			var target_yaw := atan2(-move_dir.x, -move_dir.z)
 			model.rotation.y = lerp_angle(model.rotation.y, target_yaw, 14.0 * delta)
@@ -333,19 +349,22 @@ func _try_roll(move_dir: Vector3) -> void:
 	_roll_dir = _roll_dir.normalized()
 
 func _try_attack() -> void:
-	if _attack_cd > 0.0 or _roll_timer > 0.0 or stamina < ATTACK_COST:
+	if blocking or _attack_cd > 0.0 or _roll_timer > 0.0 or stamina < ATTACK_COST:
 		return
+	_combo_index = ((_combo_index % 3) + 1) if _combo_window > 0.0 else 1
+	_combo_window = 0.8
+	_current_damage = ATTACK_DAMAGE * (1.35 if _combo_index == 3 else 1.0) + damage_bonus
 	_attack_cd = ATTACK_COOLDOWN
 	stamina -= ATTACK_COST
 	stamina_changed.emit(stamina, max_stamina)
-	_swing()
+	_swing(_combo_index - 1)
 	await get_tree().create_timer(0.46 if _use_v2 else 0.16).timeout
 	if not _dead:
 		_apply_hit()
 
-func _swing() -> void:
+func _swing(variant: int = 0) -> void:
 	if _use_v2 and _animator and _animator.has_method("play_attack"):
-		_animator.call("play_attack")
+		_animator.call("play_attack", variant)
 		return
 
 	var pivot := _sword_pivot
@@ -374,7 +393,7 @@ func _apply_hit() -> void:
 		query.exclude = [get_rid()]
 		var hit := get_world_3d().direct_space_state.intersect_ray(query)
 		if hit and hit.collider.has_method("take_damage"):
-			hit.collider.take_damage(ATTACK_DAMAGE + damage_bonus, self)
+			hit.collider.take_damage(_current_damage, self)
 			return
 
 func _try_heal() -> void:
@@ -389,6 +408,29 @@ func _try_heal() -> void:
 func take_damage(amount: float, source: Node = null) -> void:
 	if _dead or _invuln > 0.0:
 		return
+
+	if blocking:
+		if _parry_timer > 0.0:
+			_parry_timer = 0.0
+			stamina = maxf(0.0, stamina - 12.0)
+			stamina_changed.emit(stamina, max_stamina)
+			notice.emit("Парирование!")
+			if source != null and source.has_method("stagger"):
+				source.stagger()
+			return
+		health = maxf(0.0, health - amount * 0.22)
+		stamina = maxf(0.0, stamina - amount * 1.3)
+		health_changed.emit(health, max_health)
+		stamina_changed.emit(stamina, max_stamina)
+		if stamina <= 0.0:
+			blocking = false
+			notice.emit("Защита сломана")
+		if health <= 0.0:
+			_dead = true
+			velocity = Vector3.ZERO
+			died.emit()
+		return
+
 	health = maxf(0.0, health - amount)
 	health_changed.emit(health, max_health)
 	if health <= 0.0:
@@ -408,6 +450,9 @@ func revive(at: Vector3) -> void:
 	stamina = max_stamina
 	_roll_timer = 0.0
 	_invuln = 1.2
+	blocking = false
+	_combo_window = 0.0
+	_combo_index = 0
 	health_changed.emit(health, max_health)
 	stamina_changed.emit(stamina, max_stamina)
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED

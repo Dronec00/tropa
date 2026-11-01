@@ -340,6 +340,11 @@ func take_damage(amount: float, source: Node = null) -> void:
 		if state != State.STRIKE:
 			_set_state(State.STAGGER, 0.30)
 
+func stagger(duration: float = 0.65) -> void:
+	if _dead:
+		return
+	_set_state(State.STAGGER, duration)
+
 func set_torch_bonus(multiplier: float) -> void:
 	_torch_bonus = multiplier
 

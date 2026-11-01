@@ -125,6 +125,7 @@ func _ready() -> void:
 	_build_hud()
 	hud.show_notice("Костёр гаснет. Лес ждёт.", 4.0)
 
+
 func _process(delta: float) -> void:
 	_time += delta
 	if _fire_light:
@@ -195,6 +196,7 @@ func _register_input() -> void:
 	_add_key("upgrade_3", KEY_3)
 	_add_key("upgrade_4", KEY_4)
 	_add_mouse("attack", MOUSE_BUTTON_LEFT)
+	_add_mouse("block", MOUSE_BUTTON_RIGHT)
 
 func _add_key(action: StringName, keycode: Key) -> void:
 	if not InputMap.has_action(action):
