@@ -71,8 +71,10 @@ func _raw_height(x: float, z: float) -> float:
 
 	# ручьи: неглубокие промоины
 	var sd := stream_distance(x, z)
-	if sd < 5.0:
-		h -= (1.0 - smoothstep(1.1, 4.5, sd)) * 1.3
+	# рваная кромка русла: ширина гуляет шумом
+	sd *= 0.82 + 0.36 * (0.5 + 0.5 * _detail.get_noise_2d(x * 0.12 + 40.0, z * 0.12 - 20.0))
+	if sd < 6.5:
+		h -= (1.0 - smoothstep(1.0, 6.0, sd)) * 1.35
 
 	# кольцевая река по краю мира
 	var r := Vector2(x, z).length()

@@ -13,6 +13,11 @@ void fragment() {
 	float n = texture(noise_tex, UV * vec2(2.2, 9.0)).r;
 	float n2 = texture(noise_tex, UV * vec2(5.5, 20.0)).r;
 	float mask = edge * smoothstep(0.24, 0.58, n * 0.65 + n2 * 0.45 + edge * 0.30);
+
+	// плавные начало и конец тропы
+	float along = UV2.x;
+	float ends = smoothstep(0.0, 0.10, along) * smoothstep(1.0, 0.90, along);
+	mask *= ends;
 	ALBEDO = col * (0.85 + 0.35 * n);
 	ROUGHNESS = 1.0;
 	ALPHA = clamp(mask, 0.0, 1.0) * 0.9;

@@ -50,6 +50,7 @@ var _paths: Array = []
 var _bush_points: Array = []
 var _puddle_plan: Array = []
 var _puddle_mats: Array = []
+var _fog_volumes: Array = []
 var _edge_cooldown := 0.0
 var _hut_parts: Dictionary = {}
 var _hut_door: Node3D
@@ -90,6 +91,7 @@ var _thunder_delay := -1.0
 var _thunder_left := 0.0
 var _thunder_env := 0.0
 var _thunder_prev := 0.0
+var _flash_was_active := false
 var _terrain_mat: Material
 var _tod_fog := 0.035
 const TREE_CHUNK := 80.0
@@ -246,7 +248,7 @@ func _build_breath() -> void:
 	if player == null:
 		return
 	_breath = CPUParticles3D.new()
-	_breath.amount = 6
+	_breath.amount = 4
 	_breath.lifetime = 2.3
 	_breath.one_shot = true
 	_breath.explosiveness = 0.45
@@ -259,9 +261,9 @@ func _build_breath() -> void:
 	_breath.initial_velocity_max = 0.3
 	_breath.scale_amount_min = 0.8
 	_breath.scale_amount_max = 1.5
-	_breath.color = Color(0.72, 0.77, 0.82, 0.10)
+	_breath.color = Color(0.72, 0.77, 0.82, 0.045)
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.30, 0.30)
+	quad.size = Vector2(0.26, 0.26)
 	_breath.mesh = quad
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -280,8 +282,8 @@ func _build_breath() -> void:
 
 	var ramp := Gradient.new()
 	ramp.set_color(0, Color(0.72, 0.77, 0.82, 0.0))
-	ramp.add_point(0.18, Color(0.72, 0.77, 0.82, 0.10))
-	ramp.add_point(0.65, Color(0.70, 0.75, 0.80, 0.06))
+	ramp.add_point(0.18, Color(0.72, 0.77, 0.82, 0.05))
+	ramp.add_point(0.65, Color(0.70, 0.75, 0.80, 0.03))
 	ramp.set_color(1, Color(0.70, 0.75, 0.80, 0.0))
 	_breath.color_ramp = ramp
 
@@ -336,12 +338,20 @@ func _toggle_rain() -> void:
 		_rain.emitting = _rain_on
 	hud.show_notice("Дождь" if _rain_on else "Дождь стих", 2.0)
 
+func _update_fog_volumes() -> void:
+	if _fog_volumes.is_empty() or player == null:
+		return
+	var p: Vector3 = player.global_position
+	for v in _fog_volumes:
+		var vol := v as FogVolume
+		vol.visible = vol.global_position.distance_to(p) < 70.0
+
 func _update_breath(delta: float) -> void:
 	if _breath == null or player == null:
 		return
 	_breath_timer -= delta
 	if _breath_timer <= 0.0:
-		_breath_timer = 3.2 + _rng.randf_range(-0.4, 0.6)
+		_breath_timer = 5.4 + _rng.randf_range(-1.0, 1.4)
 		_breath.restart()
 		_breath.emitting = true
 
@@ -356,10 +366,18 @@ func _update_lightning(delta: float) -> void:
 			_thunder_delay = _rng.randf_range(0.9, 2.6)
 		_flash = move_toward(_flash, 0.0, delta * 3.2)
 
-	if _env != null:
-		_env.ambient_light_energy = _ambient_base + _flash * 3.2
+	# трогаем окружение только пока вспышка активна, иначе SDFGI пересчитывается каждый кадр
+	if _flash > 0.001:
+		if _env != null:
+			_env.ambient_light_energy = _ambient_base + _flash * 3.2
 		if _sky_mat != null:
 			_sky_mat.set_shader_parameter("star_brightness", (TimeOfDayScript.PRESETS[_tod]["stars"] as float) + _flash * 2.0)
+	elif _flash_was_active:
+		if _env != null:
+			_env.ambient_light_energy = _ambient_base
+		if _sky_mat != null:
+			_sky_mat.set_shader_parameter("star_brightness", TimeOfDayScript.PRESETS[_tod]["stars"])
+	_flash_was_active = _flash > 0.001
 
 func _update_rain(delta: float) -> void:
 	var target := 1.0 if _rain_on else 0.0
@@ -398,6 +416,7 @@ func _process(delta: float) -> void:
 	_update_breath(delta)
 	_update_lightning(delta)
 	_update_thunder(delta)
+	_update_fog_volumes()
 	_time_wreath += delta
 	for w in _wreaths:
 		var node: Node3D = w["node"]
@@ -651,6 +670,7 @@ func _habitat_weights(h: float, stream_d: float) -> Dictionary:
 	return {"birch": 0.26, "birch_multi": 0.12, "ash": 0.15, "oak": 0.14, "cedar": 0.11, "spruce": 0.10, "willow": 0.0, "pine": 0.12}
 
 func _build_forest() -> void:
+	var on_path := 0
 	var density := FastNoiseLite.new()
 	density.seed = 77
 	density.frequency = 0.02
@@ -699,8 +719,11 @@ func _build_forest() -> void:
 
 		_add_tree_collision_at(Vector3(x, h, z), TreeLibScript.trunk_radius(species), TreeLibScript.height_of(species) * scale)
 		placed += 1
+		if _near_path_distance(x, z) < 3.0:
+			on_path += 1
 
 	_finish_trees()
+	print("[trees on path] ", on_path)
 	print("[trees] ", placed, " шт, пород: ", SPECIES.size())
 
 func _spawn_multimesh(mesh: Mesh, material: Material, transforms: Array) -> void:
@@ -866,7 +889,9 @@ func _build_single_strip(_path_points: Array) -> void:
 		return
 	var verts := PackedVector3Array()
 	var uvs := PackedVector2Array()
+	var uvs2 := PackedVector2Array()
 	var indices := PackedInt32Array()
+	var total: float = maxf(float(_path_points.size() - 1), 1.0)
 
 	for i in _path_points.size():
 		var p: Vector3 = _path_points[i]
@@ -881,6 +906,7 @@ func _build_single_strip(_path_points: Array) -> void:
 			q.y = terrain.height_at(q.x, q.z) + 0.04
 			verts.append(q)
 			uvs.append(Vector2(0.0 if s < 0.0 else 1.0, float(i) * 0.22))
+			uvs2.append(Vector2(float(i) / total, 0.0))
 
 		if i > 0:
 			var a := (i - 1) * 2
@@ -898,6 +924,7 @@ func _build_single_strip(_path_points: Array) -> void:
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_TEX_UV2] = uvs2
 	arrays[Mesh.ARRAY_INDEX] = indices
 
 	var mesh := ArrayMesh.new()
@@ -1097,6 +1124,8 @@ func _build_bridge(center: Vector3, dir: Vector3) -> void:
 	root.add_child(body)
 
 func _build_stream_fog() -> void:
+	if OS.get_environment("TROPA_NO_FOGVOL") == "1":
+		return
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/stream_fog.gdshader")
 
@@ -1106,7 +1135,7 @@ func _build_stream_fog() -> void:
 		for i in pts.size() - 1:
 			var a: Vector2 = pts[i]
 			var b: Vector2 = pts[i + 1]
-			var steps := maxi(1, int(a.distance_to(b) / 12.0))
+			var steps := maxi(1, int(a.distance_to(b) / 20.0))
 			for k in steps:
 				var t := (float(k) + 0.5) / float(steps)
 				var p := a.lerp(b, t)
@@ -1120,6 +1149,7 @@ func _build_stream_fog() -> void:
 				volume.material = vm
 				volume.position = Vector3(p.x, ground + 3.6, p.y)
 				add_child(volume)
+				_fog_volumes.append(volume)
 				made += 1
 	print("[stream fog] ", made)
 
@@ -1182,14 +1212,16 @@ func _plan_puddles() -> void:
 	print("[puddle plan] ", _puddle_plan.size())
 
 func _build_puddles() -> void:
+	if OS.get_environment("TROPA_NO_PUDDLES") == "1":
+		return
 	var water_mat := _make_puddle_material(7.0, 0.45)
 	_puddle_mats.append(water_mat)
 
 	var mud_mat := StandardMaterial3D.new()
-	mud_mat.albedo_color = Color(0.10, 0.078, 0.055, 0.85)
+	mud_mat.albedo_color = Color(0.17, 0.14, 0.10, 0.38)
 	mud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mud_mat.albedo_texture = _soft_radial()
-	mud_mat.roughness = 0.35
+	mud_mat.roughness = 0.7
 	mud_mat.metallic_specular = 0.7
 
 	for item in _puddle_plan:
@@ -1200,7 +1232,7 @@ func _build_puddles() -> void:
 
 		# мокрое пятно вокруг, чуть выше земли — лужа «в ложбинке»
 		var mud := MeshInstance3D.new()
-		mud.mesh = _puddle_patch(p.x, p.z, radius * 1.55, 26, elong, yaw)
+		mud.mesh = _puddle_patch(p.x, p.z, radius * 1.3, 26, elong, yaw)
 		mud.material_override = mud_mat
 		mud.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		mud.position.y = 0.010
@@ -1415,7 +1447,18 @@ func _marker_birch(pos: Vector3, index: int = 0) -> void:
 
 	_add_tree_collision(root, 0.24, 7.0)
 
+func _near_path_distance(x: float, z: float) -> float:
+	var best := 9999.0
+	for path in _paths:
+		var pts: Array = path["points"]
+		for i in range(0, pts.size(), 3):
+			var p: Vector3 = pts[i]
+			best = minf(best, Vector2(p.x - x, p.z - z).length())
+	return best
+
 func _near_path(x: float, z: float, radius: float) -> bool:
+	if _near_path_distance(x, z) < radius:
+		return true
 	for path in _paths:
 		for i in range(0, (path["points"] as Array).size(), 6):
 			var p: Vector3 = path["points"][i]
@@ -1518,7 +1561,7 @@ func _build_path() -> void:
 			dir = dir.normalized()
 			var side := Vector3(-dir.z, 0.0, dir.x)
 			for sgn in [-1.0, 1.0]:
-				var pos: Vector3 = p + side * (2.3 * sgn)
+				var pos: Vector3 = p + side * (3.8 * sgn)
 				pos.y = terrain.height_at(pos.x, pos.z)
 				var near_hut := false
 				for hut in HUTS:
