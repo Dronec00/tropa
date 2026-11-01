@@ -8,8 +8,8 @@ const TerrainScript := preload("res://scripts/terrain.gd")
 const GrassShader := preload("res://shaders/grass.gdshader")
 const TuftPath := "res://assets/textures/grass_tuft.png"
 
-func populate(terrain: Object, amount: int = 40000, radius: float = 42.0, paths: Array = []) -> void:
-	var tuft_mesh := _make_tuft_mesh()
+func populate(terrain: Object, amount: int = 40000, radius: float = 42.0, paths: Array = [], bushes: Array = []) -> void:
+	var tuft_mesh := make_tuft_mesh()
 
 	var material := ShaderMaterial.new()
 	material.shader = GrassShader
@@ -50,6 +50,16 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0, paths:
 			if near < 2.0:
 				continue
 			if near < 4.0 and rng.randf() > 0.45:
+				continue
+
+		# гуще у кустов: вне кустов часть кандидатов отбрасываем
+		if not bushes.is_empty():
+			var near_bush := false
+			for b in bushes:
+				if Vector2(b.x - x, b.z - z).length() < 4.5:
+					near_bush = true
+					break
+			if not near_bush and rng.randf() > 0.55:
 				continue
 
 		# наклон по нормали склона
@@ -110,7 +120,7 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0, paths:
 	multimesh = null
 	print("[grass] tufts: ", placed, " chunks: ", chunks.size())
 
-func _make_tuft_mesh() -> ArrayMesh:
+static func make_tuft_mesh() -> ArrayMesh:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()

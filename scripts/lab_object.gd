@@ -134,6 +134,27 @@ func _spawn_objects() -> void:
 	var spacing: float = LibScript.spacing(kind)
 	_span = maxf(10.0, spacing * float(count) + 4.0)
 
+	if kind == "grass":
+		var names := ["высокий", "низкий", "сухой", "с колосом"]
+		for v in 4:
+			var mat := ShaderMaterial.new()
+			mat.shader = load("res://shaders/grass.gdshader")
+			mat.set_shader_parameter("tuft", load("res://assets/textures/grass_tuft.png"))
+			mat.set_shader_parameter("variant_override", float(v))
+			mat.set_shader_parameter("wind_strength", 0.05)
+			mat.set_shader_parameter("tint_a", Color(1.1, 1.35, 0.75))
+			mat.set_shader_parameter("tint_b", Color(1.3, 1.15, 0.6))
+			mat.set_shader_parameter("topdown_fade", 0.0)
+			var node := MeshInstance3D.new()
+			node.mesh = GrassField.make_tuft_mesh()
+			node.material_override = mat
+			var x := (float(v) - 1.5) * 2.3
+			node.position = Vector3(x, 0.0, 0.0)
+			node.scale = Vector3(3.2, 3.2, 3.2)
+			add_child(node)
+			_label(x, 2.8, names[v])
+		return
+
 	if kind == "hut":
 		HutScript.build(self, Vector3(0.0, 0.0, 0.0), 0.0)
 		return
@@ -225,11 +246,11 @@ func _patch(cx: float, cz: float, radius: float) -> ArrayMesh:
 	return mesh
 
 func _build_camera() -> void:
-	if _kind() == "hut" or _kind() == "bonfire":
+	if _kind() in ["hut", "bonfire", "grass"]:
 		_cam = Camera3D.new()
 		_cam.fov = 62.0
-		_cam.position = Vector3(0.0, 2.4, 5.2)
-		_pitch = -0.28
+		_cam.position = Vector3(0.0, 2.0, 6.0)
+		_pitch = -0.24
 		_yaw = 0.0
 		_cam.rotation = Vector3(_pitch, _yaw, 0.0)
 		add_child(_cam)
@@ -250,7 +271,11 @@ func _build_ui() -> void:
 	add_child(layer)
 	var label := Label.new()
 	var kind_name := _kind().to_upper()
-	var variants_text := "витрина" if _kind() in ["hut", "bonfire"] else "8 вариантов"
+	var variants_text := "витрина"
+	if _kind() == "grass":
+		variants_text = "4 варианта"
+	elif not (_kind() in ["hut", "bonfire"]):
+		variants_text = "8 вариантов"
 	label.text = "ОБЪЕКТ: " + kind_name + "  —  " + variants_text + "\nWASD — идти  мышь — смотреть  Esc — в меню"
 	label.position = Vector2(24, 24)
 	label.add_theme_font_size_override("font_size", 18)

@@ -47,6 +47,7 @@ var _encounter_index := 0
 var _encounter_enemy = null
 var _path_points: Array[Vector3] = []
 var _paths: Array = []
+var _bush_points: Array = []
 var _edge_cooldown := 0.0
 var _hut_parts: Dictionary = {}
 var _hut_door: Node3D
@@ -376,7 +377,7 @@ func _build_terrain() -> void:
 	grass.name = "Grass"
 	add_child(grass)
 	if OS.get_environment("TROPA_NO_GRASS") != "1":
-		grass.populate(terrain, QualityScript.grass_amount(), QualityScript.grass_radius(), _paths)
+		grass.populate(terrain, QualityScript.grass_amount(), QualityScript.grass_radius(), _paths, _bush_points)
 
 # --- лес ---
 

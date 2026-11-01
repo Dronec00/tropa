@@ -12,6 +12,7 @@ varying vec3 v_world;
 // player_pos приходит из глобального uniform
 uniform float wind_speed = 1.35;
 uniform float topdown_fade = 0.30;
+uniform float variant_override = -1.0;
 
 void vertex() {
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -33,7 +34,7 @@ void vertex() {
 }
 
 void fragment() {
-	float variant = floor(COLOR.b * 3.999);
+	float variant = variant_override >= 0.0 ? variant_override : floor(COLOR.b * 3.999);
 	vec2 off = vec2(mod(variant, 2.0), floor(variant / 2.0)) * 0.5;
 	vec4 c = texture(tuft, UV * 0.5 + off);
 	float v = COLOR.r;
