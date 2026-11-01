@@ -36,6 +36,7 @@ var _blink_t := 3.0
 var _blink := 0.0
 
 var _rest: Dictionary = {}
+var _lid_rest: Dictionary = {}
 var _cape_rot: Array[Vector3] = []
 var _keys: Array[String] = [
 	"hips", "torso", "head",
@@ -66,6 +67,10 @@ func setup(rig: Dictionary) -> void:
 	var hat: Node3D = _rig.get("hat") as Node3D
 	if hat != null:
 		_rest["hat"] = hat.rotation
+	for key in ["lid_r", "lid_l"]:
+		var lid: Node3D = _rig.get(key) as Node3D
+		if lid != null:
+			_lid_rest[key] = lid.position
 	set_process(true)
 
 func set_locomotion(speed: float) -> void:
@@ -137,9 +142,13 @@ func _update_blink(delta: float) -> void:
 	var lid_l: Node3D = _rig.get("lid_l") as Node3D
 	var open := clampf(_blink / 0.07, 0.0, 1.0)
 	if lid_r != null:
-		lid_r.scale.y = 1.0 - open * 0.92
+		var rr: Vector3 = _lid_rest.get("lid_r", lid_r.position)
+		lid_r.position.y = rr.y - open * 0.011
+		lid_r.scale.y = 1.0
 	if lid_l != null:
-		lid_l.scale.y = 1.0 - open * 0.92
+		var ll: Vector3 = _lid_rest.get("lid_l", lid_l.position)
+		lid_l.position.y = ll.y - open * 0.011
+		lid_l.scale.y = 1.0
 
 # =========================================================================
 #  Меч: ножны за спиной <-> кисть

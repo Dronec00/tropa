@@ -95,7 +95,7 @@ static func build(parent: Node3D) -> Dictionary:
 	face_fill.name = "FaceFill"
 	face_fill.position = Vector3(0.0, 0.565, -0.300)
 	face_fill.light_color = Color(0.74, 0.82, 1.0)
-	face_fill.light_energy = 0.16
+	face_fill.light_energy = 0.08
 	face_fill.omni_range = 1.05
 	face_fill.omni_attenuation = 1.8
 	face_fill.shadow_enabled = false
@@ -144,6 +144,7 @@ class Kit:
 	var hair_hi: StandardMaterial3D
 	var brow: StandardMaterial3D
 	var eye_white: StandardMaterial3D
+	var eye_dark: StandardMaterial3D
 	var iris: StandardMaterial3D
 	var pupil: StandardMaterial3D
 	var eye_glint: StandardMaterial3D
@@ -168,8 +169,12 @@ static func _make_kit() -> Kit:
 	var kit: Kit = Kit.new()
 	var grain: ImageTexture = _grain_texture()
 
-	kit.skin = _mat(Color(0.500, 0.520, 0.565), 0.0, 0.74)
-	kit.skin_shade = _mat(Color(0.340, 0.358, 0.410), 0.0, 0.76)
+	kit.skin = _mat(Color(0.360, 0.375, 0.415), 0.0, 0.70)
+	kit.skin.subsurf_scatter_enabled = true
+	kit.skin.subsurf_scatter_strength = 0.25
+	kit.skin.rim_enabled = true
+	kit.skin.rim = 0.20
+	kit.skin_shade = _mat(Color(0.270, 0.286, 0.330), 0.0, 0.78)
 	kit.lip = _mat(Color(0.245, 0.135, 0.155), 0.0, 0.58)
 	kit.fang = _mat(Color(0.900, 0.900, 0.870), 0.0, 0.38)
 
@@ -179,8 +184,9 @@ static func _make_kit() -> Kit:
 	kit.hair_hi.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.brow = _mat(Color(0.035, 0.033, 0.040), 0.0, 0.70)
 
-	kit.eye_white = _mat(Color(0.780, 0.800, 0.820), 0.0, 0.30)
-	kit.iris = _mat(Color(0.235, 0.335, 0.420), 0.0, 0.18)
+	kit.eye_white = _mat(Color(0.480, 0.500, 0.530), 0.0, 0.34)
+	kit.eye_dark = _mat(Color(0.016, 0.016, 0.020), 0.0, 0.30)
+	kit.iris = _mat(Color(0.115, 0.220, 0.310), 0.0, 0.16)
 	kit.iris.emission_enabled = true
 	kit.iris.emission = Color(0.10, 0.17, 0.24)
 	kit.iris.emission_energy_multiplier = 0.35
@@ -672,136 +678,148 @@ static func _build_mantle(torso: Node3D, kit: Kit) -> void:
 # =========================================================================
 
 static func _build_head(head: Node3D, kit: Kit) -> Array:
-	# шея
-	_add(head, _capsule(0.044, 0.135, 10), kit.skin_shade, Vector3(0.0, -0.042, 0.012))
-	_add(head, _cyl(0.050, 0.058, 0.030, 12), kit.skin_shade, Vector3(0.0, -0.098, 0.012))
+	# --- шея: сужается вверх, с тенями, без белого столба ---
+	_add(head, _capsule(0.045, 0.140, 12), kit.skin_shade, Vector3(0.0, -0.042, 0.012))
+	_add(head, _cyl(0.052, 0.060, 0.030, 12), kit.skin_shade, Vector3(0.0, -0.100, 0.012))
+	for side in [-1.0, 1.0]:
+		# грудино-ключично-сосцевидная мышца
+		_add(head, _capsule(0.010, 0.095, 8), kit.skin_shade,
+				Vector3(side * 0.026, -0.068, -0.010), Vector3(0.0, 0.0, side * 0.16))
+	# тень под челюстью
+	_add(head, _sphere(0.048, 12, 8), kit.skin_shade, Vector3(0.0, -0.006, -0.040),
+			Vector3.ZERO, Vector3(1.10, 0.25, 0.70))
+	# высокая обмотка ворота: закрывает белую шею
+	var wrap: Node3D = _pivot(head, "NeckWrap", Vector3(0.0, -0.060, 0.008))
+	_add(wrap, _cyl(0.058, 0.070, 0.075, 18), kit.cloth_dark, Vector3.ZERO)
+	_add(wrap, _torus(0.056, 0.071, 18, 6), kit.leather_dark, Vector3(0.0, 0.032, 0.0))
+	_add(wrap, _box(Vector3(0.022, 0.060, 0.010)), kit.gold_dark,
+			Vector3(0.0, 0.006, -0.068))
 
-	# череп: своя сетка, узкое длинное лицо
+	# --- череп: кольцевая сетка, вытянутое лицо ---
 	var skull: MeshInstance3D = MeshInstance3D.new()
 	skull.mesh = _head_mesh()
 	skull.material_override = kit.skin
+	skull.set_meta("no_batch", true)
 	head.add_child(skull)
 
 	# надбровная дуга
-	_add(head, _box(Vector3(0.108, 0.015, 0.018)), kit.skin_shade,
-			Vector3(0.0, 0.1685, -0.0745), Vector3(0.12, 0.0, 0.0))
-	# тени под скулами
+	_add(head, _box(Vector3(0.104, 0.014, 0.016)), kit.skin_shade,
+			Vector3(0.0, 0.1465, -0.0765), Vector3(0.10, 0.0, 0.0))
+
+	# --- глаза: плоская миндалевидная пластина, без «гугли» ---
 	for side in [-1.0, 1.0]:
-		_add(head, _sphere(0.015, 10, 6), kit.skin_shade,
-				Vector3(side * 0.046, 0.096, -0.0685), Vector3(0.0, 0.0, side * 0.55),
-				Vector3(0.50, 1.00, 0.25))
-		# глазница: тёмная впадина
-		_add(head, _sphere(0.024, 14, 8), kit.skin_shade,
-				Vector3(side * 0.038, 0.1455, -0.0660), Vector3(0.0, side * 0.18, 0.0),
-				Vector3(1.16, 0.62, 0.24))
-		# белок: плоский, утоплен
-		_add(head, _sphere(0.0148, 14, 10), kit.eye_white,
-				Vector3(side * 0.038, 0.1450, -0.0700),
-				Vector3(0.0, side * 0.15, 0.0), Vector3(1.06, 0.50, 0.34))
+		var eye_x: float = side * 0.031
+		var eye: Node3D = _pivot(head, "Eye" + ("R" if side > 0.0 else "L"),
+				Vector3(eye_x, 0.1210, -0.0770), Vector3(0.0, 0.0, side * 0.09))
+		# тёмный контур глазницы
+		_add(eye, _sphere(0.0170, 14, 10), kit.skin_shade, Vector3(0.0, 0.0, -0.0010),
+				Vector3.ZERO, Vector3(1.15, 0.78, 0.05))
+		# тёмная миндалевидная пластина
+		_add(eye, _sphere(0.0165, 16, 12), kit.eye_dark, Vector3.ZERO,
+				Vector3.ZERO, Vector3(0.92, 0.38, 0.16))
 		# радужка и зрачок
-		_add(head, _cyl(0.0086, 0.0086, 0.0025, 14), kit.iris,
-				Vector3(side * 0.038, 0.1448, -0.0764),
-				Vector3(PI * 0.5, 0.0, 0.0))
-		_add(head, _cyl(0.0040, 0.0040, 0.0020, 10), kit.pupil,
-				Vector3(side * 0.038, 0.1448, -0.0781),
-				Vector3(PI * 0.5, 0.0, 0.0))
-		_add(head, _sphere(0.0022, 6, 6), kit.eye_glint,
-				Vector3(side * 0.0408, 0.1478, -0.0788))
-		# верхнее веко: прикрывает треть глаза
-		_add(head, _box(Vector3(0.032, 0.0095, 0.008)), kit.skin,
-				Vector3(side * 0.038, 0.1528, -0.0725), Vector3(-0.18, 0.0, side * 0.06))
-		_add(head, _box(Vector3(0.032, 0.0026, 0.009)), kit.brow,
-				Vector3(side * 0.038, 0.1488, -0.0758), Vector3(-0.18, 0.0, side * 0.06))
+		_add(eye, _sphere(0.0056, 12, 8), kit.iris, Vector3(0.0, -0.0002, -0.0030),
+				Vector3.ZERO, Vector3(1.0, 0.95, 0.35))
+		_add(eye, _sphere(0.0025, 10, 6), kit.pupil, Vector3(0.0, -0.0002, -0.0037),
+				Vector3.ZERO, Vector3(0.85, 1.05, 0.30))
+		_add(eye, _sphere(0.0012, 6, 6), kit.eye_glint,
+				Vector3(-0.0022, 0.0022, -0.0042))
 		# нижнее веко
-		_add(head, _box(Vector3(0.029, 0.0025, 0.008)), kit.skin_shade,
-				Vector3(side * 0.038, 0.1375, -0.0735))
-		# веко-аниматор (моргает) — тонкая полоска поверх
-		var lid: Node3D = _pivot(head, "Lid" + ("R" if side > 0.0 else "L"),
-				Vector3(side * 0.038, 0.1575, -0.0745), Vector3(-0.12, side * 0.10, 0.0))
-		_add(lid, _box(Vector3(0.031, 0.0105, 0.008)), kit.skin,
-				Vector3(0.0, -0.0050, 0.0))
-		_add(lid, _box(Vector3(0.031, 0.0028, 0.009)), kit.brow,
-				Vector3(0.0, -0.0110, 0.0))
+		_add(eye, _box(Vector3(0.032, 0.0020, 0.004)), kit.skin_shade,
+				Vector3(0.0, -0.0088, -0.0015), Vector3(-0.10, 0.0, 0.0))
+		# верхнее веко (моргает) — узкая кожная полоса
+		var lid: Node3D = _pivot(eye, "Lid" + ("R" if side > 0.0 else "L"),
+				Vector3(0.0, 0.0105, 0.0), Vector3(-0.12, 0.0, 0.0))
+		_add(lid, _sphere(0.0170, 16, 10), kit.skin, Vector3(0.0, -0.0032, 0.0010),
+				Vector3.ZERO, Vector3(1.0, 0.22, 0.22))
+		_add(lid, _box(Vector3(0.032, 0.0022, 0.004)), kit.brow,
+				Vector3(0.0, -0.0070, 0.0002), Vector3(-0.12, 0.0, 0.0))
 		# бровь
-		_add(head, _box(Vector3(0.039, 0.0038, 0.008)), kit.brow,
-				Vector3(side * 0.038, 0.1705, -0.0772), Vector3(0.0, 0.0, side * 0.16))
-		_add(head, _box(Vector3(0.013, 0.0032, 0.007)), kit.brow,
-				Vector3(side * 0.060, 0.1795, -0.0740), Vector3(0.0, 0.0, side * 0.36))
+		_add(head, _box(Vector3(0.036, 0.0034, 0.008)), kit.brow,
+				Vector3(eye_x, 0.1450, -0.0805), Vector3(0.0, 0.0, side * 0.15))
+		_add(head, _box(Vector3(0.011, 0.0030, 0.007)), kit.brow,
+				Vector3(side * 0.052, 0.1505, -0.0760), Vector3(0.0, 0.0, side * 0.36))
 
-	# нос: узкий, с горбинкой
-	_add(head, _box(Vector3(0.0145, 0.098, 0.026)), kit.skin,
-			Vector3(0.0, 0.120, -0.0885), Vector3(0.18, 0.0, 0.0))
-	_add(head, _sphere(0.0122, 12, 10), kit.skin, Vector3(0.0, 0.0740, -0.1035),
-			Vector3.ZERO, Vector3(0.94, 0.80, 1.12))
+	# --- нос: гребень уже в сетке, сверху кончик, крылья, ноздри ---
+	_add(head, _sphere(0.0095, 14, 10), kit.skin, Vector3(0.0, 0.0750, -0.1005),
+			Vector3.ZERO, Vector3(0.95, 0.80, 1.15))
 	for side in [-1.0, 1.0]:
-		_add(head, _box(Vector3(0.006, 0.050, 0.012)), kit.skin_shade,
-				Vector3(side * 0.0085, 0.115, -0.0925), Vector3(0.18, 0.0, side * 0.10))
-		_add(head, _sphere(0.0082, 8, 6), kit.skin_shade,
-				Vector3(side * 0.0120, 0.0715, -0.0965), Vector3.ZERO, Vector3(1.0, 0.7, 0.8))
-		_add(head, _sphere(0.0032, 6, 6), kit.pupil,
-				Vector3(side * 0.0095, 0.0670, -0.0995), Vector3.ZERO, Vector3(1.2, 0.5, 0.6))
-	# фильтрум
-	_add(head, _box(Vector3(0.009, 0.015, 0.008)), kit.skin_shade,
-			Vector3(0.0, 0.0575, -0.0860))
+		_add(head, _sphere(0.0068, 10, 8), kit.skin_shade,
+				Vector3(side * 0.0115, 0.0715, -0.0945), Vector3.ZERO, Vector3(1.0, 0.7, 0.9))
+		_add(head, _sphere(0.0028, 6, 6), kit.pupil,
+				Vector3(side * 0.0082, 0.0680, -0.0985), Vector3.ZERO, Vector3(1.2, 0.5, 0.6))
+		_add(head, _box(Vector3(0.0045, 0.045, 0.008)), kit.skin_shade,
+				Vector3(side * 0.0090, 0.1080, -0.0905), Vector3(0.16, 0.0, side * 0.06))
+	_add(head, _box(Vector3(0.0045, 0.010, 0.006)), kit.skin_shade,
+			Vector3(0.0, 0.0695, -0.0980))
+	_add(head, _box(Vector3(0.0080, 0.012, 0.007)), kit.skin_shade,
+			Vector3(0.0, 0.0620, -0.0875))
 
-	# губы
-	_add(head, _box(Vector3(0.037, 0.0055, 0.012)), kit.lip,
-			Vector3(0.0, 0.0470, -0.0855), Vector3(0.18, 0.0, 0.0))
-	_add(head, _box(Vector3(0.032, 0.0068, 0.012)), kit.lip,
-			Vector3(0.0, 0.0378, -0.0845), Vector3(0.10, 0.0, 0.0))
-	_add(head, _box(Vector3(0.034, 0.0018, 0.009)), kit.brow,
-			Vector3(0.0, 0.0420, -0.0895))
+	# --- губы: тонкие, без белого блина ---
 	for side in [-1.0, 1.0]:
-		_add(head, _sphere(0.0034, 6, 6), kit.lip,
-				Vector3(side * 0.0190, 0.0430, -0.0845))
-		# клык
-		_add(head, _cone(0.0028, 0.0048, 0.011, 6), kit.fang,
-				Vector3(side * 0.0140, 0.0335, -0.0870), Vector3(PI, 0.0, 0.0))
-	# ямка на подбородке
-	_add(head, _sphere(0.0075, 8, 6), kit.skin_shade, Vector3(0.0, 0.022, -0.0605),
-			Vector3.ZERO, Vector3(1.2, 0.7, 0.5))
+		_add(head, _box(Vector3(0.0120, 0.0034, 0.009)), kit.lip,
+				Vector3(side * 0.0110, 0.0582, -0.0910),
+				Vector3(0.14, 0.0, side * 0.22))
+		_add(head, _sphere(0.0028, 6, 6), kit.lip,
+				Vector3(side * 0.0172, 0.0562, -0.0898))
+		_add(head, _cone(0.0022, 0.0038, 0.009, 6), kit.fang,
+				Vector3(side * 0.0125, 0.0535, -0.0915), Vector3(PI, 0.0, 0.0))
+	_add(head, _box(Vector3(0.0140, 0.0032, 0.010)), kit.lip,
+			Vector3(0.0, 0.0605, -0.0918), Vector3(0.16, 0.0, 0.0))
+	_add(head, _box(Vector3(0.0260, 0.0048, 0.010)), kit.lip,
+			Vector3(0.0, 0.0520, -0.0908), Vector3(0.08, 0.0, 0.0))
+	_add(head, _box(Vector3(0.0300, 0.0014, 0.007)), kit.brow,
+			Vector3(0.0, 0.0552, -0.0930))
+	# подбородок: только тень, без шара
+	_add(head, _sphere(0.0060, 8, 6), kit.skin_shade, Vector3(0.0, 0.0260, -0.0710),
+			Vector3.ZERO, Vector3(1.2, 0.6, 0.4))
+	_add(head, _box(Vector3(0.028, 0.0030, 0.007)), kit.skin_shade,
+			Vector3(0.0, 0.0448, -0.0855), Vector3(0.10, 0.0, 0.0))
 
-	# уши: острые
+	# --- уши: острые, с завитком и козелком ---
 	for side in [-1.0, 1.0]:
 		var ear: Node3D = _pivot(head, "Ear" + ("R" if side > 0.0 else "L"),
-				Vector3(side * 0.070, 0.138, 0.004), Vector3(0.0, side * 0.30, side * 0.82))
-		_add(ear, _cone(0.019, 0.005, 0.075, 8), kit.skin, Vector3(0.0, 0.026, 0.0),
-				Vector3.ZERO, Vector3(0.55, 1.0, 1.0))
-		_add(ear, _cone(0.012, 0.002, 0.047, 8), kit.skin_shade,
-				Vector3(0.0, 0.023, -0.008), Vector3.ZERO, Vector3(0.45, 1.0, 0.9))
-		_add(ear, _sphere(0.0050, 6, 6), kit.skin, Vector3(0.0, -0.007, 0.004))
+				Vector3(side * 0.0745, 0.1200, 0.0060), Vector3(0.0, side * 0.35, side * 0.84))
+		_add(ear, _cone(0.022, 0.005, 0.080, 8), kit.skin, Vector3(0.0, 0.028, 0.0),
+				Vector3.ZERO, Vector3(0.52, 1.0, 1.0))
+		_add(ear, _cone(0.012, 0.002, 0.050, 8), kit.skin_shade,
+				Vector3(0.0, 0.026, -0.008), Vector3.ZERO, Vector3(0.42, 1.0, 0.9))
+		_add(ear, _sphere(0.0050, 6, 6), kit.skin, Vector3(0.0, -0.006, 0.004))
+		# завиток
+		_add(ear, _torus(0.015, 0.021, 12, 5), kit.skin_shade,
+				Vector3(0.0, 0.026, 0.006), Vector3(PI * 0.5, 0.0, side * 0.10))
+		# козелок
+		_add(ear, _sphere(0.0045, 6, 6), kit.skin, Vector3(0.0, 0.004, -0.008))
 
 	# кадык
-	_add(head, _sphere(0.009, 8, 6), kit.skin_shade, Vector3(0.0, -0.072, -0.032),
+	_add(head, _sphere(0.008, 8, 6), kit.skin_shade, Vector3(0.0, -0.078, -0.030),
 			Vector3.ZERO, Vector3(0.8, 1.3, 0.7))
 
-	return [head.get_node("LidR"), head.get_node("LidL")]
+	return [head.find_child("LidR", true, false), head.find_child("LidL", true, false)]
 
-## Голова: кольца от подбородка к темени. Лицо узкое, скулы резкие.
+## Голова: 15 колец × 28 сегментов. Глаза — 50% высоты, нос — 33%, рот — 25%.
 static func _head_mesh() -> ArrayMesh:
 	var rings: Array = [
-		[-0.006, 0.012, 0.050, 0.008],
-		[0.010, 0.020, 0.066, 0.018],
-		[0.028, 0.032, 0.078, 0.028],
-		[0.048, 0.043, 0.086, 0.038],
-		[0.068, 0.052, 0.091, 0.048],
-		[0.088, 0.060, 0.092, 0.056],
-		[0.108, 0.069, 0.090, 0.062],
+		[-0.006, 0.010, 0.060, 0.008],
+		[0.010, 0.022, 0.070, 0.018],
+		[0.028, 0.036, 0.080, 0.028],
+		[0.048, 0.050, 0.087, 0.038],
+		[0.068, 0.058, 0.091, 0.048],
+		[0.088, 0.061, 0.092, 0.056],
+		[0.108, 0.068, 0.090, 0.062],
 		[0.128, 0.071, 0.087, 0.066],
-		[0.148, 0.071, 0.083, 0.069],
-		[0.168, 0.068, 0.078, 0.070],
-		[0.188, 0.063, 0.071, 0.068],
-		[0.208, 0.054, 0.061, 0.062],
-		[0.226, 0.040, 0.047, 0.052],
-		[0.239, 0.022, 0.030, 0.034],
+		[0.148, 0.070, 0.083, 0.069],
+		[0.168, 0.067, 0.078, 0.070],
+		[0.188, 0.061, 0.071, 0.068],
+		[0.208, 0.052, 0.061, 0.062],
+		[0.226, 0.038, 0.047, 0.052],
+		[0.239, 0.020, 0.030, 0.034],
 		[0.245, 0.005, 0.012, 0.014],
 	]
 	var seg: int = 28
-	var st: SurfaceTool = SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var grid: Array = []
 	for r in range(rings.size()):
-		var row: Dictionary = {}
+		var row: Array = []
 		var y: float = float(rings[r][0])
 		var w: float = float(rings[r][1])
 		var front: float = float(rings[r][2])
@@ -812,36 +830,101 @@ static func _head_mesh() -> ArrayMesh:
 			var cz: float = cos(a)
 			var depth: float = front if cz > 0.0 else back
 			var z: float = -cz * depth
-			# небольшая впадина на висках
 			if absf(cz) < 0.45 and y > 0.10 and y < 0.19:
 				x *= 0.94
-			row[s] = Vector3(x, y, z)
+			z = _sculpt_face(x, y, z)
+			row.append(Vector3(x, y, z))
 		grid.append(row)
+
+	# нормали из соседних вершин сетки
+	var ngrid: Array = []
+	for r in range(rings.size()):
+		var nrow: Array = []
+		for s in range(seg):
+			var a: Vector3 = grid[r][s]
+			var b: Vector3 = grid[r][(s + 1) % seg]
+			var c: Vector3 = grid[r][(s - 1 + seg) % seg]
+			var du: Vector3 = b - c
+			var rp: int = mini(r + 1, rings.size() - 1)
+			var rm: int = maxi(r - 1, 0)
+			var dv: Vector3 = grid[rp][s] - grid[rm][s]
+			var n: Vector3 = du.cross(dv).normalized()
+			if n.length() < 0.001:
+				n = Vector3(a.x, (a.y - 0.12) * 0.6, a.z).normalized()
+			if n.dot(a) < 0.0:
+				n = -n
+			nrow.append(n)
+		ngrid.append(nrow)
+
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for r in range(rings.size() - 1):
 		for s in range(seg):
 			var s2: int = (s + 1) % seg
-			var a: Vector3 = grid[r][s]
-			var b: Vector3 = grid[r][s2]
-			var c: Vector3 = grid[r + 1][s2]
-			var d: Vector3 = grid[r + 1][s]
-			_add_face(st, a, b, c, 0.0)
-			_add_face(st, a, c, d, 0.0)
-	# макушка и подбородок
+			_add_face_n(st, grid[r][s], ngrid[r][s], grid[r][s2], ngrid[r][s2],
+					grid[r + 1][s2], ngrid[r + 1][s2])
+			_add_face_n(st, grid[r][s], ngrid[r][s], grid[r + 1][s2], ngrid[r + 1][s2],
+					grid[r + 1][s], ngrid[r + 1][s])
 	var top_center: Vector3 = Vector3(0.0, 0.248, 0.0)
 	for s in range(seg):
 		var s2: int = (s + 1) % seg
-		_add_face(st, grid[rings.size() - 1][s], grid[rings.size() - 1][s2], top_center, 0.0)
+		_add_face_n(st, grid[rings.size() - 1][s2], Vector3.UP,
+				grid[rings.size() - 1][s], Vector3.UP, top_center, Vector3.UP)
 	var bottom: Vector3 = Vector3(0.0, -0.012, 0.0)
 	for s in range(seg):
 		var s2: int = (s + 1) % seg
-		_add_face(st, grid[0][s2], grid[0][s], bottom, 0.0)
-	st.generate_normals()
+		_add_face_n(st, grid[0][s], Vector3.DOWN, grid[0][s2], Vector3.DOWN,
+				bottom, Vector3.DOWN)
 	return st.commit()
+
+## Лепка лица прямо на сетке: глазницы, гребень носа, скулы, подбородок.
+static func _sculpt_face(x: float, y: float, z: float) -> float:
+	var out: float = z
+	if z >= 0.0:
+		return out
+	# глазницы: вдавливаем поверхность под глазами
+	for side in [-1.0, 1.0]:
+		var ex: float = (x - side * 0.031) / 0.023
+		var ey: float = (y - 0.121) / 0.015
+		var q: float = ex * ex + ey * ey
+		if q < 1.0:
+			out += 0.0050 * pow(1.0 - q, 1.2)
+	# гребень носа: выдвигаем центр
+	if absf(x) < 0.010 and y > 0.076 and y < 0.158:
+		var t: float = (y - 0.076) / 0.082
+		var w: float = 1.0 - absf(x) / 0.010
+		out -= 0.0055 * w * sin(t * PI)
+	# впадина рта
+	var mx: float = x / 0.024
+	var my: float = (y - 0.055) / 0.009
+	var mq: float = mx * mx + my * my
+	if mq < 1.0:
+		out += 0.0018 * (1.0 - mq)
+	# скулы: чуть наружу
+	for side in [-1.0, 1.0]:
+		var cx: float = (x - side * 0.052) / 0.024
+		var cy: float = (y - 0.105) / 0.022
+		var cq: float = cx * cx + cy * cy
+		if cq < 1.0:
+			out -= 0.0022 * (1.0 - cq)
+	# подбородок: выдвигаем и заостряем
+	if absf(x) < 0.022 and y < 0.036:
+		out -= 0.0015 * (1.0 - y / 0.036) * (1.0 - absf(x) / 0.022)
+	return out
 
 static func _add_face(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3,
 		_y: float) -> void:
 	st.add_vertex(a)
 	st.add_vertex(b)
+	st.add_vertex(c)
+
+static func _add_face_n(st: SurfaceTool, a: Vector3, na: Vector3,
+		b: Vector3, nb: Vector3, c: Vector3, nc: Vector3) -> void:
+	st.set_normal(na)
+	st.add_vertex(a)
+	st.set_normal(nb)
+	st.add_vertex(b)
+	st.set_normal(nc)
 	st.add_vertex(c)
 
 # =========================================================================
@@ -850,31 +933,14 @@ static func _add_face(st: SurfaceTool, a: Vector3, b: Vector3, c: Vector3,
 
 static func _build_hair(head: Node3D, kit: Kit) -> Array:
 	# шапка волос: закрывает темечко и лобные углы
-	_add(head, _sphere(0.098, 20, 14), kit.hair, Vector3(0.0, 0.180, 0.012),
-			Vector3.ZERO, Vector3(0.98, 0.60, 1.00))
+	_add(head, _sphere(0.098, 20, 14), kit.hair, Vector3(0.0, 0.192, 0.034),
+			Vector3.ZERO, Vector3(0.98, 0.56, 0.94))
 	# затылок
 	_add(head, _sphere(0.104, 20, 14), kit.hair, Vector3(0.0, 0.132, 0.040),
 			Vector3.ZERO, Vector3(1.00, 1.10, 0.92))
 	# масса до лопаток
 	_add(head, _sphere(0.105, 18, 12), kit.hair, Vector3(0.0, 0.060, 0.082),
 			Vector3.ZERO, Vector3(1.04, 1.20, 0.66))
-	# боковые массы у висков
-	for side in [-1.0, 1.0]:
-		_add(head, _sphere(0.054, 14, 10), kit.hair,
-				Vector3(side * 0.074, 0.150, 0.020), Vector3(0.0, side * 0.2, 0.0),
-				Vector3(0.52, 1.05, 0.76))
-	# бороздки на шапке волос
-	for i in range(5):
-		var t: float = float(i) / 4.0 - 0.5
-		var pts: Array = []
-		for j in range(4):
-			var v: float = float(j) / 3.0
-			pts.append(Vector3(t * 0.16, 0.205 - v * 0.075, -0.070 + v * 0.040 + absf(t) * 0.030))
-		var mi: MeshInstance3D = MeshInstance3D.new()
-		mi.mesh = _tube(pts, [0.010, 0.008, 0.006, 0.003], 5)
-		mi.material_override = kit.hair_hi
-		head.add_child(mi)
-
 	var nodes: Array = []
 
 	# длинные пряди-полотна сзади
@@ -911,76 +977,13 @@ static func _build_hair(head: Node3D, kit: Kit) -> Array:
 			strand.material_override = kit.hair
 			head.add_child(strand)
 
-	# шторки волос по бокам лица
-	for side in [-1.0, 1.0]:
-		var curtain: Node3D = _pivot(head, "Curtain" + ("R" if side > 0.0 else "L"),
-				Vector3(side * 0.074, 0.186, -0.020),
-				Vector3(-0.05, side * 0.22, side * 0.06))
-		var cm: ArrayMesh = _cloth(0.056, 0.072, 0.380, 4, 7, 0.022, 0.028, 0.016,
-				side * 1.8)
-		var mi: MeshInstance3D = MeshInstance3D.new()
-		mi.mesh = cm
-		mi.material_override = kit.hair
-		curtain.add_child(mi)
-		var ci: MeshInstance3D = MeshInstance3D.new()
-		ci.mesh = _cloth(0.050, 0.066, 0.372, 4, 7, 0.018, 0.024, 0.014,
-				side * 2.4, true)
-		ci.material_override = kit.hair_hi
-		ci.position = Vector3(0.0, 0.0, 0.008)
-		curtain.add_child(ci)
-		# длинная прядь поверх
-		var pts: Array = []
-		for j in range(6):
-			var v: float = float(j) / 5.0
-			pts.append(Vector3(side * (0.082 + sin(v * 3.0) * 0.010),
-					0.180 - v * 0.36, -0.034 + sin(v * 2.0) * 0.014))
-		var strand: MeshInstance3D = MeshInstance3D.new()
-		strand.mesh = _tube(pts, [0.016, 0.014, 0.011, 0.008, 0.005, 0.002], 5)
-		strand.material_override = kit.hair_hi
-		head.add_child(strand)
-
-	# сплошная масса чёлки над бровями
-	_add(head, _sphere(0.072, 16, 10), kit.hair, Vector3(0.0, 0.202, -0.048),
-			Vector3(0.0, 0.0, 0.0), Vector3(1.02, 0.30, 0.42))
-	for side in [-1.0, 1.0]:
-		_add(head, _sphere(0.045, 12, 8), kit.hair,
-				Vector3(side * 0.052, 0.184, -0.056), Vector3(0.0, side * 0.2, side * 0.2),
-				Vector3(0.66, 0.50, 0.50))
-
 	# чёлка: два полотна от пробора к вискам + пряди поверх
 	for side in [-1.0, 1.0]:
 		var fr: MeshInstance3D = MeshInstance3D.new()
-		fr.mesh = _fringe_mesh(side, 0.0765)
+		fr.mesh = _fringe_mesh(side, 0.0775)
 		fr.material_override = kit.hair
 		head.add_child(fr)
-		for k in range(2):
-			var pts: Array = []
-			for j in range(5):
-				var v: float = float(j) / 4.0
-				var ang: float = (0.10 + v * 1.05) * side
-				var r: float = 0.078 + v * 0.004
-				pts.append(Vector3(sin(ang) * r, 0.207 - v * (0.012 + 0.055 * (0.4 + float(k) * 0.6)),
-						-cos(ang) * r - 0.006))
-			var mi: MeshInstance3D = MeshInstance3D.new()
-			mi.mesh = _tube(pts, [0.010, 0.009, 0.007, 0.005, 0.0015], 5)
-			mi.material_override = kit.hair_hi if k == 0 else kit.hair
-			head.add_child(mi)
-
-	# отдельные длинные пряди у лица
-	for side in [-1.0, 1.0]:
-		var pts: Array = [
-			Vector3(side * 0.088, 0.180, -0.010),
-			Vector3(side * 0.102, 0.145, -0.040),
-			Vector3(side * 0.108, 0.100, -0.052),
-			Vector3(side * 0.100, 0.060, -0.044),
-			Vector3(side * 0.094, 0.020, -0.030),
-		]
-		var mi: MeshInstance3D = MeshInstance3D.new()
-		mi.mesh = _tube(pts, [0.012, 0.010, 0.008, 0.005, 0.002], 5)
-		mi.material_override = kit.hair_hi
-		head.add_child(mi)
-
-	# разлетающиеся пряди
+		# разлетающиеся пряди
 	for side in [-1.0, 1.0]:
 		var pts: Array = [
 			Vector3(side * 0.088, 0.190, 0.020),
@@ -1420,7 +1423,8 @@ static func _fringe_mesh(side: float, radius: float) -> ArrayMesh:
 			var u: float = float(i) / float(cols)
 			var ang: float = (0.06 + u * 1.28) * side
 			var r: float = radius + v * 0.006
-			var y: float = 0.202 - v * (0.016 + 0.078 * pow(u, 1.45))
+			var y: float = 0.208 - v * (0.008 + 0.050 * pow(u, 1.45))
+			y -= v * 0.006 * sin(u * 23.0)
 			y -= v * 0.008 * sin(u * PI * 3.0)
 			grid.append(Vector3(sin(ang) * r, y, -cos(ang) * r - 0.004 * v))
 	var idx := func(i: int, j: int) -> int:
@@ -1512,6 +1516,8 @@ static func _batch(node: Node3D) -> void:
 			continue
 		var mi: MeshInstance3D = child as MeshInstance3D
 		if mi.mesh == null or mi.material_override == null:
+			continue
+		if mi.has_meta("no_batch"):
 			continue
 		var key: int = mi.material_override.get_instance_id()
 		if not groups.has(key):
