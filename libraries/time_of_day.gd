@@ -14,7 +14,8 @@ const PRESETS := {
 		"sun_energy": 1.35,
 		"sun_rot": Vector3(-38.0, 28.0, 0.0),
 		"fog": Color(0.05, 0.07, 0.11),
-		"fog_density": 0.025,
+		"fog_color": Color(0.10, 0.13, 0.20),
+		"fog_density": 0.036,
 		"vol_density": 0.009,
 		"vol_albedo": Color(0.52, 0.60, 0.74),
 		"sky_top": Color(0.006, 0.010, 0.022),
@@ -36,7 +37,8 @@ const PRESETS := {
 		"sun_energy": 0.85,
 		"sun_rot": Vector3(-16.0, 62.0, 0.0),
 		"fog": Color(0.26, 0.29, 0.33),
-		"fog_density": 0.055,
+		"fog_color": Color(0.40, 0.43, 0.48),
+		"fog_density": 0.062,
 		"vol_density": 0.026,
 		"vol_albedo": Color(0.70, 0.74, 0.80),
 		"sky_top": Color(0.12, 0.16, 0.24),
@@ -58,7 +60,8 @@ const PRESETS := {
 		"sun_energy": 0.95,
 		"sun_rot": Vector3(-58.0, 40.0, 0.0),
 		"fog": Color(0.30, 0.33, 0.37),
-		"fog_density": 0.032,
+		"fog_color": Color(0.52, 0.55, 0.60),
+		"fog_density": 0.040,
 		"vol_density": 0.012,
 		"vol_albedo": Color(0.68, 0.72, 0.78),
 		"sky_top": Color(0.22, 0.30, 0.42),
@@ -80,7 +83,8 @@ const PRESETS := {
 		"sun_energy": 1.15,
 		"sun_rot": Vector3(-11.0, -96.0, 0.0),
 		"fog": Color(0.20, 0.15, 0.15),
-		"fog_density": 0.040,
+		"fog_color": Color(0.28, 0.21, 0.21),
+		"fog_density": 0.046,
 		"vol_density": 0.016,
 		"vol_albedo": Color(0.72, 0.58, 0.52),
 		"sky_top": Color(0.07, 0.08, 0.15),
@@ -110,6 +114,7 @@ static func apply(key: String, env: Environment, sun: DirectionalLight3D, sky_ma
 	env.ambient_light_color = p["ambient"]
 	env.ambient_light_energy = p["ambient_energy"]
 	env.fog_light_color = p["fog"]
+	env.fog_light_color = p["fog_color"]
 	env.fog_density = p["fog_density"]
 	env.volumetric_fog_density = p["vol_density"]
 	env.volumetric_fog_albedo = p["vol_albedo"]

@@ -231,8 +231,8 @@ func _build_environment() -> void:
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.05, 0.07, 0.11)
 	env.fog_density = 0.032
-	env.fog_height = 1.2
-	env.fog_height_density = 0.16
+	env.fog_height = 1.6
+	env.fog_height_density = 0.38
 	env.fog_sky_affect = 0.25
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 0.98
