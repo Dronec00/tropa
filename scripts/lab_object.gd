@@ -249,7 +249,9 @@ func _build_ui() -> void:
 	var layer := CanvasLayer.new()
 	add_child(layer)
 	var label := Label.new()
-	label.text = "ОБЪЕКТ: " + _kind().to_upper() + ("  —  витрина" if _kind() in ["hut", "bonfire"] else "  —  8 вариантов")\nWASD — идти  мышь — смотреть  Esc — в меню"
+	var kind_name := _kind().to_upper()
+	var variants_text := "витрина" if _kind() in ["hut", "bonfire"] else "8 вариантов"
+	label.text = "ОБЪЕКТ: " + kind_name + "  —  " + variants_text + "\nWASD — идти  мышь — смотреть  Esc — в меню"
 	label.position = Vector2(24, 24)
 	label.add_theme_font_size_override("font_size", 18)
 	label.add_theme_color_override("font_color", Color(0.85, 0.85, 0.8))
