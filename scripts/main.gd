@@ -8,7 +8,7 @@ const GrassScript := preload("res://scripts/grass.gd")
 const WindScript := preload("res://scripts/wind.gd")
 const HutScript := preload("res://scripts/hut.gd")
 
-const TREE_COUNT := 240
+const TREE_COUNT := 300
 const WORLD_LIMIT := 92.0
 const WORLD_EDGE := 82.0
 const HUT_POS := Vector3(-34.0, 0.0, -52.0)
@@ -94,7 +94,7 @@ var _amulet_taken := false
 var _door_open := false
 var _checkpoint := Vector3(2.8, 0.0, 5.4)
 const TreeLibScript := preload("res://scripts/tree_lib.gd")
-const SPECIES := ["birch", "oak", "ash", "cedar", "spruce"]
+const SPECIES := ["birch", "birch_multi", "oak", "ash", "cedar", "spruce", "willow"]
 
 var _tree_shader: Shader
 var _mat_light: ShaderMaterial
@@ -119,6 +119,8 @@ func _ready() -> void:
 	_build_boundary()
 	_build_forest()
 	_build_bonfire()
+	_build_undergrowth()
+	_build_rocks()
 	_spawn_player()
 	_build_hud()
 	hud.show_notice("Костёр гаснет. Лес ждёт.", 4.0)
@@ -325,11 +327,13 @@ func _species_index(species: String) -> int:
 	return SPECIES.find(species) if SPECIES.has(species) else 0
 
 func _habitat_weights(h: float, stream_d: float) -> Dictionary:
-	if h < 2.6 or stream_d < 9.0:
-		return {"birch": 0.62, "ash": 0.22, "oak": 0.10, "cedar": 0.03, "spruce": 0.03}
+	if stream_d < 8.0:
+		return {"birch": 0.30, "birch_multi": 0.16, "willow": 0.28, "ash": 0.14, "oak": 0.08, "cedar": 0.02, "spruce": 0.02}
+	if h < 2.6:
+		return {"birch": 0.38, "birch_multi": 0.16, "ash": 0.20, "oak": 0.14, "cedar": 0.06, "spruce": 0.06, "willow": 0.0}
 	if h > 6.0:
-		return {"birch": 0.20, "ash": 0.13, "oak": 0.15, "cedar": 0.26, "spruce": 0.26}
-	return {"birch": 0.44, "ash": 0.18, "oak": 0.16, "cedar": 0.12, "spruce": 0.10}
+		return {"birch": 0.18, "birch_multi": 0.08, "ash": 0.12, "oak": 0.14, "cedar": 0.26, "spruce": 0.22, "willow": 0.0}
+	return {"birch": 0.30, "birch_multi": 0.14, "ash": 0.18, "oak": 0.16, "cedar": 0.12, "spruce": 0.10, "willow": 0.0}
 
 func _build_forest() -> void:
 	var density := FastNoiseLite.new()
@@ -356,7 +360,7 @@ func _build_forest() -> void:
 		var stream_d: float = terrain.stream_distance(x, z)
 		if stream_d < 3.0:
 			continue
-		if density.get_noise_2d(x, z) * 0.5 + 0.5 < 0.42:
+		if density.get_noise_2d(x, z) * 0.5 + 0.5 < 0.38:
 			continue
 		var h: float = terrain.height_at(x, z)
 		if h < TerrainScript.WATER_LEVEL + 1.2:
@@ -375,6 +379,117 @@ func _build_forest() -> void:
 
 	_finish_trees()
 	print("[trees] ", placed, " шт, пород: ", SPECIES.size())
+
+func _spawn_multimesh(mesh: Mesh, material: Material, transforms: Array) -> void:
+	if transforms.is_empty():
+		return
+	var multimesh := MultiMesh.new()
+	multimesh.transform_format = MultiMesh.TRANSFORM_3D
+	multimesh.mesh = mesh
+	multimesh.instance_count = transforms.size()
+	for i in transforms.size():
+		multimesh.set_instance_transform(i, transforms[i])
+	var node := MultiMeshInstance3D.new()
+	node.multimesh = multimesh
+	node.material_override = material
+	add_child(node)
+
+func _build_undergrowth() -> void:
+	var bush_meshes: Array = [TreeLibScript.build("bush", 501), TreeLibScript.build("bush", 733)]
+	var bush_lists: Array = [[], []]
+	var attempts := 0
+	while bush_lists[0].size() + bush_lists[1].size() < 260 and attempts < 6000:
+		attempts += 1
+		var angle := _rng.randf_range(0.0, TAU)
+		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
+		var x := cos(angle) * dist
+		var z := sin(angle) * dist
+		if Vector2(x, z).length() < 8.0:
+			continue
+		if terrain.is_water(x, z):
+			continue
+		if _near_path(x, z, 1.6):
+			continue
+		var h: float = terrain.height_at(x, z)
+		if h < TerrainScript.WATER_LEVEL + 0.5:
+			continue
+		if terrain.slope_at(x, z) > 0.8:
+			continue
+		var idx := _rng.randi_range(0, 1)
+		var s := _rng.randf_range(0.8, 1.5)
+		var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(s, s, s))
+		(bush_lists[idx] as Array).append(Transform3D(basis, Vector3(x, h, z)))
+
+	for i in 2:
+		_spawn_multimesh(bush_meshes[i], _mat_light, bush_lists[i])
+	print("[bushes] ", bush_lists[0].size() + bush_lists[1].size())
+
+func _add_rock(list: Array, x: float, z: float) -> void:
+	var h: float = terrain.height_at(x, z)
+	if h < TerrainScript.WATER_LEVEL - 0.4:
+		return
+	var s := _rng.randf_range(0.35, 0.95)
+	var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(
+		s * _rng.randf_range(0.9, 1.5),
+		s * _rng.randf_range(0.5, 0.8),
+		s * _rng.randf_range(0.9, 1.5)
+	))
+	list.append(Transform3D(basis, Vector3(x, h + 0.02, z)))
+
+func _build_rocks() -> void:
+	var transforms: Array = []
+
+	# берега реки
+	for z in range(-90, 91, 5):
+		var c: float = terrain.river_center(float(z))
+		for side in [-1.0, 1.0]:
+			if _rng.randf() < 0.45:
+				continue
+			_add_rock(transforms, c + side * _rng.randf_range(8.5, 12.0), float(z))
+
+	# берега ручьёв
+	for stream in terrain.stream_points():
+		for i in stream.size() - 1:
+			var a: Vector2 = stream[i]
+			var b: Vector2 = stream[i + 1]
+			var steps := maxi(1, int(a.distance_to(b) / 5.0))
+			for s in steps:
+				var t := float(s) / float(steps)
+				var p := a.lerp(b, t)
+				var dir := (b - a).normalized()
+				var side := Vector2(-dir.y, dir.x)
+				for k in [-1.0, 1.0]:
+					if _rng.randf() < 0.5:
+						continue
+					var q: Vector2 = p + side * k * _rng.randf_range(1.7, 2.9)
+					_add_rock(transforms, q.x, q.y)
+
+	# тропа к избе
+	for i in range(0, _path_points.size(), 3):
+		var p: Vector3 = _path_points[i]
+		for k in [-1.0, 1.0]:
+			if _rng.randf() < 0.5:
+				continue
+			_add_rock(transforms, p.x + k * _rng.randf_range(2.0, 3.6), p.z)
+
+	# просто по лесу
+	for i in 70:
+		var angle := _rng.randf_range(0.0, TAU)
+		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
+		_add_rock(transforms, cos(angle) * dist, sin(angle) * dist)
+
+	var rock := SphereMesh.new()
+	rock.radius = 0.55
+	rock.height = 0.85
+	rock.radial_segments = 10
+	rock.rings = 6
+
+	var stone := StandardMaterial3D.new()
+	stone.albedo_color = Color(0.17, 0.17, 0.16)
+	stone.roughness = 1.0
+
+	_spawn_multimesh(rock, stone, transforms)
+	print("[rocks] ", transforms.size())
 
 func _finish_trees() -> void:
 	for i in _tree_variants.size():

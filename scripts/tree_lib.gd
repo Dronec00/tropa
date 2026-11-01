@@ -11,6 +11,9 @@ const BARK_BIRCH := Color(0.78, 0.78, 0.74)
 const BARK_OAK := Color(0.30, 0.24, 0.18)
 const BARK_ASH := Color(0.52, 0.50, 0.44)
 const BARK_CONIFER := Color(0.62, 0.55, 0.48)
+const LEAF_WILLOW := Color(0.22, 0.31, 0.12)
+const LEAF_BUSH := Color(0.15, 0.22, 0.10)
+const BARK_BUSH := Color(0.28, 0.24, 0.18)
 
 class Builder:
 	var verts := PackedVector3Array()
@@ -101,11 +104,17 @@ static func build(species: String, seed_value: int) -> ArrayMesh:
 	var b := Builder.new()
 	match species:
 		"birch":
-			_birch(b, rng)
+			_deciduous(b, rng, 1)
+		"birch_multi":
+			_deciduous(b, rng, rng.randi_range(2, 3))
 		"oak":
 			_oak(b, rng)
 		"ash":
 			_ash(b, rng)
+		"willow":
+			_willow(b, rng)
+		"bush":
+			_bush(b, rng)
 		"cedar":
 			_conifer(b, rng, false)
 		_:
@@ -122,6 +131,10 @@ static func trunk_radius(species: String) -> float:
 			return 0.32
 		"ash":
 			return 0.30
+		"willow":
+			return 0.34
+		"bush":
+			return 0.30
 		_:
 			return 0.24
 
@@ -135,40 +148,92 @@ static func height_of(species: String) -> float:
 			return 11.0
 		"ash":
 			return 10.0
+		"willow":
+			return 6.0
+		"bush":
+			return 1.2
 		_:
 			return 7.5
 
-# --- берёза ---
+# --- лиственные ---
 
-static func _birch(b: Builder, rng: RandomNumberGenerator) -> void:
-	var h := rng.randf_range(6.0, 9.0)
+static func _curved_trunk(b: Builder, rng: RandomNumberGenerator, base: Vector3, height: float, lean: Vector3, radius: float, color: Color) -> Vector3:
+	var p := base
+	var dir := Vector3(lean.x, 1.0, lean.z).normalized()
+	var r := radius
+	var bend_dir := Vector3(rng.randf_range(-1.0, 1.0), 0.0, rng.randf_range(-1.0, 1.0)).normalized()
+	var segments := 5
+	for i in segments:
+		var t := float(i + 1) / float(segments)
+		var bend := Vector3(sin(t * 2.4), 0.0, cos(t * 2.1)) * 0.18 + bend_dir * 0.12
+		dir = (dir + bend).normalized()
+		var p1 := p + dir * (height / float(segments))
+		b.tube(p, p1, r, r * 0.8, 6, color)
+		p = p1
+		r *= 0.8
+	return p
+
+static func _deciduous(b: Builder, rng: RandomNumberGenerator, trunks: int) -> void:
+	var h := rng.randf_range(6.5, 9.5)
 	b.height = h
-	var lean := Vector3(rng.randf_range(-0.35, 0.35), 0.0, rng.randf_range(-0.35, 0.35))
 
-	var p0 := Vector3.ZERO
-	var r := 0.13
-	for i in 4:
-		var t := float(i + 1) / 4.0
-		var p1 := Vector3(lean.x * t * t, h * t, lean.z * t * t)
-		b.tube(p0, p1, r, r * 0.72, 6, BARK_BIRCH)
-		p0 = p1
-		r *= 0.72
+	for trunk_i in trunks:
+		var offset := Vector3.ZERO
+		if trunks > 1:
+			var a := TAU * float(trunk_i) / float(trunks) + rng.randf_range(-0.4, 0.4)
+			offset = Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.15, 0.45)
+		var lean := Vector3(rng.randf_range(-0.22, 0.22), 0.0, rng.randf_range(-0.22, 0.22))
+		var top := _curved_trunk(b, rng, offset, h * rng.randf_range(0.85, 1.0), lean, 0.13, BARK_BIRCH)
 
-	for i in 9:
-		var t := rng.randf_range(0.45, 0.95)
-		var base := Vector3(lean.x * t * t, h * t, lean.z * t * t)
-		var a := rng.randf() * TAU
-		var branch_len := rng.randf_range(1.1, 2.1)
-		var dir := Vector3(cos(a), rng.randf_range(-0.2, 0.2), sin(a)).normalized()
-		var tip := base + dir * branch_len
-		b.tube(base, tip, 0.055, 0.014, 4, BARK_BIRCH)
+		for i in 8:
+			var base := offset.lerp(top, rng.randf_range(0.55, 0.98))
+			var a := rng.randf() * TAU
+			var branch_len := rng.randf_range(1.1, 2.0)
+			var dir := Vector3(cos(a), rng.randf_range(-0.15, 0.25), sin(a)).normalized()
+			var tip := base + dir * branch_len
+			b.tube(base, tip, 0.05, 0.013, 4, BARK_BIRCH)
+			for c in 8:
+				var along := rng.randf_range(0.2, 1.1)
+				var cp := base + dir * branch_len * along \
+					+ Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(-0.35, 0.45), rng.randf_range(-0.6, 0.6))
+				b.card(cp, rng.randf_range(1.1, 1.7), rng.randf() * TAU, rng.randf_range(-0.5, 0.5), LEAF_BIRCH)
+
+# --- ива ---
+
+static func _willow(b: Builder, rng: RandomNumberGenerator) -> void:
+	var h := rng.randf_range(4.5, 6.5)
+	b.height = h
+	var top := _curved_trunk(b, rng, Vector3.ZERO, h, Vector3(rng.randf_range(-0.2, 0.2), 0.0, rng.randf_range(-0.2, 0.2)), 0.28, BARK_ASH)
+
+	for i in 14:
+		var a := TAU * float(i) / 14.0 + rng.randf_range(-0.25, 0.25)
+		var out := Vector3(cos(a), 0.0, sin(a))
+		var base := top + out * rng.randf_range(0.0, 0.7)
+		var branch_len := rng.randf_range(2.2, 3.4)
+		var mid := base + out * branch_len * 0.55 + Vector3(0.0, rng.randf_range(-0.1, 0.35), 0.0)
+		var tip := mid + out * branch_len * 0.3 + Vector3(0.0, -branch_len * 0.85, 0.0)
+		b.tube(base, mid, 0.06, 0.03, 4, BARK_ASH)
+		b.tube(mid, tip, 0.03, 0.01, 4, BARK_ASH)
+		for c in 10:
+			var cp := mid.lerp(tip, rng.randf_range(0.05, 1.0)) \
+				+ Vector3(rng.randf_range(-0.18, 0.18), 0.0, rng.randf_range(-0.18, 0.18))
+			b.card(cp, rng.randf_range(0.7, 1.1), rng.randf() * TAU, rng.randf_range(-0.35, 0.35), LEAF_WILLOW)
+
+# --- куст ---
+
+static func _bush(b: Builder, rng: RandomNumberGenerator) -> void:
+	var h := rng.randf_range(0.9, 1.5)
+	b.height = h
+	for i in 8:
+		var a := TAU * float(i) / 8.0 + rng.randf_range(-0.3, 0.3)
+		var out := Vector3(cos(a), 0.0, sin(a))
+		var tip := out * rng.randf_range(0.35, 0.75) + Vector3(0.0, h * rng.randf_range(0.55, 1.0), 0.0)
+		b.tube(Vector3(0.0, 0.05, 0.0), tip, 0.05, 0.02, 4, BARK_BUSH)
 		for c in 5:
-			var along := rng.randf_range(0.25, 1.05)
-			var cp := base + dir * branch_len * along \
-				+ Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(-0.35, 0.45), rng.randf_range(-0.6, 0.6))
-			b.card(cp, rng.randf_range(1.1, 1.7), rng.randf() * TAU, rng.randf_range(-0.5, 0.5), LEAF_BIRCH)
+			var cp := tip + Vector3(rng.randf_range(-0.28, 0.28), rng.randf_range(-0.12, 0.2), rng.randf_range(-0.28, 0.28))
+			b.card(cp, rng.randf_range(0.55, 0.95), rng.randf() * TAU, rng.randf_range(-0.5, 0.5), LEAF_BUSH)
 
-# --- дуб ---
+# --- дуб ---# --- дуб ---
 
 static func _oak(b: Builder, rng: RandomNumberGenerator) -> void:
 	var h := rng.randf_range(5.5, 7.5)

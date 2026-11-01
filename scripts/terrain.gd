@@ -122,6 +122,9 @@ func height_at(x: float, z: float) -> float:
 	var h11 := _heights[(j + 1) * GRID + i + 1]
 	return lerpf(lerpf(h00, h10, tx), lerpf(h01, h11, tx), tz)
 
+func stream_points() -> Array:
+	return STREAMS
+
 func stream_distance(x: float, z: float) -> float:
 	var p := Vector2(x, z)
 	var best := 999.0
