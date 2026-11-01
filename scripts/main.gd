@@ -37,6 +37,7 @@ var _rng := RandomNumberGenerator.new()
 var _time := 0.0
 var _fire_light: OmniLight3D
 var _enemies: Array = []
+const ENEMIES_ENABLED := false
 var _encounters := [
 	{"at": 14.0, "kind": "wolf"},
 	{"at": 27.0, "kind": "cultist"},
@@ -1660,6 +1661,9 @@ func _update_underwater() -> void:
 	hud.set_underwater(under)
 
 func _update_encounters(delta: float) -> void:
+	# Пока враги из мира выключены: лабы и меню «Враги» работают отдельно.
+	if not ENEMIES_ENABLED:
+		return
 	if _encounter_index >= _encounters.size():
 		return
 	var travelled := Vector2(player.global_position.x, player.global_position.z).length()

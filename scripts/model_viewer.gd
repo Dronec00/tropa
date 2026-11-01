@@ -99,8 +99,8 @@ func _setup_world() -> void:
 	_env.background_mode = Environment.BG_COLOR
 	_env.background_color = Color(0.030, 0.034, 0.042)
 	_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	_env.ambient_light_color = Color(0.28, 0.32, 0.40)
-	_env.ambient_light_energy = 0.55
+	_env.ambient_light_color = Color(0.24, 0.28, 0.36)
+	_env.ambient_light_energy = 0.32
 	_env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	_env.tonemap_exposure = 1.05
 	_env.glow_enabled = true
@@ -116,7 +116,7 @@ func _setup_world() -> void:
 	_key = DirectionalLight3D.new()
 	_key.rotation_degrees = Vector3(-32.0, 205.0, 0.0)
 	_key.light_color = Color(0.86, 0.90, 1.0)
-	_key.light_energy = 3.8
+	_key.light_energy = 3.2
 	_key.shadow_enabled = true
 	_key.directional_shadow_max_distance = 18.0
 	_key.shadow_blur = 1.2
@@ -125,7 +125,7 @@ func _setup_world() -> void:
 	_fill = OmniLight3D.new()
 	_fill.position = Vector3(1.5, 1.55, -2.0)
 	_fill.light_color = Color(0.62, 0.74, 1.0)
-	_fill.light_energy = 2.6
+	_fill.light_energy = 1.35
 	_fill.omni_range = 7.0
 	_fill.omni_attenuation = 1.2
 	add_child(_fill)
@@ -133,7 +133,7 @@ func _setup_world() -> void:
 	_rim = OmniLight3D.new()
 	_rim.position = Vector3(-1.2, 2.1, 2.3)
 	_rim.light_color = Color(1.0, 0.66, 0.38)
-	_rim.light_energy = 4.2
+	_rim.light_energy = 4.0
 	_rim.omni_range = 6.0
 	_rim.omni_attenuation = 1.4
 	add_child(_rim)
@@ -141,7 +141,7 @@ func _setup_world() -> void:
 	_face = OmniLight3D.new()
 	_face.position = Vector3(0.0, 1.66, -1.15)
 	_face.light_color = Color(0.86, 0.89, 1.0)
-	_face.light_energy = 0.85
+	_face.light_energy = 0.50
 	_face.omni_range = 2.1
 	_face.omni_attenuation = 1.6
 	_face.shadow_enabled = false
@@ -260,14 +260,14 @@ func _apply_light() -> void:
 	match _light_index:
 		0:
 			_env.background_color = Color(0.030, 0.034, 0.042)
-			_env.ambient_light_color = Color(0.28, 0.32, 0.40)
-			_env.ambient_light_energy = 0.55
+			_env.ambient_light_color = Color(0.24, 0.28, 0.36)
+			_env.ambient_light_energy = 0.32
 			_key.light_color = Color(0.82, 0.87, 1.0)
-			_key.light_energy = 3.8
+			_key.light_energy = 3.2
 			_fill.light_color = Color(0.62, 0.74, 1.0)
-			_fill.light_energy = 2.6
+			_fill.light_energy = 1.35
 			_rim.light_color = Color(1.0, 0.66, 0.38)
-			_rim.light_energy = 3.2
+			_rim.light_energy = 4.0
 		1:
 			_env.background_color = Color(0.012, 0.020, 0.038)
 			_env.ambient_light_color = Color(0.16, 0.24, 0.42)

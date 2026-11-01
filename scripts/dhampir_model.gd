@@ -145,12 +145,12 @@ static func _make_kit() -> Kit:
 	var kit: Kit = Kit.new()
 	var grain: ImageTexture = _grain_texture()
 
-	kit.skin = _mat(Color(0.805, 0.818, 0.850), 0.0, 0.58)
-	kit.skin_shade = _mat(Color(0.545, 0.565, 0.625), 0.0, 0.68)
-	kit.lip = _mat(Color(0.360, 0.205, 0.235), 0.0, 0.55)
+	kit.skin = _mat(Color(0.500, 0.520, 0.565), 0.0, 0.74)
+	kit.skin_shade = _mat(Color(0.340, 0.358, 0.410), 0.0, 0.76)
+	kit.lip = _mat(Color(0.245, 0.135, 0.155), 0.0, 0.58)
 	kit.fang = _mat(Color(0.900, 0.900, 0.870), 0.0, 0.38)
 
-	kit.hair = _mat(Color(0.058, 0.054, 0.066), 0.0, 0.48)
+	kit.hair = _mat(Color(0.040, 0.038, 0.048), 0.0, 0.52)
 	kit.hair.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.hair_hi = _mat(Color(0.115, 0.110, 0.130), 0.0, 0.42)
 	kit.hair_hi.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -166,37 +166,37 @@ static func _make_kit() -> Kit:
 	kit.eye_glint.albedo_color = Color(0.95, 0.97, 1.0)
 	kit.eye_glint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
-	kit.cloth = _mat(Color(0.062, 0.062, 0.074), 0.03, 0.74)
+	kit.cloth = _mat(Color(0.032, 0.033, 0.042), 0.0, 0.82)
 	kit.cloth.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.cloth.albedo_texture = grain
 	kit.cloth.uv1_scale = Vector3(3.0, 3.0, 3.0)
-	kit.cloth_dark = _mat(Color(0.030, 0.031, 0.038), 0.0, 0.84)
+	kit.cloth_dark = _mat(Color(0.020, 0.021, 0.027), 0.0, 0.86)
 	kit.cloth_dark.cull_mode = BaseMaterial3D.CULL_DISABLED
-	kit.cloth_soft = _mat(Color(0.070, 0.068, 0.080), 0.0, 0.86)
+	kit.cloth_soft = _mat(Color(0.052, 0.051, 0.062), 0.0, 0.84)
 	kit.cloth_soft.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.cloth_soft.albedo_texture = grain
 	kit.cloth_soft.uv1_scale = Vector3(4.0, 4.0, 4.0)
 
-	kit.lining = _mat(Color(0.520, 0.280, 0.080), 0.0, 0.82)
+	kit.lining = _mat(Color(0.330, 0.165, 0.045), 0.0, 0.86)
 	kit.lining.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.lining.albedo_texture = grain
 	kit.lining.uv1_scale = Vector3(3.0, 3.0, 3.0)
 	kit.lining_dark = _mat(Color(0.255, 0.130, 0.040), 0.0, 0.90)
 	kit.lining_dark.cull_mode = BaseMaterial3D.CULL_DISABLED
 
-	kit.hat = _mat(Color(0.028, 0.028, 0.036), 0.0, 0.76)
+	kit.hat = _mat(Color(0.022, 0.022, 0.029), 0.0, 0.78)
 	kit.hat.albedo_texture = grain
 	kit.hat.uv1_scale = Vector3(4.0, 4.0, 4.0)
-	kit.leather = _mat(Color(0.072, 0.064, 0.060), 0.04, 0.48)
+	kit.leather = _mat(Color(0.052, 0.045, 0.043), 0.02, 0.52)
 	kit.leather.albedo_texture = grain
 	kit.leather.uv1_scale = Vector3(5.0, 5.0, 5.0)
 	kit.leather_dark = _mat(Color(0.032, 0.029, 0.029), 0.0, 0.62)
 	kit.leather_dark.albedo_texture = grain
 	kit.leather_dark.uv1_scale = Vector3(6.0, 6.0, 6.0)
 
-	kit.gold = _mat(Color(0.560, 0.420, 0.170), 0.92, 0.32)
+	kit.gold = _mat(Color(0.420, 0.305, 0.115), 0.90, 0.36)
 	kit.gold_dark = _mat(Color(0.330, 0.245, 0.095), 0.88, 0.42)
-	kit.silver = _mat(Color(0.520, 0.540, 0.590), 0.94, 0.28)
+	kit.silver = _mat(Color(0.330, 0.342, 0.375), 0.92, 0.34)
 	kit.steel = _mat(Color(0.300, 0.310, 0.340), 0.85, 0.38)
 	kit.blade = _mat(Color(0.660, 0.690, 0.740), 1.0, 0.17)
 	kit.blade.cull_mode = BaseMaterial3D.CULL_BACK
@@ -272,23 +272,33 @@ static func _build_hips(hips: Node3D, kit: Kit) -> void:
 	_add(dagger, _sphere(0.019, 10, 6), kit.silver, Vector3(0.0, 0.192, 0.0),
 			Vector3.ZERO, Vector3(1.0, 0.8, 1.0))
 
-	# пальто: восемь клиньев, спереди разрез
-	var angle: float = 0.44
-	for i in range(8):
-		var a: float = angle + float(i) * (TAU - angle * 2.0) / 7.0
-		var r: float = 0.158
-		var pivot: Node3D = _pivot(hips, "Coat%d" % i,
-				Vector3(sin(a) * r, -0.018, -cos(a) * r), Vector3(0.0, a, 0.0))
-		var panel: ArrayMesh = _cloth(0.135, 0.205, 0.56, 4, 6, 0.020, 0.012, 0.035, float(i) * 1.7)
-		var mi: MeshInstance3D = MeshInstance3D.new()
-		mi.mesh = panel
-		mi.material_override = kit.cloth if i % 2 == 0 else kit.cloth_dark
-		pivot.add_child(mi)
-		_add(pivot, _box(Vector3(0.195, 0.014, 0.016)), kit.leather_dark,
-				Vector3(0.0, -0.53, 0.0))
-		if i == 0:
-			_add(pivot, _box(Vector3(0.020, 0.50, 0.012)), kit.gold_dark,
-					Vector3(-0.055, -0.27, 0.004))
+	# пальто: полотнище вокруг бёдер с разрезом спереди + фалды
+	var skirt: Node3D = _pivot(hips, "CoatSkirt", Vector3(0.0, -0.005, 0.004))
+	var so: MeshInstance3D = MeshInstance3D.new()
+	so.mesh = _cape_sheet(0.145, 0.235, 0.530, 252.0, 18, 7, 0.012, 0.028, 1.3, false)
+	so.material_override = kit.cloth
+	skirt.add_child(so)
+	var si_mi: MeshInstance3D = MeshInstance3D.new()
+	si_mi.mesh = _cape_sheet(0.138, 0.228, 0.525, 249.0, 18, 7, 0.010, 0.026, 2.2, true)
+	si_mi.material_override = kit.cloth_dark
+	skirt.add_child(si_mi)
+	# короткий верхний слой
+	var so2: MeshInstance3D = MeshInstance3D.new()
+	so2.mesh = _cape_sheet(0.152, 0.215, 0.285, 254.0, 16, 4, 0.009, 0.014, 2.8, false)
+	so2.material_override = kit.leather_dark
+	skirt.add_child(so2)
+	# передние фалды по бокам от разреза
+	for side in [-1.0, 1.0]:
+		var tail: Node3D = _pivot(hips, "Tail" + ("R" if side > 0.0 else "L"),
+				Vector3(side * 0.105, -0.015, -0.120), Vector3(0.0, side * 0.10, 0.0))
+		var tail_mesh: ArrayMesh = _cloth(0.085, 0.130, 0.500, 3, 6, 0.020, 0.014, 0.030,
+				side * 1.4)
+		var tmi: MeshInstance3D = MeshInstance3D.new()
+		tmi.mesh = tail_mesh
+		tmi.material_override = kit.cloth_dark
+		tail.add_child(tmi)
+		_add(tail, _box(Vector3(0.012, 0.470, 0.010)), kit.gold_dark,
+				Vector3(side * 0.055, -0.245, 0.002))
 
 static func _skull_buckle(parent: Node3D, pos: Vector3, scale: float, kit: Kit) -> void:
 	var skull: Node3D = _pivot(parent, "SkullBuckle", pos, Vector3(0.10, 0.0, 0.0))
@@ -376,14 +386,14 @@ static func _build_torso(torso: Node3D, kit: Kit) -> void:
 
 	# рельеф: грудь и пресс
 	for side in [-1.0, 1.0]:
-		_add(torso, _sphere(0.062, 14, 8), kit.cloth_soft,
-				Vector3(side * 0.064, 0.318, -0.108), Vector3(0.0, side * 0.12, 0.0),
-				Vector3(1.15, 0.80, 0.34))
+		_add(torso, _sphere(0.058, 14, 8), kit.cloth_soft,
+				Vector3(side * 0.060, 0.322, -0.108), Vector3(0.0, side * 0.12, 0.0),
+				Vector3(1.10, 0.62, 0.26))
 	for row in range(3):
 		for side in [-1.0, 1.0]:
-			_add(torso, _sphere(0.034, 10, 6), kit.cloth_soft,
-					Vector3(side * 0.036, 0.245 - float(row) * 0.052, -0.118 + float(row) * 0.008),
-					Vector3.ZERO, Vector3(1.0, 0.65, 0.28))
+			_add(torso, _sphere(0.030, 10, 6), kit.cloth_soft,
+					Vector3(side * 0.032, 0.245 - float(row) * 0.052, -0.116 + float(row) * 0.008),
+					Vector3.ZERO, Vector3(1.0, 0.55, 0.20))
 			_add(torso, _box(Vector3(0.062, 0.004, 0.012)), kit.leather_dark,
 					Vector3(side * 0.036, 0.218 - float(row) * 0.052, -0.128))
 	# косые мышцы
@@ -414,10 +424,11 @@ static func _build_torso(torso: Node3D, kit: Kit) -> void:
 	_add(strap, _box(Vector3(0.050, 0.030, 0.024)), kit.leather_dark, Vector3(0.0, 0.085, -0.002))
 	_add(strap, _box(Vector3(0.030, 0.030, 0.010)), kit.gold, Vector3(0.0, 0.085, -0.016))
 	_add(strap, _box(Vector3(0.026, 0.016, 0.012)), kit.leather_dark, Vector3(0.0, -0.060, -0.002))
-	# пряжка-кольцо на груди
-	_add(torso, _torus(0.016, 0.026, 12, 6), kit.gold, Vector3(0.075, 0.320, -0.135))
-	_add(torso, _box(Vector3(0.034, 0.012, 0.010)), kit.leather_dark,
-			Vector3(0.075, 0.300, -0.137))
+	# пряжка перевязи
+	_add(torso, _box(Vector3(0.036, 0.024, 0.012)), kit.silver,
+			Vector3(0.075, 0.312, -0.136))
+	_add(torso, _box(Vector3(0.022, 0.010, 0.008)), kit.leather_dark,
+			Vector3(0.075, 0.312, -0.143))
 
 	# нижние ремни с заклёпками
 	for side in [-1.0, 1.0]:
@@ -429,20 +440,20 @@ static func _build_torso(torso: Node3D, kit: Kit) -> void:
 
 static func _build_collar(torso: Node3D, kit: Kit) -> void:
 	var outer: MeshInstance3D = MeshInstance3D.new()
-	outer.mesh = _collar_mesh(0.105, 0.168, 0.170, 0.86, false)
+	outer.mesh = _collar_mesh(0.100, 0.166, 0.118, 0.90, false)
 	outer.material_override = kit.cloth
-	outer.position = Vector3(0.0, 0.390, 0.004)
+	outer.position = Vector3(0.0, 0.352, 0.004)
 	torso.add_child(outer)
 	var inner: MeshInstance3D = MeshInstance3D.new()
-	inner.mesh = _collar_mesh(0.100, 0.160, 0.164, 0.86, true)
+	inner.mesh = _collar_mesh(0.095, 0.158, 0.114, 0.90, true)
 	inner.material_override = kit.lining
-	inner.position = Vector3(0.0, 0.392, 0.004)
+	inner.position = Vector3(0.0, 0.354, 0.004)
 	torso.add_child(inner)
 	# валик по верхнему краю, только сзади
 	for i in range(9):
-		var a: float = 1.05 + float(i) * (TAU - 2.1) / 8.0
-		_add(torso, _sphere(0.0085, 8, 6), kit.leather_dark,
-				Vector3(sin(a) * 0.166, 0.560, -cos(a) * 0.166 + 0.004))
+		var a: float = 1.15 + float(i) * (TAU - 2.3) / 8.0
+		_add(torso, _sphere(0.0075, 8, 6), kit.leather_dark,
+				Vector3(sin(a) * 0.164, 0.468, -cos(a) * 0.164 + 0.004))
 
 ## Ворот: часть конуса с вырезом спереди.
 static func _collar_mesh(bottom_r: float, top_r: float, height: float,
@@ -495,107 +506,135 @@ static func _build_cape(torso: Node3D, kit: Kit) -> Array:
 	var segments: Array = []
 	var parent: Node3D = torso
 	var layout: Array = [
-		{"y": 0.405, "len": 0.32, "w": 0.215, "rows": 5},
-		{"y": -0.315, "len": 0.42, "w": 0.245, "rows": 6},
-		{"y": -0.415, "len": 0.57, "w": 0.280, "rows": 7},
+		{"y": 0.400, "top": 0.165, "bot": 0.235, "len": 0.320, "span": 168.0, "cols": 20},
+		{"y": -0.315, "top": 0.220, "bot": 0.305, "len": 0.420, "span": 178.0, "cols": 22},
+		{"y": -0.415, "top": 0.285, "bot": 0.405, "len": 0.580, "span": 188.0, "cols": 24},
 	]
 	for si in range(3):
 		var spec: Dictionary = layout[si]
 		var seg: Node3D = _pivot(parent, "CapeSeg%d" % (si + 1),
-				Vector3(0.0, float(spec["y"]), 0.135 if si == 0 else 0.0),
-				Vector3(-0.05 if si == 0 else -0.03, 0.0, 0.0))
-		var count: int = 5
-		for i in range(count):
-			var t: float = float(i) / float(count - 1) - 0.5
-			var x: float = t * (float(spec["w"]) * 2.0)
-			var yaw: float = t * 0.62
-			var panel: Node3D = Node3D.new()
-			panel.name = "CapePanel%d_%d" % [si, i]
-			panel.position = Vector3(x, 0.0, 0.0)
-			panel.rotation.y = yaw
-			seg.add_child(panel)
-			var top_w: float = float(spec["w"]) * 0.94
-			var bot_w: float = float(spec["w"]) * (1.55 if si < 2 else 1.72)
-			var ragged: float = 0.02 + 0.02 * float(si)
-			var rows: int = int(spec["rows"])
-			var outer: ArrayMesh = _cloth(top_w, bot_w, float(spec["len"]),
-					4, rows, 0.028, 0.018, ragged, float(i) * 2.1 + float(si))
-			var mi: MeshInstance3D = MeshInstance3D.new()
-			mi.mesh = outer
-			mi.material_override = kit.cloth if (i % 2 == 0) else kit.cloth_dark
-			panel.add_child(mi)
-			var inner: ArrayMesh = _cloth(top_w * 0.985, bot_w * 0.985,
-					float(spec["len"]) * 0.995, 4, rows, 0.020, 0.014,
-					ragged * 0.9, float(i) * 2.1 + float(si), true)
-			var mi2: MeshInstance3D = MeshInstance3D.new()
-			mi2.mesh = inner
-			mi2.material_override = kit.lining if si < 2 else kit.lining_dark
-			mi2.position = Vector3(0.0, 0.0, 0.010)
-			panel.add_child(mi2)
-			# утяжеляющая кромка снизу
-			_add(panel, _box(Vector3(bot_w * 0.96, 0.014, 0.014)), kit.leather_dark,
-					Vector3(0.0, -float(spec["len"]) + 0.010, 0.0))
+				Vector3(0.0, float(spec["y"]), 0.105 if si == 0 else 0.0),
+				Vector3(-0.04 if si == 0 else -0.025, 0.0, 0.0))
+		var outer: MeshInstance3D = MeshInstance3D.new()
+		outer.mesh = _cape_sheet(float(spec["top"]), float(spec["bot"]),
+				float(spec["len"]), float(spec["span"]), int(spec["cols"]), 8,
+				0.012 + float(si) * 0.004, 0.040 + float(si) * 0.010,
+				float(si) * 2.3, false)
+		outer.material_override = kit.cloth if si != 1 else kit.cloth_dark
+		seg.add_child(outer)
+		var inner: MeshInstance3D = MeshInstance3D.new()
+		inner.mesh = _cape_sheet(float(spec["top"]) - 0.012, float(spec["bot"]) - 0.012,
+				float(spec["len"]) * 0.995, float(spec["span"]) - 3.0,
+				int(spec["cols"]), 8, 0.010 + float(si) * 0.004,
+				0.038 + float(si) * 0.010, float(si) * 2.3 + 1.1, true)
+		inner.material_override = kit.lining if si < 2 else kit.lining_dark
+		seg.add_child(inner)
+		# утяжелённая кромка по низу
+		for i in range(7):
+			var a: float = -float(spec["span"]) * 0.5 * PI / 180.0 + float(spec["span"]) * PI / 180.0 * (float(i) + 0.5) / 7.0
+			var r: float = float(spec["bot"]) + 0.006
+			_add(seg, _sphere(0.010, 6, 6), kit.leather_dark,
+					Vector3(sin(a) * r, -float(spec["len"]) + 0.012, cos(a) * r))
 		if si == 0:
-			# воротник плаща изнутри и снаружи
-			_add(seg, _box(Vector3(0.46, 0.105, 0.030)), kit.cloth_dark,
-					Vector3(0.0, 0.030, -0.096), Vector3(0.20, 0.0, 0.0))
-			_add(seg, _box(Vector3(0.40, 0.088, 0.012)), kit.lining,
-					Vector3(0.0, 0.028, -0.112), Vector3(0.20, 0.0, 0.0))
-			for side in [-1.0, 1.0]:
-				_add(seg, _torus(0.022, 0.034, 12, 6), kit.gold,
-						Vector3(side * 0.215, -0.015, -0.085),
-						Vector3(PI * 0.5, 0.0, 0.0))
-				_add(seg, _sphere(0.012, 10, 8), kit.gold_dark,
-						Vector3(side * 0.215, -0.015, -0.095))
-				# застёжка-цепочка к вороту
-				_add(seg, _box(Vector3(0.026, 0.080, 0.010)), kit.gold_dark,
-						Vector3(side * 0.190, 0.040, -0.085), Vector3(0.0, 0.0, side * 0.3))
+			# ворот плаща и застёжки
+			pass
 		segments.append(seg)
 		parent = seg
 	return segments
 
+## Полотнище плаща: дуга вокруг спины, складки, рваный низ.
+static func _cape_sheet(top_r: float, bot_r: float, length: float, span_deg: float,
+		cols: int, rows: int, fold_amp: float, ruff: float, seed: float,
+		flip: bool) -> ArrayMesh:
+	var st: SurfaceTool = SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var span: float = deg_to_rad(span_deg)
+	var grid: Array = []
+	for j in range(rows + 1):
+		var v: float = float(j) / float(rows)
+		var r: float = lerpf(top_r, bot_r, v)
+		r += v * v * 0.030
+		for i in range(cols + 1):
+			var u: float = float(i) / float(cols)
+			var ang: float = -span * 0.5 + span * u
+			var folds: float = sin(u * PI * 6.0 + seed) * fold_amp * (0.25 + v * 0.75)
+			folds += sin(u * PI * 2.0 + seed * 0.7) * fold_amp * 0.45 * v
+			var rr: float = r + folds
+			var y: float = -v * length
+			y -= pow(v, 4.0) * ruff * (0.45 + 0.55 * sin(u * 24.0 + seed * 2.0))
+			# низ чуть отходит назад, чтобы плащ не лип к ногам
+			y += v * v * 0.020
+			grid.append(Vector3(sin(ang) * rr, y, cos(ang) * rr))
+	var idx := func(i: int, j: int) -> int:
+		return j * (cols + 1) + i
+	for j in range(rows):
+		for i in range(cols):
+			var a: int = idx.call(i, j)
+			var b: int = idx.call(i + 1, j)
+			var c: int = idx.call(i + 1, j + 1)
+			var d: int = idx.call(i, j + 1)
+			var ua: Vector2 = Vector2(float(i) / cols, 1.0 - float(j) / rows)
+			var ub: Vector2 = Vector2(float(i + 1) / cols, 1.0 - float(j) / rows)
+			var uc: Vector2 = Vector2(float(i + 1) / cols, 1.0 - float(j + 1) / rows)
+			var ud: Vector2 = Vector2(float(i) / cols, 1.0 - float(j + 1) / rows)
+			if flip:
+				_tri(st, grid[a], grid[c], grid[b], ua, uc, ub)
+				_tri(st, grid[a], grid[d], grid[c], ua, ud, uc)
+			else:
+				_tri(st, grid[a], grid[b], grid[c], ua, ub, uc)
+				_tri(st, grid[a], grid[c], grid[d], ua, uc, ud)
+	st.generate_normals()
+	return st.commit()
+
 static func _build_mantle(torso: Node3D, kit: Kit) -> void:
-	# накидка на плечах: два слоя ткани
+	# короткая накидка поверх плеч: та же логика, что у плаща
+	var m: Node3D = _pivot(torso, "Mantle", Vector3(0.0, 0.425, 0.020),
+			Vector3(-0.10, 0.0, 0.0))
+	var outer: MeshInstance3D = MeshInstance3D.new()
+	outer.mesh = _cape_sheet(0.155, 0.230, 0.215, 205.0, 18, 5, 0.016, 0.016, 3.1, false)
+	outer.material_override = kit.cloth
+	m.add_child(outer)
+	var inner: MeshInstance3D = MeshInstance3D.new()
+	inner.mesh = _cape_sheet(0.145, 0.220, 0.210, 202.0, 18, 5, 0.014, 0.014, 4.2, true)
+	inner.material_override = kit.lining
+	m.add_child(inner)
+
+	# накидка второго слоя, короче и шире
+	var m2: Node3D = _pivot(torso, "Mantle2", Vector3(0.0, 0.400, 0.010),
+			Vector3(-0.04, 0.0, 0.0))
+	var outer2: MeshInstance3D = MeshInstance3D.new()
+	outer2.mesh = _cape_sheet(0.172, 0.245, 0.140, 215.0, 18, 4, 0.014, 0.012, 1.7, false)
+	outer2.material_override = kit.cloth_dark
+	m2.add_child(outer2)
+	var inner2: MeshInstance3D = MeshInstance3D.new()
+	inner2.mesh = _cape_sheet(0.162, 0.235, 0.136, 212.0, 18, 4, 0.012, 0.010, 2.4, true)
+	inner2.material_override = kit.lining_dark
+	m2.add_child(inner2)
+
+	# рога на плечах
 	for side in [-1.0, 1.0]:
-		var m: Node3D = _pivot(torso, "Mantle" + ("R" if side > 0.0 else "L"),
-				Vector3(side * 0.165, 0.395, 0.015), Vector3(0.0, side * 0.36, 0.0))
-		var panel: ArrayMesh = _cloth(0.19, 0.25, 0.24, 4, 4, 0.030, 0.010, 0.010, side * 2.0)
-		var mi: MeshInstance3D = MeshInstance3D.new()
-		mi.mesh = panel
-		mi.material_override = kit.cloth
-		m.add_child(mi)
-		var inner: ArrayMesh = _cloth(0.185, 0.245, 0.235, 4, 4, 0.022, 0.008, 0.010,
-				side * 2.0, true)
-		var mi2: MeshInstance3D = MeshInstance3D.new()
-		mi2.mesh = inner
-		mi2.material_override = kit.lining
-		mi2.position = Vector3(0.0, 0.0, 0.010)
-		m.add_child(mi2)
-		# рог на плече
 		var horn: Node3D = _pivot(torso, "Horn" + ("R" if side > 0.0 else "L"),
-				Vector3(side * 0.205, 0.415, 0.045), Vector3(0.10, 0.0, side * 0.12))
+				Vector3(side * 0.205, 0.405, 0.040), Vector3(0.10, 0.0, side * 0.16))
 		var pts: Array = [
 			Vector3(0.0, 0.0, 0.0),
-			Vector3(side * 0.024, 0.045, -0.004),
-			Vector3(side * 0.060, 0.098, -0.016),
-			Vector3(side * 0.096, 0.152, -0.030),
-			Vector3(side * 0.120, 0.196, -0.038),
+			Vector3(side * 0.026, 0.048, -0.002),
+			Vector3(side * 0.064, 0.104, -0.012),
+			Vector3(side * 0.094, 0.148, -0.022),
+			Vector3(side * 0.116, 0.188, -0.030),
 		]
-		var radii: Array = [0.036, 0.030, 0.022, 0.012, 0.002]
-		var mesh: ArrayMesh = _tube(pts, radii, 7)
+		var radii: Array = [0.044, 0.036, 0.025, 0.012, 0.0015]
 		var horn_mi: MeshInstance3D = MeshInstance3D.new()
-		horn_mi.mesh = mesh
-		horn_mi.material_override = kit.cloth_dark
+		horn_mi.mesh = _tube(pts, radii, 7)
+		horn_mi.material_override = kit.leather
 		horn.add_child(horn_mi)
-		_add(horn, _torus(0.030, 0.042, 12, 6), kit.silver, Vector3(0.0, 0.006, 0.0),
+		_add(horn, _torus(0.031, 0.043, 12, 6), kit.silver, Vector3(0.0, 0.006, 0.0),
 				Vector3(0.0, 0.0, side * 0.10))
-		_add(horn, _sphere(0.010, 8, 6), kit.gold, Vector3(side * 0.050, 0.086, -0.012))
-		# наплечная пластина
-		_add(torso, _sphere(0.082, 16, 10), kit.leather,
-				Vector3(side * 0.180, 0.375, 0.020), Vector3(0.0, 0.0, side * 0.25),
-				Vector3(1.0, 0.55, 0.95))
-		_add(torso, _box(Vector3(0.075, 0.012, 0.075)), kit.gold_dark,
-				Vector3(side * 0.190, 0.352, 0.020), Vector3(0.0, 0.0, side * 0.25))
+		_add(horn, _sphere(0.010, 8, 6), kit.gold, Vector3(side * 0.052, 0.091, -0.010))
+		# застёжка плаща на плече
+		_add(torso, _torus(0.014, 0.022, 10, 5), kit.gold_dark,
+				Vector3(side * 0.150, 0.395, -0.088), Vector3(PI * 0.5, 0.0, 0.0))
+		_add(torso, _sphere(0.008, 8, 6), kit.leather_dark,
+				Vector3(side * 0.150, 0.395, -0.098))
 
 # =========================================================================
 #  Голова, лицо, уши
@@ -606,8 +645,8 @@ static func _build_head(head: Node3D, kit: Kit) -> Array:
 	_add(head, _capsule(0.047, 0.140, 10), kit.skin, Vector3(0.0, -0.040, 0.012))
 	_add(head, _cyl(0.054, 0.062, 0.030, 12), kit.skin_shade, Vector3(0.0, -0.092, 0.012))
 	# череп: узкий, вытянутый
-	_add(head, _sphere(0.103, 24, 16), kit.skin, Vector3(0.0, 0.120, 0.006),
-			Vector3.ZERO, Vector3(0.94, 1.08, 0.99))
+	_add(head, _sphere(0.103, 24, 16), kit.skin, Vector3(0.0, 0.126, 0.008),
+			Vector3.ZERO, Vector3(0.88, 1.12, 0.96))
 	# лобные и височные плоскости
 	for side in [-1.0, 1.0]:
 		_add(head, _sphere(0.040, 12, 8), kit.skin, Vector3(side * 0.052, 0.150, -0.062),
@@ -615,18 +654,18 @@ static func _build_head(head: Node3D, kit: Kit) -> Array:
 		_add(head, _sphere(0.030, 10, 6), kit.skin_shade,
 				Vector3(side * 0.076, 0.138, -0.038), Vector3.ZERO, Vector3(0.7, 1.0, 0.5))
 	# челюсть
-	_add(head, _sphere(0.080, 18, 12), kit.skin, Vector3(0.0, 0.052, -0.014),
-			Vector3.ZERO, Vector3(0.90, 0.76, 0.98))
-	_add(head, _sphere(0.028, 12, 8), kit.skin, Vector3(0.0, 0.012, -0.070),
-			Vector3.ZERO, Vector3(1.05, 0.88, 0.85))
+	_add(head, _sphere(0.080, 18, 12), kit.skin, Vector3(0.0, 0.056, -0.016),
+			Vector3.ZERO, Vector3(0.82, 0.72, 0.94))
+	_add(head, _sphere(0.026, 12, 8), kit.skin, Vector3(0.0, 0.016, -0.068),
+			Vector3.ZERO, Vector3(0.95, 0.85, 0.85))
 	for side in [-1.0, 1.0]:
 		# линия челюсти от уха к подбородку
 		_add(head, _sphere(0.026, 10, 6), kit.skin_shade,
 				Vector3(side * 0.048, 0.040, -0.058), Vector3(0.0, 0.0, side * 0.45),
 				Vector3(0.65, 1.10, 0.55))
 		# скула
-		_add(head, _sphere(0.030, 12, 8), kit.skin, Vector3(side * 0.060, 0.106, -0.060),
-				Vector3(0.0, side * 0.22, 0.0), Vector3(0.82, 0.70, 0.80))
+		_add(head, _sphere(0.028, 12, 8), kit.skin, Vector3(side * 0.057, 0.108, -0.058),
+				Vector3(0.0, side * 0.22, 0.0), Vector3(0.78, 0.66, 0.78))
 		# впадина под скулой
 		_add(head, _sphere(0.021, 10, 6), kit.skin_shade,
 				Vector3(side * 0.052, 0.080, -0.070), Vector3.ZERO, Vector3(0.8, 1.0, 0.45))
@@ -639,39 +678,39 @@ static func _build_head(head: Node3D, kit: Kit) -> Array:
 				Vector3(side * 0.043, 0.142, -0.080), Vector3(0.0, side * 0.16, 0.0),
 				Vector3(1.08, 0.66, 0.42))
 		# белок: узкий, восточный разрез
-		_add(head, _sphere(0.0142, 14, 10), kit.eye_white,
-				Vector3(side * 0.043, 0.1415, -0.0915),
-				Vector3(0.0, side * 0.14, 0.0), Vector3(1.06, 0.58, 0.50))
+		_add(head, _sphere(0.0163, 14, 10), kit.eye_white,
+				Vector3(side * 0.041, 0.1440, -0.0925),
+				Vector3(0.0, side * 0.14, 0.0), Vector3(1.08, 0.66, 0.50))
 		# радужка и зрачок
-		_add(head, _cyl(0.0082, 0.0082, 0.0030, 14), kit.iris,
-				Vector3(side * 0.043, 0.1412, -0.1022),
+		_add(head, _cyl(0.0096, 0.0096, 0.0030, 14), kit.iris,
+				Vector3(side * 0.041, 0.1432, -0.1032),
 				Vector3(PI * 0.5, 0.0, 0.0))
-		_add(head, _cyl(0.0034, 0.0034, 0.0022, 10), kit.pupil,
-				Vector3(side * 0.043, 0.1412, -0.1040),
+		_add(head, _cyl(0.0037, 0.0037, 0.0022, 10), kit.pupil,
+				Vector3(side * 0.041, 0.1432, -0.1050),
 				Vector3(PI * 0.5, 0.0, 0.0))
 		_add(head, _sphere(0.0026, 6, 6), kit.eye_glint,
-				Vector3(side * 0.0465, 0.1452, -0.1048))
+				Vector3(side * 0.0445, 0.1472, -0.1058))
 		# веко (моргает)
 		var lid: Node3D = _pivot(head, "Lid" + ("R" if side > 0.0 else "L"),
-				Vector3(side * 0.043, 0.1545, -0.0935), Vector3(-0.12, side * 0.10, 0.0))
-		_add(lid, _box(Vector3(0.031, 0.016, 0.010)), kit.skin_shade,
-				Vector3(0.0, -0.008, 0.0), Vector3(0.0, 0.0, side * -0.05))
+				Vector3(side * 0.041, 0.1580, -0.0940), Vector3(-0.12, side * 0.10, 0.0))
+		_add(lid, _box(Vector3(0.033, 0.0115, 0.010)), kit.skin_shade,
+				Vector3(0.0, -0.006, 0.0), Vector3(0.0, 0.0, side * -0.05))
 		_add(lid, _box(Vector3(0.032, 0.0032, 0.011)), kit.brow,
 				Vector3(0.0, -0.0152, 0.0))
 		# нижнее веко
-		_add(head, _box(Vector3(0.030, 0.0028, 0.008)), kit.skin_shade,
-				Vector3(side * 0.043, 0.1315, -0.0965))
+		_add(head, _box(Vector3(0.031, 0.0028, 0.008)), kit.skin_shade,
+				Vector3(side * 0.041, 0.1330, -0.0970))
 		# бровь: тонкая, с изломом
-		_add(head, _box(Vector3(0.043, 0.0045, 0.008)), kit.brow,
-				Vector3(side * 0.043, 0.1705, -0.0965), Vector3(0.0, 0.0, side * 0.15))
-		_add(head, _box(Vector3(0.014, 0.0035, 0.007)), kit.brow,
-				Vector3(side * 0.068, 0.1765, -0.0925), Vector3(0.0, 0.0, side * 0.34))
+		_add(head, _box(Vector3(0.040, 0.0040, 0.008)), kit.brow,
+				Vector3(side * 0.041, 0.1720, -0.0970), Vector3(0.0, 0.0, side * 0.16))
+		_add(head, _box(Vector3(0.013, 0.0032, 0.007)), kit.brow,
+				Vector3(side * 0.064, 0.1780, -0.0935), Vector3(0.0, 0.0, side * 0.36))
 
 	# нос: длинный, прямой, с горбинкой
-	_add(head, _box(Vector3(0.017, 0.096, 0.026)), kit.skin,
-			Vector3(0.0, 0.116, -0.099), Vector3(0.20, 0.0, 0.0))
-	_add(head, _sphere(0.0138, 12, 10), kit.skin, Vector3(0.0, 0.0735, -0.1205),
-			Vector3.ZERO, Vector3(0.96, 0.82, 1.10))
+	_add(head, _box(Vector3(0.0150, 0.100, 0.024)), kit.skin,
+			Vector3(0.0, 0.118, -0.0985), Vector3(0.20, 0.0, 0.0))
+	_add(head, _sphere(0.0128, 12, 10), kit.skin, Vector3(0.0, 0.0725, -0.1215),
+			Vector3.ZERO, Vector3(0.94, 0.80, 1.12))
 	for side in [-1.0, 1.0]:
 		_add(head, _box(Vector3(0.007, 0.055, 0.014)), kit.skin_shade,
 				Vector3(side * 0.010, 0.112, -0.104), Vector3(0.20, 0.0, side * 0.10))
@@ -684,12 +723,12 @@ static func _build_head(head: Node3D, kit: Kit) -> Array:
 			Vector3(0.0, 0.0565, -0.0965))
 
 	# губы: тонкие, бледные
-	_add(head, _box(Vector3(0.047, 0.0062, 0.013)), kit.lip,
-			Vector3(0.0, 0.0445, -0.0935), Vector3(0.18, 0.0, 0.0))
-	_add(head, _box(Vector3(0.040, 0.0080, 0.013)), kit.lip,
-			Vector3(0.0, 0.0345, -0.0925), Vector3(0.10, 0.0, 0.0))
-	_add(head, _box(Vector3(0.043, 0.0022, 0.010)), kit.brow,
-			Vector3(0.0, 0.0395, -0.0985))
+	_add(head, _box(Vector3(0.039, 0.0058, 0.013)), kit.lip,
+			Vector3(0.0, 0.0450, -0.0930), Vector3(0.18, 0.0, 0.0))
+	_add(head, _box(Vector3(0.034, 0.0072, 0.013)), kit.lip,
+			Vector3(0.0, 0.0355, -0.0920), Vector3(0.10, 0.0, 0.0))
+	_add(head, _box(Vector3(0.036, 0.0020, 0.010)), kit.brow,
+			Vector3(0.0, 0.0400, -0.0980))
 	for side in [-1.0, 1.0]:
 		_add(head, _sphere(0.0036, 6, 6), kit.lip,
 				Vector3(side * 0.0215, 0.0405, -0.0935))
@@ -798,25 +837,39 @@ static func _build_hair(head: Node3D, kit: Kit) -> Array:
 			mi.material_override = kit.hair
 			head.add_child(mi)
 
-	# чёлка: разлетается от пробора, глаза не закрывает
-	for i in range(7):
-		var t: float = float(i) / 6.0 - 0.5
-		var inner: bool = absf(t) < 0.30
-		var end_y: float = 0.163 - absf(t) * 0.020
-		var end_x: float = t * (0.105 if inner else 0.195)
-		if not inner:
-			end_y -= 0.055
+	# сплошная масса чёлки над бровями
+	_add(head, _sphere(0.072, 16, 10), kit.hair, Vector3(0.0, 0.202, -0.048),
+			Vector3(0.0, 0.0, 0.0), Vector3(1.02, 0.30, 0.42))
+	for side in [-1.0, 1.0]:
+		_add(head, _sphere(0.050, 12, 8), kit.hair,
+				Vector3(side * 0.060, 0.178, -0.062), Vector3(0.0, side * 0.2, side * 0.2),
+				Vector3(0.70, 0.55, 0.55))
+
+	# чёлка: пять широких прядей, разлетаются от пробора
+	for i in range(5):
+		var t: float = float(i) / 4.0 - 0.5
+		var side: float = signf(t) if absf(t) > 0.001 else 1.0
+		var end_x: float = t * 0.24
+		var end_y: float = 0.170 - absf(t) * 0.045
 		var pts: Array = [
-			Vector3(t * 0.080, 0.205, -0.040),
-			Vector3(t * 0.105, 0.192, -0.070),
-			Vector3(t * 0.130, 0.180, -0.092),
-			Vector3(t * 0.150, (end_y + 0.015), -0.100),
-			Vector3(end_x, end_y, -0.098),
+			Vector3(t * 0.060, 0.205, -0.048),
+			Vector3(t * 0.090, 0.196, -0.075),
+			Vector3(t * 0.120, 0.186, -0.094),
+			Vector3(t * 0.160, 0.178, -0.100),
+			Vector3(end_x, end_y, -0.096),
 		]
 		var mi: MeshInstance3D = MeshInstance3D.new()
-		mi.mesh = _tube(pts, [0.0125, 0.0115, 0.0095, 0.0065, 0.0015], 5)
+		mi.mesh = _tube(pts, [0.017, 0.016, 0.013, 0.009, 0.002], 5)
 		mi.material_override = kit.hair
 		head.add_child(mi)
+		# вторая, более тонкая прядь рядом
+		var pts2: Array = []
+		for p in pts:
+			pts2.append(p + Vector3(side * 0.012, -0.008, 0.006))
+		var mi2: MeshInstance3D = MeshInstance3D.new()
+		mi2.mesh = _tube(pts2, [0.010, 0.009, 0.007, 0.005, 0.001], 5)
+		mi2.material_override = kit.hair_hi
+		head.add_child(mi2)
 
 	# отдельные длинные пряди у лица
 	for side in [-1.0, 1.0]:
@@ -870,9 +923,9 @@ static func _build_hat(head: Node3D, kit: Kit) -> Node3D:
 	hat.add_child(edge)
 
 	# тулья: сужается кверху, с мягкой макушкой
-	_add(hat, _cyl(0.104, 0.150, 0.170, 24), kit.hat, Vector3(0.0, 0.075, 0.0))
-	_add(hat, _sphere(0.106, 22, 12), kit.hat, Vector3(0.0, 0.158, 0.0),
-			Vector3.ZERO, Vector3(1.0, 0.58, 1.0))
+	_add(hat, _cyl(0.108, 0.150, 0.130, 24), kit.hat, Vector3(0.0, 0.066, 0.0))
+	_add(hat, _sphere(0.109, 22, 12), kit.hat, Vector3(0.0, 0.126, 0.0),
+			Vector3.ZERO, Vector3(1.0, 0.42, 1.0))
 	# лента и золотая кромка
 	_add(hat, _cyl(0.153, 0.157, 0.040, 24), kit.leather, Vector3(0.0, 0.010, 0.0))
 	_add(hat, _cyl(0.158, 0.158, 0.006, 24), kit.gold_dark, Vector3(0.0, 0.030, 0.0))
@@ -1268,9 +1321,9 @@ static func _brim_mesh(y_shift: float) -> ArrayMesh:
 		for s in range(seg):
 			var ang: float = TAU * float(s) / float(seg)
 			var side_bump: float = pow(absf(cos(ang)), 3.2)
-			var outer: float = 0.146 + t * (0.205 + 0.038 * side_bump)
-			var y: float = 0.012 - 0.030 * t + pow(t, 1.6) * (0.150 * side_bump
-					+ 0.030 * pow(absf(sin(ang)), 4.0))
+			var outer: float = 0.144 + t * (0.170 + 0.032 * side_bump)
+			var y: float = 0.008 - 0.030 * t + pow(t, 1.6) * (0.086 * side_bump
+					+ 0.022 * pow(absf(sin(ang)), 4.0))
 			grid.append(Vector3(cos(ang) * outer, y + y_shift, sin(ang) * outer))
 	var idx := func(r: int, s: int) -> int:
 		return r * seg + (s % seg)
@@ -1298,8 +1351,8 @@ static func _brim_edge() -> ArrayMesh:
 	for s in range(seg):
 		var ang: float = TAU * float(s) / float(seg)
 		var side_bump: float = pow(absf(cos(ang)), 3.2)
-		var outer: float = 0.351 + 0.038 * side_bump
-		var y: float = 0.012 - 0.030 + 0.150 * side_bump + 0.030 * pow(absf(sin(ang)), 4.0)
+		var outer: float = 0.314 + 0.032 * side_bump
+		var y: float = 0.008 - 0.030 + 0.086 * side_bump + 0.022 * pow(absf(sin(ang)), 4.0)
 		top.append(Vector3(cos(ang) * outer, y, sin(ang) * outer))
 		bot.append(Vector3(cos(ang) * outer, y - 0.010, sin(ang) * outer))
 	for s in range(seg):
