@@ -8,7 +8,7 @@ const TerrainScript := preload("res://scripts/terrain.gd")
 const GrassShader := preload("res://shaders/grass.gdshader")
 const TuftPath := "res://assets/textures/grass_tuft.png"
 
-func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> void:
+func populate(terrain: Object, amount: int = 40000, radius: float = 42.0, paths: Array = []) -> void:
 	var tuft_mesh := _make_tuft_mesh()
 
 	var material := ShaderMaterial.new()
@@ -37,7 +37,30 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> voi
 		if terrain.slope_at(x, z) > 0.75:
 			continue
 
-		var basis := Basis(Vector3.UP, rng.randf() * TAU)
+		# густота: реже на тропе
+		if not paths.is_empty():
+			var near := 999.0
+			for path in paths:
+				var pts: Array = path["points"]
+				for k in range(0, pts.size(), 5):
+					var pp: Vector3 = pts[k]
+					var d2 := Vector2(pp.x - x, pp.z - z).length()
+					if d2 < near:
+						near = d2
+			if near < 2.0:
+				continue
+			if near < 4.0 and rng.randf() > 0.45:
+				continue
+
+		# наклон по нормали склона
+		var e := 0.6
+		var hx1: float = terrain.height_at(x - e, z)
+		var hx2: float = terrain.height_at(x + e, z)
+		var hz1: float = terrain.height_at(x, z - e)
+		var hz2: float = terrain.height_at(x, z + e)
+		var normal := Vector3(hx1 - hx2, 2.0 * e, hz1 - hz2).normalized()
+
+		var basis := Basis(Quaternion(Vector3.UP, normal)) * Basis(Vector3.UP, rng.randf() * TAU)
 		basis = basis.scaled(Vector3(
 			rng.randf_range(0.8, 1.2),
 			rng.randf_range(0.20, 0.42),
@@ -48,7 +71,17 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> voi
 			chunks[key] = []
 		var tint := rng.randf()
 		var hue := rng.randf()
-		(chunks[key] as Array).append([Transform3D(basis, Vector3(x, h - 0.03, z)), tint, hue])
+		var roll := rng.randf()
+		var variant := 0.0
+		if roll < 0.50:
+			variant = 0.0
+		elif roll < 0.75:
+			variant = 0.25
+		elif roll < 0.90:
+			variant = 0.50
+		else:
+			variant = 0.75
+		(chunks[key] as Array).append([Transform3D(basis, Vector3(x, h - 0.03, z)), tint, hue, variant])
 		placed += 1
 
 	for key in chunks:
@@ -63,7 +96,7 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> voi
 			var entry: Array = transforms[i]
 			var t: Transform3D = entry[0]
 			mm.set_instance_transform(i, Transform3D(t.basis, t.origin - origin))
-			mm.set_instance_color(i, Color(entry[1], entry[2], 0.0))
+			mm.set_instance_color(i, Color(entry[1], entry[2], entry[3]))
 		var node := MultiMeshInstance3D.new()
 		node.multimesh = mm
 		node.material_override = material

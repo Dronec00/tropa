@@ -15,6 +15,7 @@ const EDGE_RIVER_IN := 143.0
 const EDGE_RIVER_OUT := 165.0
 const EDGE_HILL_TOP := 178.0
 
+var ground_material: Material
 var STREAMS := [
 	PackedVector2Array([
 		Vector2(-44, -102), Vector2(-26, -70), Vector2(-6, -41),
@@ -238,6 +239,7 @@ func _build_mesh() -> void:
 			std.normal_texture = load("res://assets/textures/photo/ground_normal.jpg")
 		material = std
 	_mesh.surface_set_material(0, material)
+	ground_material = material
 
 	var view := MeshInstance3D.new()
 	view.mesh = _mesh

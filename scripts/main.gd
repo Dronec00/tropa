@@ -73,6 +73,11 @@ var _underwater := false
 var _sky_mat: ShaderMaterial
 var _sun: DirectionalLight3D
 var _tod := "night"
+var _rain: CPUParticles3D
+var _rain_on := false
+var _wet := 0.0
+var _terrain_mat: Material
+var _tod_fog := 0.035
 const TREE_CHUNK := 80.0
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
@@ -102,12 +107,15 @@ func _ready() -> void:
 	_spawn_player()
 	_build_hud()
 	_tod = LabStateScript.time_of_day
+	_terrain_mat = terrain.ground_material
 	if OS.get_environment("TROPA_TOD") != "":
 		_tod = OS.get_environment("TROPA_TOD")
 	TimeOfDayScript.apply(_tod, _env, _sun, _sky_mat)
+	_tod_fog = _env.fog_density
 	if OS.get_environment("TROPA_NO_POST") != "1":
 		var post := PostFXScript.new()
 		add_child(post)
+	_build_rain()
 	var perf := PerfOverlay.new()
 	add_child(perf)
 	var pause = PauseScript.new()
@@ -115,6 +123,65 @@ func _ready() -> void:
 	pause.game = self
 	hud.show_notice("Костёр гаснет. Лес ждёт.", 4.0)
 
+
+func _input(event: InputEvent) -> void:
+	if not (event is InputEventKey) or not event.pressed or event.echo:
+		return
+	var key := event as InputEventKey
+	if key.keycode == KEY_T:
+		_tod = TimeOfDayScript.next_key(_tod)
+		TimeOfDayScript.apply(_tod, _env, _sun, _sky_mat)
+		_tod_fog = _env.fog_density
+		hud.show_notice("Время суток: " + TimeOfDayScript.label(_tod), 2.5)
+	elif key.keycode == KEY_R:
+		_toggle_rain()
+
+func _build_rain() -> void:
+	_rain = CPUParticles3D.new()
+	_rain.amount = 900
+	_rain.lifetime = 1.1
+	_rain.emission_shape = CPUParticles3D.EMISSION_SHAPE_BOX
+	_rain.emission_box_extents = Vector3(26.0, 1.0, 26.0)
+	_rain.direction = Vector3(0.08, -1.0, 0.04)
+	_rain.spread = 4.0
+	_rain.gravity = Vector3(0.0, -18.0, 0.0)
+	_rain.initial_velocity_min = 9.0
+	_rain.initial_velocity_max = 14.0
+	_rain.scale_amount_min = 0.6
+	_rain.scale_amount_max = 1.2
+	_rain.color = Color(0.55, 0.62, 0.75, 0.45)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.02, 0.45)
+	_rain.mesh = quad
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.vertex_color_use_as_albedo = true
+	_rain.material_override = mat
+	_rain.emitting = false
+	add_child(_rain)
+	if OS.get_environment("TROPA_RAIN") == "1":
+		_rain_on = true
+		_rain.emitting = true
+		_wet = 1.0
+
+func _toggle_rain() -> void:
+	_rain_on = not _rain_on
+	if _rain != null:
+		_rain.emitting = _rain_on
+	hud.show_notice("Дождь" if _rain_on else "Дождь стих", 2.0)
+
+func _update_rain(delta: float) -> void:
+	var target := 1.0 if _rain_on else 0.0
+	_wet = move_toward(_wet, target, delta * 0.25)
+	if _rain != null and player != null:
+		_rain.global_position = player.global_position + Vector3(0.0, 12.0, 0.0)
+	if _terrain_mat is ShaderMaterial:
+		(_terrain_mat as ShaderMaterial).set_shader_parameter("wet", _wet)
+	if _env != null:
+		_env.fog_density = _tod_fog + _wet * 0.012
 
 func _process(delta: float) -> void:
 	_time += delta
@@ -137,6 +204,7 @@ func _process(delta: float) -> void:
 	_clamp_to_world(delta)
 	_update_encounters(delta)
 	_update_underwater()
+	_update_rain(delta)
 	_time_wreath += delta
 	for w in _wreaths:
 		var node: Node3D = w["node"]
@@ -307,7 +375,7 @@ func _build_terrain() -> void:
 	grass.name = "Grass"
 	add_child(grass)
 	if OS.get_environment("TROPA_NO_GRASS") != "1":
-		grass.populate(terrain, QualityScript.grass_amount(), QualityScript.grass_radius())
+		grass.populate(terrain, QualityScript.grass_amount(), QualityScript.grass_radius(), _paths)
 
 # --- лес ---
 

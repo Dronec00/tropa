@@ -17,6 +17,10 @@ uniform float scale_a = 0.34;
 uniform float scale_b = 0.11;
 uniform float macro_scale = 0.006;
 uniform float normal_strength = 1.0;
+uniform float wet = 0.0;
+uniform vec3 grass_tint : source_color = vec3(0.16, 0.22, 0.09);
+
+global uniform vec3 player_pos;
 
 varying vec3 v_world;
 
@@ -39,7 +43,16 @@ void fragment() {
 	vec3 macro_hue = mix(vec3(1.0), vec3(1.06, 0.98, 0.90), m);
 
 	ALBEDO = col * tint * macro_var * macro_hue;
+
+	// вдали трава не геометрией, а зелёным пятном на земле
+	float dist_to_player = length(v_world.xz - player_pos.xz);
+	float far_grass = smoothstep(30.0, 62.0, dist_to_player);
+	ALBEDO = mix(ALBEDO, ALBEDO * vec3(0.62, 0.88, 0.40) + grass_tint * 0.18, far_grass * 0.55);
+
+	// мокрость: темнее и глянцевее
+	ALBEDO *= mix(1.0, 0.72, wet);
 	NORMAL_MAP = mix(texture(normal_a, uv_a).rgb, texture(normal_b, uv_b).rgb, blend);
 	NORMAL_MAP_DEPTH = normal_strength;
 	ROUGHNESS = mix(texture(rough_a, uv_a).r, texture(rough_b, uv_b).r, blend) * 0.85 + 0.15;
+	ROUGHNESS *= mix(1.0, 0.45, wet);
 }

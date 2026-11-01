@@ -209,51 +209,80 @@ func _gen_leaf_atlas() -> void:
 # --- пучок травы: несколько изогнутых стеблей с альфой ---
 
 func _gen_grass_tuft() -> void:
-	var size := 512
-	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
+	# Атлас 2x2: высокий, низкий, сухой, с колосом.
+	var q := 256
+	var atlas := Image.create(q * 2, q * 2, false, Image.FORMAT_RGBA8)
+	atlas.fill(Color(0, 0, 0, 0))
 
-	for blade in 22:
-		var base_x := _rng.randf_range(0.08, 0.92) * size
-		var tall := _rng.randf_range(0.5, 1.0)
-		var bend := _rng.randf_range(-0.4, 0.4)
-		var width := _rng.randf_range(2.6, 5.5)
-		var tip_green := _rng.randf_range(0.32, 0.55)
-		var dark := _rng.randf_range(0.08, 0.18)
+	var kinds := [
+		{"blades": 15, "h_min": 0.72, "h_max": 1.0, "w": 4.0, "dry": 0.0, "seed": false},
+		{"blades": 20, "h_min": 0.32, "h_max": 0.5, "w": 3.2, "dry": 0.0, "seed": false},
+		{"blades": 14, "h_min": 0.5, "h_max": 0.9, "w": 3.4, "dry": 1.0, "seed": false},
+		{"blades": 11, "h_min": 0.75, "h_max": 1.0, "w": 4.4, "dry": 0.35, "seed": true},
+	]
 
-		var steps := 260
-		for i in steps:
-			var t := float(i) / float(steps)
-			var y := float(size) - t * float(size) * tall
-			var x := base_x + bend * float(size) * 0.32 * t * t
-			var r := width * (1.0 - t * 0.92) * 0.5
-			if r < 0.8:
-				r = 0.8
-			var shade := lerpf(dark, tip_green, t)
-			var col := Color(shade * 0.55, shade, shade * 0.33, 1.0)
+	for k in 4:
+		var img := Image.create(q, q, false, Image.FORMAT_RGBA8)
+		img.fill(Color(0, 0, 0, 0))
+		var kind: Dictionary = kinds[k]
+		var dry: float = kind["dry"]
 
-			for dy in range(int(-r) - 1, int(r) + 2):
-				for dx in range(int(-r) - 1, int(r) + 2):
-					var d := sqrt(float(dx * dx + dy * dy))
-					var px := int(x) + dx
-					var py := int(y) + dy
-					if px < 0 or py < 1 or px >= size or py >= size:
-						continue
-					var a := clampf((r - d) * 1.4 + 0.5, 0.0, 1.0)
-					if a <= 0.0:
-						continue
-					var prev := img.get_pixel(px, py)
-					var na := a + prev.a * (1.0 - a)
-					if na <= prev.a + 0.001:
-						continue
-					var rgb := Color(
-						(col.r * a + prev.r * prev.a * (1.0 - a)) / maxf(na, 0.001),
-						(col.g * a + prev.g * prev.a * (1.0 - a)) / maxf(na, 0.001),
-						(col.b * a + prev.b * prev.a * (1.0 - a)) / maxf(na, 0.001)
-					)
-					img.set_pixel(px, py, Color(rgb.r, rgb.g, rgb.b, na))
+		for blade in int(kind["blades"]):
+			var base_x := _rng.randf_range(0.10, 0.90) * q
+			var tall := _rng.randf_range(kind["h_min"], kind["h_max"])
+			var bend := _rng.randf_range(-0.35, 0.35)
+			var width := _rng.randf_range(kind["w"], kind["w"] * 1.8)
+			var tip_green := _rng.randf_range(0.30, 0.52)
+			var dark := _rng.randf_range(0.10, 0.20)
 
-	img.save_png(OUT + "grass_tuft.png")
+			var steps := 180
+			for i in steps:
+				var t := float(i) / float(steps)
+				var y := float(q) - t * float(q) * tall
+				var x := base_x + bend * float(q) * 0.30 * t * t
+				var r := width * (1.0 - t * 0.9) * 0.5
+				if r < 0.7:
+					r = 0.7
+				var shade := lerpf(dark, tip_green, t)
+				var col := Color(shade * 0.55, shade, shade * 0.33, 1.0)
+				if dry > 0.01:
+					col = col.lerp(Color(shade * 1.05, shade * 0.92, shade * 0.45, 1.0), dry)
+				for dy in range(int(-r) - 1, int(r) + 2):
+					for dx in range(int(-r) - 1, int(r) + 2):
+						var d := sqrt(float(dx * dx + dy * dy))
+						var px := int(x) + dx
+						var py := int(y) + dy
+						if px < 0 or py < 1 or px >= q or py >= q:
+							continue
+						var a := clampf((r - d) * 1.4 + 0.5, 0.0, 1.0)
+						if a <= 0.0:
+							continue
+						var prev := img.get_pixel(px, py)
+						if a > prev.a:
+							img.set_pixel(px, py, Color(col.r, col.g, col.b, a))
+
+			# колос на верхушке
+			if bool(kind["seed"]):
+				var sx := int(base_x + bend * float(q) * 0.30)
+				var sy := int(float(q) - tall * float(q) * 0.98)
+				for i in 8:
+					var yy := sy + i * 2
+					var r := 3.2 - float(i) * 0.28
+					for dy in range(-int(r) - 1, int(r) + 2):
+						for dx in range(-int(r) - 1, int(r) + 2):
+							if dx * dx + dy * dy > r * r:
+								continue
+							var px := sx + dx
+							var py := yy + dy
+							if px < 0 or py < 0 or px >= q or py >= q:
+								continue
+							img.set_pixel(px, py, Color(0.42, 0.36, 0.16, 1.0))
+
+		var ox := (k % 2) * q
+		var oy := int(k / 2) * q
+		atlas.blit_rect(img, Rect2i(0, 0, q, q), Vector2i(ox, oy))
+
+	atlas.save_png(OUT + "grass_tuft.png")
 
 # --- спрайт пламени: несколько языков с горячим ядром ---
 
