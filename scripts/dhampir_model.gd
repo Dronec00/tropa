@@ -94,7 +94,7 @@ static func build(parent: Node3D) -> Dictionary:
 	var face_fill: OmniLight3D = OmniLight3D.new()
 	face_fill.name = "FaceFill"
 	face_fill.position = Vector3(0.0, 0.565, -0.300)
-	face_fill.light_color = Color(0.74, 0.82, 1.0)
+	face_fill.light_color = Color(0.92, 0.86, 0.78)
 	face_fill.light_energy = 0.12
 	face_fill.omni_range = 1.05
 	face_fill.omni_attenuation = 1.8
@@ -169,71 +169,83 @@ static func _make_kit() -> Kit:
 	var kit: Kit = Kit.new()
 	var grain: ImageTexture = _grain_texture()
 
-	kit.skin = _mat(Color(0.360, 0.375, 0.415), 0.0, 0.70)
+	kit.skin = _mat(Color(0.440, 0.432, 0.462), 0.0, 0.66)
+	kit.skin.metallic_specular = 0.28
+	kit.skin.albedo_texture = _skin_texture()
+	kit.skin.uv1_scale = Vector3(5.0, 5.0, 5.0)
+	kit.skin.normal_enabled = true
+	kit.skin.normal_texture = _noise_normal(0.05, 0.55)
+	kit.skin.normal_scale = 0.45
 	kit.skin.subsurf_scatter_enabled = true
-	kit.skin.subsurf_scatter_strength = 0.25
+	kit.skin.subsurf_scatter_strength = 0.28
 	kit.skin.rim_enabled = true
-	kit.skin.rim = 0.20
-	kit.skin_shade = _mat(Color(0.270, 0.286, 0.330), 0.0, 0.78)
-	kit.lip = _mat(Color(0.245, 0.135, 0.155), 0.0, 0.58)
+	kit.skin.rim = 0.14
+	kit.skin_shade = _mat(Color(0.300, 0.292, 0.318), 0.0, 0.78)
+	kit.lip = _mat(Color(0.320, 0.145, 0.165), 0.0, 0.52)
 	kit.fang = _mat(Color(0.900, 0.900, 0.870), 0.0, 0.38)
 
-	kit.hair = _mat(Color(0.032, 0.031, 0.040), 0.0, 0.58)
+	kit.hair = _mat(Color(0.012, 0.012, 0.022), 0.0, 0.36)
 	kit.hair.cull_mode = BaseMaterial3D.CULL_DISABLED
-	kit.hair_hi = _mat(Color(0.070, 0.068, 0.085), 0.0, 0.48)
+	kit.hair_hi = _mat(Color(0.040, 0.040, 0.062), 0.0, 0.30)
 	kit.hair_hi.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.brow = _mat(Color(0.035, 0.033, 0.040), 0.0, 0.70)
 
-	kit.eye_white = _mat(Color(0.540, 0.560, 0.590), 0.0, 0.34)
-	kit.eye_dark = _mat(Color(0.016, 0.016, 0.020), 0.0, 0.30)
-	kit.iris = _mat(Color(0.115, 0.220, 0.310), 0.0, 0.16)
+	kit.eye_white = _mat(Color(0.600, 0.620, 0.660), 0.0, 0.28)
+	kit.eye_dark = _mat(Color(0.012, 0.012, 0.016), 0.0, 0.24)
+	kit.iris = _mat(Color(0.240, 0.470, 0.640), 0.0, 0.12)
 	kit.iris.emission_enabled = true
-	kit.iris.emission = Color(0.10, 0.17, 0.24)
-	kit.iris.emission_energy_multiplier = 0.35
+	kit.iris.emission = Color(0.12, 0.34, 0.50)
+	kit.iris.emission_energy_multiplier = 0.85
 	kit.pupil = _mat(Color(0.020, 0.020, 0.024), 0.0, 0.40)
 	kit.eye_glint = StandardMaterial3D.new()
 	kit.eye_glint.albedo_color = Color(0.95, 0.97, 1.0)
 	kit.eye_glint.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
-	kit.cloth = _mat(Color(0.032, 0.033, 0.042), 0.0, 0.82)
+	kit.cloth = _mat(Color(0.010, 0.011, 0.019), 0.0, 0.92)
+	kit.cloth.metallic_specular = 0.10
 	kit.cloth.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.cloth.albedo_texture = grain
-	kit.cloth.uv1_scale = Vector3(3.0, 3.0, 3.0)
-	kit.cloth_dark = _mat(Color(0.020, 0.021, 0.027), 0.0, 0.86)
+	kit.cloth.uv1_scale = Vector3(4.0, 4.0, 4.0)
+	kit.cloth_dark = _mat(Color(0.005, 0.005, 0.010), 0.0, 0.94)
+	kit.cloth_dark.metallic_specular = 0.08
 	kit.cloth_dark.cull_mode = BaseMaterial3D.CULL_DISABLED
-	kit.cloth_soft = _mat(Color(0.052, 0.051, 0.062), 0.0, 0.84)
+	kit.cloth_soft = _mat(Color(0.020, 0.020, 0.030), 0.0, 0.88)
+	kit.cloth_soft.metallic_specular = 0.14
 	kit.cloth_soft.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.cloth_soft.albedo_texture = grain
-	kit.cloth_soft.uv1_scale = Vector3(4.0, 4.0, 4.0)
+	kit.cloth_soft.uv1_scale = Vector3(5.0, 5.0, 5.0)
 
-	kit.lining = _mat(Color(0.330, 0.165, 0.045), 0.0, 0.86)
+	kit.lining = _mat(Color(0.430, 0.175, 0.030), 0.0, 0.86)
 	kit.lining.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.lining.albedo_texture = grain
-	kit.lining.uv1_scale = Vector3(3.0, 3.0, 3.0)
-	kit.lining_dark = _mat(Color(0.255, 0.130, 0.040), 0.0, 0.90)
+	kit.lining.uv1_scale = Vector3(4.0, 4.0, 4.0)
+	kit.lining_dark = _mat(Color(0.300, 0.120, 0.025), 0.0, 0.90)
 	kit.lining_dark.cull_mode = BaseMaterial3D.CULL_DISABLED
 
-	kit.hat = _mat(Color(0.012, 0.012, 0.018), 0.0, 0.80)
+	kit.hat = _mat(Color(0.005, 0.005, 0.009), 0.0, 0.96)
+	kit.hat.metallic_specular = 0.07
 	kit.hat.albedo_texture = grain
-	kit.hat.uv1_scale = Vector3(4.0, 4.0, 4.0)
-	kit.leather = _mat(Color(0.052, 0.045, 0.043), 0.02, 0.52)
+	kit.hat.uv1_scale = Vector3(5.0, 5.0, 5.0)
+	kit.leather = _mat(Color(0.034, 0.024, 0.020), 0.04, 0.46)
+	kit.leather.metallic_specular = 0.26
 	kit.leather.albedo_texture = grain
-	kit.leather.uv1_scale = Vector3(5.0, 5.0, 5.0)
-	kit.leather_dark = _mat(Color(0.032, 0.029, 0.029), 0.0, 0.62)
+	kit.leather.uv1_scale = Vector3(6.0, 6.0, 6.0)
+	kit.leather_dark = _mat(Color(0.014, 0.010, 0.009), 0.02, 0.56)
+	kit.leather_dark.metallic_specular = 0.20
 	kit.leather_dark.albedo_texture = grain
-	kit.leather_dark.uv1_scale = Vector3(6.0, 6.0, 6.0)
+	kit.leather_dark.uv1_scale = Vector3(7.0, 7.0, 7.0)
 
-	kit.gold = _mat(Color(0.420, 0.305, 0.115), 0.90, 0.36)
-	kit.gold_dark = _mat(Color(0.330, 0.245, 0.095), 0.88, 0.42)
-	kit.silver = _mat(Color(0.330, 0.342, 0.375), 0.92, 0.34)
-	kit.steel = _mat(Color(0.300, 0.310, 0.340), 0.85, 0.38)
-	kit.blade = _mat(Color(0.660, 0.690, 0.740), 1.0, 0.17)
+	kit.gold = _mat(Color(0.520, 0.380, 0.110), 0.95, 0.28)
+	kit.gold_dark = _mat(Color(0.340, 0.230, 0.060), 0.92, 0.38)
+	kit.silver = _mat(Color(0.500, 0.525, 0.590), 0.98, 0.20)
+	kit.steel = _mat(Color(0.360, 0.370, 0.410), 0.92, 0.28)
+	kit.blade = _mat(Color(0.760, 0.790, 0.860), 1.0, 0.12)
 	kit.blade.cull_mode = BaseMaterial3D.CULL_BACK
 
-	kit.gem = _mat(Color(0.070, 0.200, 0.720), 0.25, 0.10)
+	kit.gem = _mat(Color(0.030, 0.120, 0.680), 0.30, 0.08)
 	kit.gem.emission_enabled = true
-	kit.gem.emission = Color(0.08, 0.22, 0.85)
-	kit.gem.emission_energy_multiplier = 1.25
+	kit.gem.emission = Color(0.05, 0.20, 0.90)
+	kit.gem.emission_energy_multiplier = 1.50
 
 	kit.ember = StandardMaterial3D.new()
 	kit.ember.albedo_color = Color(1.0, 0.66, 0.30)
@@ -248,6 +260,33 @@ static func _make_kit() -> Kit:
 	kit.ember_core.emission_energy_multiplier = 9.0
 	kit.ember_core.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	return kit
+
+## Кожа: очень слабое зерно, чтобы лицо не было гладким пластиком.
+static func _skin_texture() -> ImageTexture:
+	var size: int = 128
+	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
+	for y in range(size):
+		for x in range(size):
+			var n: float = sin(float(x) * 0.53 + sin(float(y) * 0.31) * 2.0)
+			n += sin(float(y) * 0.71 + cos(float(x) * 0.27) * 1.7) * 0.55
+			n += sin(float(x + y) * 0.19) * 0.25
+			var v: float = 0.925 + n * 0.035
+			var warm: float = sin(float(x) * 0.11 + float(y) * 0.07) * 0.012
+			img.set_pixel(x, y, Color(v + warm, v, v - warm * 0.5))
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+static func _noise_normal(freq: float, bump: float) -> NoiseTexture2D:
+	var fn: FastNoiseLite = FastNoiseLite.new()
+	fn.frequency = freq
+	fn.fractal_octaves = 3
+	var tex: NoiseTexture2D = NoiseTexture2D.new()
+	tex.width = 128
+	tex.height = 128
+	tex.noise = fn
+	tex.as_normal_map = true
+	tex.bump_strength = bump
+	return tex
 
 static func _mat(color: Color, metallic: float, roughness: float) -> StandardMaterial3D:
 	var m: StandardMaterial3D = StandardMaterial3D.new()
@@ -842,25 +881,38 @@ static func _head_mesh() -> ArrayMesh:
 			nrow.append(n)
 		ngrid.append(nrow)
 
+	var uv_grid: Array = []
+	for r in range(rings.size()):
+		var urow: Array = []
+		var y: float = float(rings[r][0])
+		for s in range(seg):
+			urow.append(Vector2(float(s) / float(seg), (y + 0.006) / 0.251))
+		uv_grid.append(urow)
+
 	var st: SurfaceTool = SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for r in range(rings.size() - 1):
 		for s in range(seg):
 			var s2: int = (s + 1) % seg
-			_add_face_n(st, grid[r][s], ngrid[r][s], grid[r][s2], ngrid[r][s2],
-					grid[r + 1][s2], ngrid[r + 1][s2])
-			_add_face_n(st, grid[r][s], ngrid[r][s], grid[r + 1][s2], ngrid[r + 1][s2],
-					grid[r + 1][s], ngrid[r + 1][s])
+			_add_face_uvn(st, grid[r][s], uv_grid[r][s], ngrid[r][s],
+					grid[r][s2], uv_grid[r][s2], ngrid[r][s2],
+					grid[r + 1][s2], uv_grid[r + 1][s2], ngrid[r + 1][s2])
+			_add_face_uvn(st, grid[r][s], uv_grid[r][s], ngrid[r][s],
+					grid[r + 1][s2], uv_grid[r + 1][s2], ngrid[r + 1][s2],
+					grid[r + 1][s], uv_grid[r + 1][s], ngrid[r + 1][s])
 	var top_center: Vector3 = Vector3(0.0, 0.248, 0.0)
+	var top_uv: Vector2 = Vector2(0.5, 1.0)
 	for s in range(seg):
 		var s2: int = (s + 1) % seg
-		_add_face_n(st, grid[rings.size() - 1][s2], Vector3.UP,
-				grid[rings.size() - 1][s], Vector3.UP, top_center, Vector3.UP)
+		_add_face_uvn(st, grid[rings.size() - 1][s2], uv_grid[rings.size() - 1][s2], Vector3.UP,
+				grid[rings.size() - 1][s], uv_grid[rings.size() - 1][s], Vector3.UP,
+				top_center, top_uv, Vector3.UP)
 	var bottom: Vector3 = Vector3(0.0, -0.012, 0.0)
+	var bottom_uv: Vector2 = Vector2(0.5, 0.0)
 	for s in range(seg):
 		var s2: int = (s + 1) % seg
-		_add_face_n(st, grid[0][s], Vector3.DOWN, grid[0][s2], Vector3.DOWN,
-				bottom, Vector3.DOWN)
+		_add_face_uvn(st, grid[0][s], uv_grid[0][s], Vector3.DOWN,
+				grid[0][s2], uv_grid[0][s2], Vector3.DOWN, bottom, bottom_uv, Vector3.DOWN)
 	return st.commit()
 
 ## 24 кольца: линейная интерполяция базовых 15 по высоте.
@@ -966,6 +1018,18 @@ static func _add_face_n(st: SurfaceTool, a: Vector3, na: Vector3,
 	st.add_vertex(a)
 	st.set_normal(nb)
 	st.add_vertex(b)
+	st.set_normal(nc)
+	st.add_vertex(c)
+
+static func _add_face_uvn(st: SurfaceTool, a: Vector3, ua: Vector2, na: Vector3,
+		b: Vector3, ub: Vector2, nb: Vector3, c: Vector3, uc: Vector2, nc: Vector3) -> void:
+	st.set_uv(ua)
+	st.set_normal(na)
+	st.add_vertex(a)
+	st.set_uv(ub)
+	st.set_normal(nb)
+	st.add_vertex(b)
+	st.set_uv(uc)
 	st.set_normal(nc)
 	st.add_vertex(c)
 
