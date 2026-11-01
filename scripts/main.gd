@@ -53,6 +53,10 @@ var _mat_dark: ShaderMaterial
 var _mat_fern: ShaderMaterial
 var _tree_variants: Array = []
 var _tree_chunks: Dictionary = {}
+var _rock_wet: Array = []
+var _rock_dry: Array = []
+var _wreaths: Array = []
+var _time_wreath := 0.0
 var _env: Environment
 var _underwater := false
 const TREE_CHUNK := 80.0
@@ -109,6 +113,12 @@ func _process(delta: float) -> void:
 	_clamp_to_world(delta)
 	_update_encounters(delta)
 	_update_underwater()
+	_time_wreath += delta
+	for w in _wreaths:
+		var node: Node3D = w["node"]
+		var ph: float = w["phase"]
+		node.rotation.z = sin(_time_wreath * 1.1 + ph) * 0.06
+		node.rotation.x = sin(_time_wreath * 0.8 + ph * 1.7) * 0.04
 
 	var inside_hut := false
 	if not _hut_parts.is_empty():
@@ -534,15 +544,15 @@ func _build_path_strips() -> void:
 		var p: Vector3 = _path_points[i]
 		var prev: Vector3 = _path_points[maxi(i - 1, 0)]
 		var next: Vector3 = _path_points[mini(i + 1, _path_points.size() - 1)]
-		var dir := (next - prev)
+		var dir := next - prev
 		dir.y = 0.0
 		dir = dir.normalized()
 		var side := Vector3(-dir.z, 0.0, dir.x)
 		for s in [-1.0, 1.0]:
-			var q: Vector3 = p + side * 1.0 * s
-			q.y = terrain.height_at(q.x, q.z) + 0.05
+			var q: Vector3 = p + side * 2.9 * s
+			q.y = terrain.height_at(q.x, q.z) + 0.04
 			verts.append(q)
-			uvs.append(Vector2(0.0 if s < 0.0 else 1.0, float(i) * 0.4))
+			uvs.append(Vector2(0.0 if s < 0.0 else 1.0, float(i) * 0.22))
 
 		if i > 0:
 			var a := (i - 1) * 2
@@ -565,20 +575,27 @@ func _build_path_strips() -> void:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.30, 0.24, 0.17)
-	mat.roughness = 1.0
-	if ResourceLoader.exists("res://assets/textures/ground_albedo.png"):
-		mat.albedo_texture = load("res://assets/textures/ground_albedo.png")
-		mat.uv1_scale = Vector3(3.0, 3.0, 1.0)
+	var noise := FastNoiseLite.new()
+	noise.seed = 12
+	noise.frequency = 0.02
+	noise.fractal_octaves = 4
+	var noise_tex := NoiseTexture2D.new()
+	noise_tex.noise = noise
+	noise_tex.seamless = true
+	noise_tex.width = 256
+	noise_tex.height = 256
+
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/trail.gdshader")
+	if ResourceLoader.exists("res://assets/textures/photo/ground_color.jpg"):
+		mat.set_shader_parameter("ground_tex", load("res://assets/textures/photo/ground_color.jpg"))
+	mat.set_shader_parameter("noise_tex", noise_tex)
 
 	var strip := MeshInstance3D.new()
 	strip.mesh = mesh
 	strip.material_override = mat
+	strip.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(strip)
-
-var _rock_wet: Array = []
-var _rock_dry: Array = []
 
 func _add_rock(list: Array, x: float, z: float) -> void:
 	var h: float = terrain.height_at(x, z)
@@ -814,7 +831,7 @@ func _add_tree_collision_at(pos: Vector3, radius: float, height: float) -> void:
 	body.add_child(shape)
 	add_child(body)
 
-func _marker_birch(pos: Vector3) -> void:
+func _marker_birch(pos: Vector3, index: int = 0) -> void:
 	var root := Node3D.new()
 	root.position = pos
 	root.rotation.y = _rng.randf_range(0.0, TAU)
@@ -825,39 +842,58 @@ func _marker_birch(pos: Vector3) -> void:
 	mesh_instance.material_override = _mat_light
 	root.add_child(mesh_instance)
 
-	var wreath := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.26
-	torus.outer_radius = 0.38
-	torus.rings = 16
-	torus.ring_segments = 8
-	wreath.mesh = torus
-	var wreath_mat := StandardMaterial3D.new()
-	wreath_mat.albedo_color = Color(0.16, 0.20, 0.09)
-	wreath_mat.emission_enabled = true
-	wreath_mat.emission = Color(0.35, 0.10, 0.07)
-	wreath_mat.emission_energy_multiplier = 0.18
-	wreath.material_override = wreath_mat
-	wreath.position = Vector3(0.0, 1.75, 0.0)
-	wreath.rotation.x = PI * 0.5
-	wreath.scale = Vector3(0.6, 0.6, 0.6)
-	root.add_child(wreath)
+	if index % 5 < 3:
+		var branch := MeshInstance3D.new()
+		var bm := CylinderMesh.new()
+		bm.top_radius = 0.012
+		bm.bottom_radius = 0.035
+		bm.height = 0.62
+		branch.mesh = bm
+		var branch_mat := StandardMaterial3D.new()
+		branch_mat.albedo_color = Color(0.36, 0.34, 0.30)
+		branch_mat.roughness = 1.0
+		branch.material_override = branch_mat
+		branch.position = Vector3(0.0, 1.82, 0.0)
+		branch.rotation.z = deg_to_rad(-62.0)
+		root.add_child(branch)
 
-	var berry_mat := StandardMaterial3D.new()
-	berry_mat.albedo_color = Color(0.55, 0.06, 0.05)
-	berry_mat.emission_enabled = true
-	berry_mat.emission = Color(0.6, 0.05, 0.04)
-	berry_mat.emission_energy_multiplier = 1.2
-	for i in 5:
-		var berry := MeshInstance3D.new()
-		var bm := SphereMesh.new()
-		bm.radius = 0.028
-		bm.height = 0.056
-		berry.mesh = bm
-		berry.material_override = berry_mat
-		var a := TAU * float(i) / 5.0
-		berry.position = Vector3(cos(a) * 0.32, 1.75, sin(a) * 0.32)
-		root.add_child(berry)
+		var hang := Node3D.new()
+		hang.position = Vector3(0.52, 1.54, 0.0)
+		root.add_child(hang)
+		_wreaths.append({"node": hang, "phase": _rng.randf_range(0.0, TAU)})
+
+		var wreath := MeshInstance3D.new()
+		var torus := TorusMesh.new()
+		torus.inner_radius = 0.26
+		torus.outer_radius = 0.38
+		torus.rings = 16
+		torus.ring_segments = 8
+		wreath.mesh = torus
+		var wreath_mat := StandardMaterial3D.new()
+		wreath_mat.albedo_color = Color(0.16, 0.20, 0.09)
+		wreath_mat.emission_enabled = true
+		wreath_mat.emission = Color(0.35, 0.10, 0.07)
+		wreath_mat.emission_energy_multiplier = 0.18
+		wreath.material_override = wreath_mat
+		wreath.rotation.x = PI * 0.5
+		wreath.scale = Vector3(0.48, 0.48, 0.48)
+		hang.add_child(wreath)
+
+		var berry_mat := StandardMaterial3D.new()
+		berry_mat.albedo_color = Color(0.55, 0.06, 0.05)
+		berry_mat.emission_enabled = true
+		berry_mat.emission = Color(0.6, 0.05, 0.04)
+		berry_mat.emission_energy_multiplier = 1.2
+		for i in 5:
+			var berry := MeshInstance3D.new()
+			var bm2 := SphereMesh.new()
+			bm2.radius = 0.026
+			bm2.height = 0.052
+			berry.mesh = bm2
+			berry.material_override = berry_mat
+			var a := TAU * float(i) / 5.0
+			berry.position = Vector3(cos(a) * 0.26, 0.0, sin(a) * 0.26)
+			hang.add_child(berry)
 
 	_add_tree_collision(root, 0.24, 7.0)
 
@@ -1012,7 +1048,8 @@ func _build_path() -> void:
 		p.y = terrain.height_at(p.x, p.z)
 		_path_points.append(p)
 
-	for i in range(4, _path_points.size() - 3, 3):
+	var marker := 0
+	for i in range(4, _path_points.size() - 3, 9):
 		var p := _path_points[i]
 		var dir := _path_points[i + 1] - _path_points[i - 1]
 		dir.y = 0.0
@@ -1023,7 +1060,8 @@ func _build_path() -> void:
 			pos.y = terrain.height_at(pos.x, pos.z)
 			if Vector2(pos.x - HUT_POS.x, pos.z - HUT_POS.z).length() < 9.0:
 				continue
-			_marker_birch(pos)
+			_marker_birch(pos, marker)
+			marker += 1
 
 func _build_hut() -> void:
 	var pos := Vector3(HUT_POS.x, terrain.height_at(HUT_POS.x, HUT_POS.z), HUT_POS.z)
