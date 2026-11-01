@@ -52,7 +52,8 @@ var _mat_light: ShaderMaterial
 var _mat_dark: ShaderMaterial
 var _mat_fern: ShaderMaterial
 var _tree_variants: Array = []
-var _tree_instances: Array = []
+var _tree_chunks: Dictionary = {}
+const TREE_CHUNK := 80.0
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
 var _dropped_souls := 0
@@ -273,10 +274,15 @@ func _create_tree_materials() -> void:
 
 	for i in SPECIES.size():
 		for v in 2:
-			var mesh := TreeLibScript.build(SPECIES[i], 1000 + i * 17 + v * 5)
+			var mesh := TreeLibScript.build(SPECIES[i], 1000 + i * 17 + v * 5, false)
+			var simple_mesh := TreeLibScript.build(SPECIES[i], 1000 + i * 17 + v * 5, true)
 			var material := _mat_dark if SPECIES[i] in ["cedar", "spruce", "willow"] else _mat_light
-			_tree_variants.append({"mesh": mesh, "species": SPECIES[i], "material": material})
-			_tree_instances.append([])
+			_tree_variants.append({
+				"mesh": mesh,
+				"simple_mesh": simple_mesh,
+				"species": SPECIES[i],
+				"material": material,
+			})
 
 func _make_tree_material(bark: Texture2D, leaf: Texture2D) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
@@ -347,7 +353,15 @@ func _build_forest() -> void:
 		var variant := _species_index(species) * 2 + (0 if _rng.randf() < 0.5 else 1)
 		var scale := _rng.randf_range(0.85, 1.2)
 		var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(scale, scale, scale))
-		(_tree_instances[variant] as Array).append(Transform3D(basis, Vector3(x, h - 0.1, z)))
+		var key := Vector2i(int(floor(x / TREE_CHUNK)), int(floor(z / TREE_CHUNK)))
+		if not _tree_chunks.has(key):
+			var lists: Array = []
+			lists.resize(_tree_variants.size())
+			for q in lists.size():
+				lists[q] = []
+			_tree_chunks[key] = lists
+		var lists = _tree_chunks[key]
+		(lists[variant] as Array).append(Transform3D(basis, Vector3(x, h - 0.1, z)))
 
 		_add_tree_collision_at(Vector3(x, h, z), TreeLibScript.trunk_radius(species), TreeLibScript.height_of(species) * scale)
 		placed += 1
@@ -697,22 +711,38 @@ func _build_rocks() -> void:
 	print("[rocks] ", transforms.size())
 
 func _finish_trees() -> void:
-	for i in _tree_variants.size():
-		var transforms: Array = _tree_instances[i]
-		if transforms.is_empty():
-			continue
-		var variant: Dictionary = _tree_variants[i]
-		var multimesh := MultiMesh.new()
-		multimesh.transform_format = MultiMesh.TRANSFORM_3D
-		multimesh.mesh = variant["mesh"]
-		multimesh.instance_count = transforms.size()
-		for j in transforms.size():
-			multimesh.set_instance_transform(j, transforms[j])
+	var detail_nodes := 0
+	var simple_nodes := 0
+	for key in _tree_chunks:
+		var lists: Array = _tree_chunks[key]
+		for i in lists.size():
+			var transforms: Array = lists[i]
+			if transforms.is_empty():
+				continue
+			var variant: Dictionary = _tree_variants[i]
+			_spawn_mm(variant["mesh"], variant["material"], transforms, 0.0, 55.0)
+			_spawn_mm(variant["simple_mesh"], variant["material"], transforms, 50.0, 120.0)
+			detail_nodes += 1
+			simple_nodes += 1
+	print("[trees lod] detail: ", detail_nodes, " simple: ", simple_nodes)
 
-		var node := MultiMeshInstance3D.new()
-		node.multimesh = multimesh
-		node.material_override = variant["material"]
-		add_child(node)
+func _spawn_mm(mesh: Mesh, material: Material, transforms: Array, begin: float, end: float) -> void:
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = transforms.size()
+	for j in transforms.size():
+		mm.set_instance_transform(j, transforms[j])
+	var node := MultiMeshInstance3D.new()
+	node.multimesh = mm
+	node.material_override = material
+	if end > 0.0:
+		node.visibility_range_end = end
+		node.visibility_range_end_margin = 6.0
+	if begin > 0.0:
+		node.visibility_range_begin = begin
+		node.visibility_range_begin_margin = 6.0
+	add_child(node)
 
 func _add_tree_collision_at(pos: Vector3, radius: float, height: float) -> void:
 	var body := StaticBody3D.new()
