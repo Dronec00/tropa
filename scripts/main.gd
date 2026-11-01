@@ -5,6 +5,7 @@ const EnemyScene := preload("res://scenes/enemy.tscn")
 const HudScript := preload("res://scripts/hud.gd")
 const TerrainScript := preload("res://scripts/terrain.gd")
 const GrassScript := preload("res://scripts/grass.gd")
+const GrassStreamScript := preload("res://scripts/grass_stream.gd")
 const WindScript := preload("res://scripts/wind.gd")
 const HutScript := preload("res://scripts/hut.gd")
 const LabStateScript := preload("res://scripts/lab_state.gd")
@@ -124,6 +125,7 @@ func _ready() -> void:
 	_build_puddles()
 	_build_rocks()
 	_spawn_player()
+	_wire_grass_player()
 	_build_hud()
 	_tod = LabStateScript.time_of_day
 	_terrain_mat = terrain.ground_material
@@ -585,12 +587,25 @@ func _build_terrain() -> void:
 
 	# трава строится позже: ей нужны тропы, кусты и план луж
 
+var _grass_stream
+
 func _build_grass() -> void:
-	var grass = GrassScript.new()
-	grass.name = "Grass"
-	add_child(grass)
-	if OS.get_environment("TROPA_NO_GRASS") != "1":
-		grass.populate(terrain, QualityScript.grass_amount(), QualityScript.grass_radius(), _paths, _bush_points, _puddle_plan)
+	if OS.get_environment("TROPA_NO_GRASS") == "1":
+		return
+	_grass_stream = GrassStreamScript.new()
+	_grass_stream.name = "GrassStream"
+	add_child(_grass_stream)
+	var density := 1600
+	if QualityScript.level == "low":
+		density = 1100
+	elif QualityScript.level == "high":
+		density = 2200
+	_grass_stream.setup(terrain, _paths, _bush_points, _puddle_plan, density)
+	_grass_stream.radius = QualityScript.grass_radius()
+
+func _wire_grass_player() -> void:
+	if _grass_stream != null and player != null:
+		_grass_stream.player = player
 
 # --- лес ---
 
