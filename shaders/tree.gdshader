@@ -3,6 +3,8 @@ render_mode cull_disabled;
 
 uniform sampler2D bark_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D leaf_tex : source_color, filter_linear_mipmap, repeat_disable;
+uniform sampler2D bark_normal : hint_normal, filter_linear_mipmap, repeat_enable;
+uniform float use_normal = 0.0;
 uniform float wind = 0.22;
 
 global uniform vec3 player_pos;
@@ -42,6 +44,10 @@ void fragment() {
 		albedo = COLOR.rgb * c.rgb * 2.2;
 	} else {
 		albedo = COLOR.rgb * texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.5;
+		if (use_normal > 0.5) {
+			NORMAL_MAP = texture(bark_normal, UV * vec2(1.0, 3.0)).rgb;
+			NORMAL_MAP_DEPTH = 1.0;
+		}
 	}
 	float variation = 0.88 + 0.12 * sin(v_world.x * 0.7 + v_world.z * 0.6);
 	ALBEDO = albedo * variation;

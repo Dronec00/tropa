@@ -200,7 +200,14 @@ func _build_mesh() -> void:
 	material.roughness = 1.0
 	material.uv1_scale = Vector3(4.0, 4.0, 1.0)
 
-	if ResourceLoader.exists("res://assets/textures/ground_albedo.png"):
+	if ResourceLoader.exists("res://assets/textures/photo/ground_color.jpg"):
+		material.albedo_color = Color(0.95, 0.66, 0.44)
+		material.albedo_texture = load("res://assets/textures/photo/ground_color.jpg")
+		material.roughness_texture = load("res://assets/textures/photo/ground_rough.jpg")
+		material.normal_enabled = true
+		material.normal_texture = load("res://assets/textures/photo/ground_normal.jpg")
+		material.normal_scale = 1.0
+	elif ResourceLoader.exists("res://assets/textures/ground_albedo.png"):
 		material.albedo_texture = load("res://assets/textures/ground_albedo.png")
 		material.roughness_texture = load("res://assets/textures/ground_rough.png")
 		material.normal_enabled = true

@@ -183,7 +183,7 @@ static func _curved_trunk(b: Builder, rng: RandomNumberGenerator, base: Vector3,
 	var segments := 5
 	for i in segments:
 		var t := float(i + 1) / float(segments)
-		var bend := Vector3(sin(t * 2.4), 0.0, cos(t * 2.1)) * 0.18 + bend_dir * 0.12
+		var bend := Vector3(sin(t * 2.4), 0.0, cos(t * 2.1)) * 0.05 + bend_dir * 0.04
 		dir = (dir + bend).normalized()
 		var p1 := p + dir * (height / float(segments))
 		b.tube(p, p1, r, r * 0.8, 6, color)
@@ -200,7 +200,7 @@ static func _deciduous(b: Builder, rng: RandomNumberGenerator, trunks: int) -> v
 		if trunks > 1:
 			var a := TAU * float(trunk_i) / float(trunks) + rng.randf_range(-0.4, 0.4)
 			offset = Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.15, 0.45)
-		var lean := Vector3(rng.randf_range(-0.22, 0.22), 0.0, rng.randf_range(-0.22, 0.22))
+		var lean := Vector3(rng.randf_range(-0.09, 0.09), 0.0, rng.randf_range(-0.09, 0.09))
 		var top := _curved_trunk(b, rng, offset, h * rng.randf_range(0.85, 1.0), lean, 0.13, BARK_BIRCH)
 
 		for i in 8:

@@ -198,7 +198,7 @@ func _build_environment() -> void:
 	env.fog_density = 0.052
 	env.fog_sky_affect = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.15
+	env.tonemap_exposure = 1.0
 	env.ssao_enabled = true
 	env.ssao_intensity = 1.1
 	env.ssao_radius = 1.4
@@ -256,13 +256,18 @@ func _create_tree_materials() -> void:
 	var leaf: Texture2D = null
 	if ResourceLoader.exists("res://assets/textures/birch_bark.png"):
 		bark_light = load("res://assets/textures/birch_bark.png")
-	if ResourceLoader.exists("res://assets/textures/spruce_bark.png"):
+	if ResourceLoader.exists("res://assets/textures/photo/bark_color.jpg"):
+		bark_dark = load("res://assets/textures/photo/bark_color.jpg")
+	elif ResourceLoader.exists("res://assets/textures/spruce_bark.png"):
 		bark_dark = load("res://assets/textures/spruce_bark.png")
 	if ResourceLoader.exists("res://assets/textures/leaf_atlas.png"):
 		leaf = load("res://assets/textures/leaf_atlas.png")
 
 	_mat_light = _make_tree_material(bark_light, leaf)
 	_mat_dark = _make_tree_material(bark_dark, leaf)
+	if ResourceLoader.exists("res://assets/textures/photo/bark_normal.jpg"):
+		_mat_dark.set_shader_parameter("bark_normal", load("res://assets/textures/photo/bark_normal.jpg"))
+		_mat_dark.set_shader_parameter("use_normal", 1.0)
 	_mat_fern = _make_tree_material(bark_dark, leaf)
 	_mat_fern.set_shader_parameter("wind", 0.42)
 
@@ -680,8 +685,13 @@ func _build_rocks() -> void:
 	rock.rings = 6
 
 	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.17, 0.17, 0.16)
+	stone.albedo_color = Color(0.42, 0.46, 0.38)
 	stone.roughness = 1.0
+	if ResourceLoader.exists("res://assets/textures/photo/moss_color.jpg"):
+		stone.albedo_texture = load("res://assets/textures/photo/moss_color.jpg")
+		stone.normal_enabled = true
+		stone.normal_texture = load("res://assets/textures/photo/moss_normal.jpg")
+		stone.uv1_scale = Vector3(2.0, 2.0, 1.0)
 
 	_spawn_multimesh(rock, stone, transforms)
 	print("[rocks] ", transforms.size())
