@@ -3,6 +3,7 @@ extends Control
 ## Главное меню: игра, локации, персонаж, враги.
 
 const LabStateScript := preload("res://scripts/lab_state.gd")
+const QualityScript := preload("res://libraries/quality.gd")
 
 const OBJECTS := [
 	{"name": "Берёза", "kind": "birch"},
@@ -137,6 +138,7 @@ func _show_main() -> void:
 	_button("Персонаж", _open_character)
 	_button("Враги", _show_enemies)
 	_button("Время суток", _show_times)
+	_button("Качество", _show_quality)
 	_button("Трава", func() -> void: get_tree().change_scene_to_file("res://scenes/grass_lab.tscn"))
 	_button("Выход", func() -> void: get_tree().quit())
 
@@ -172,6 +174,20 @@ const TIMES := [
 	{"name": "Утро", "kind": "morning"},
 	{"name": "День", "kind": "day"},
 ]
+
+func _show_quality() -> void:
+	_clear()
+	_label("КАЧЕСТВО", 34)
+	_label("влияет на траву, SDFGI, туман и тени", 15, 0.6)
+	_spacer(12)
+	for lvl in ["low", "medium", "high"]:
+		var label_text: String = {"low": "Низкое", "medium": "Среднее", "high": "Высокое"}[lvl]
+		_button(label_text, func() -> void:
+			QualityScript.level = lvl
+			LabStateScript.spawn_at = Vector3.INF
+			get_tree().change_scene_to_file("res://scenes/main.tscn"))
+	_spacer(10)
+	_button("Назад", _show_main)
 
 func _show_times() -> void:
 	_clear()

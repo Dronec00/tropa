@@ -11,6 +11,7 @@ const LabStateScript := preload("res://scripts/lab_state.gd")
 const PauseScript := preload("res://scripts/pause_menu.gd")
 const BonfireScript := preload("res://libraries/bonfire.gd")
 const TimeOfDayScript := preload("res://libraries/time_of_day.gd")
+const QualityScript := preload("res://libraries/quality.gd")
 const PerfOverlay := preload("res://scripts/perf_overlay.gd")
 
 const TREE_COUNT := 950
@@ -276,6 +277,7 @@ func _build_environment() -> void:
 	moon.light_color = Color(0.50, 0.64, 0.92)
 	moon.light_energy = 1.3
 	_sun = moon
+	QualityScript.apply(env, moon)
 	moon.shadow_enabled = OS.get_environment("TROPA_NO_SHADOWS") != "1"
 	moon.directional_shadow_max_distance = 55.0
 	moon.shadow_blur = 1.4
@@ -294,7 +296,7 @@ func _build_terrain() -> void:
 	grass.name = "Grass"
 	add_child(grass)
 	if OS.get_environment("TROPA_NO_GRASS") != "1":
-		grass.populate(terrain, 120000, 46.0)
+		grass.populate(terrain, QualityScript.grass_amount(), QualityScript.grass_radius())
 
 # --- лес ---
 

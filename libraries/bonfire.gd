@@ -74,6 +74,9 @@ static func _add_stones(root: Node3D) -> void:
 		stone_mat.normal_texture = load("res://assets/textures/photo/moss_normal.jpg")
 		stone_mat.uv1_scale = Vector3(1.2, 1.2, 1.0)
 
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var count := 0
 	for i in 11:
 		var a := TAU * float(i) / 11.0 + 0.2
 		var r := 0.92 + float(i % 3) * 0.05
@@ -83,14 +86,16 @@ static func _add_stones(root: Node3D) -> void:
 			"squash": 0.55 + float(i % 3) * 0.08,
 			"yaw": a,
 		}
+		var mesh := ObjectLibrary.make_stone(entry)
+		var basis := Basis(Vector3.UP, a)
+		st.append_from(mesh, 0, Transform3D(basis, Vector3(cos(a) * r, 0.055, sin(a) * r)))
+		count += 1
+	if count > 0:
 		var node := MeshInstance3D.new()
-		node.mesh = ObjectLibrary.make_stone(entry)
+		node.mesh = st.commit()
 		node.material_override = stone_mat
-		node.position = Vector3(cos(a) * r, 0.055, sin(a) * r)
-		node.rotation.y = a
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(node)
-
-# --- брёвна ---
 
 static func _add_logs(root: Node3D) -> void:
 	var bark_mat := StandardMaterial3D.new()
@@ -108,29 +113,69 @@ static func _add_logs(root: Node3D) -> void:
 	char_mat.albedo_color = Color(0.05, 0.045, 0.04)
 	char_mat.roughness = 1.0
 
-	# шалаш: 6 брёвен, вершинами в центр
+	var parts := {"bark": [], "cut": [], "char": []}
+
+	# шалаш: вершинами к центру
 	for i in 6:
 		var a := TAU * float(i) / 6.0 + 0.25
-		var length := 0.72 + float(i % 3) * 0.08
-		var radius := 0.065 + float(i % 2) * 0.012
-		var node := _make_log(bark_mat, cut_mat, char_mat, length, radius)
-		var base := Vector3(cos(a) * 0.52, 0.012, sin(a) * 0.52)
-		var top := Vector3(cos(a) * 0.12, length * 0.78, sin(a) * 0.12)
+		var length := 0.36 + float(i % 3) * 0.04
+		var radius := 0.055 + float(i % 2) * 0.01
+		var base := Vector3(cos(a) * 0.34, 0.012, sin(a) * 0.34)
+		var top := Vector3(cos(a) * 0.09, length * 0.82, sin(a) * 0.09)
 		var dir := (top - base).normalized()
 		var basis := Basis(Quaternion(Vector3.UP, dir))
-		node.transform = Transform3D(basis, base + dir * (length * 0.5))
-		root.add_child(node)
+		_collect_log(parts, Transform3D(basis, base + dir * (length * 0.5)), length, radius)
 
-	# 4 бревна плашмя: комлями наружу, торцами к огню
+	# плашмя: комлями наружу
 	for i in 4:
 		var a := 0.4 + float(i) * 1.55
-		var length := 0.62 + float(i % 2) * 0.14
-		var node := _make_log(bark_mat, cut_mat, char_mat, length, 0.058)
+		var length := 0.32 + float(i % 2) * 0.07
 		var dir := Vector3(-cos(a), 0.12, -sin(a)).normalized()
-		var base := Vector3(cos(a) * 0.62, 0.05 + float(i) * 0.025, sin(a) * 0.62)
+		var base := Vector3(cos(a) * 0.46, 0.05 + float(i) * 0.02, sin(a) * 0.46)
 		var basis := Basis(Quaternion(Vector3.UP, dir))
-		node.transform = Transform3D(basis, base + dir * (length * 0.5))
+		_collect_log(parts, Transform3D(basis, base + dir * (length * 0.5)), length, 0.05)
+
+	for key in ["bark", "cut", "char"]:
+		var items: Array = parts[key]
+		if items.is_empty():
+			continue
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for item in items:
+			st.append_from(item[0], 0, item[1])
+		var node := MeshInstance3D.new()
+		node.mesh = st.commit()
+		node.material_override = bark_mat if key == "bark" else (cut_mat if key == "cut" else char_mat)
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(node)
+
+static func _collect_log(parts: Dictionary, xform: Transform3D, length: float, radius: float) -> void:
+	var seg := 3
+	var seg_len := length / float(seg)
+
+	for s in seg:
+		var cyl := CylinderMesh.new()
+		var t := float(s) / float(seg)
+		cyl.top_radius = radius * lerpf(1.0, 0.78, t + 0.34)
+		cyl.bottom_radius = radius * lerpf(1.0, 0.78, t)
+		cyl.height = seg_len * 1.02
+		cyl.radial_segments = 10
+		var local := Transform3D(Basis(), Vector3(0, -length * 0.5 + seg_len * (float(s) + 0.5), 0))
+		(parts["bark"] as Array).append([cyl, xform * local])
+
+	var burnt := CylinderMesh.new()
+	burnt.top_radius = radius * 0.9
+	burnt.bottom_radius = radius * 1.02
+	burnt.height = length * 0.34
+	burnt.radial_segments = 10
+	(parts["char"] as Array).append([burnt, xform * Transform3D(Basis(), Vector3(0, -length * 0.5 + length * 0.17, 0))])
+
+	var cap := CylinderMesh.new()
+	cap.top_radius = radius * 0.78
+	cap.bottom_radius = radius * 0.78
+	cap.height = 0.018
+	cap.radial_segments = 10
+	(parts["cut"] as Array).append([cap, xform * Transform3D(Basis(), Vector3(0, length * 0.5, 0))])
 
 static func _make_log(bark_mat: Material, cut_mat: Material, char_mat: Material, length: float, radius: float) -> Node3D:
 	var node := Node3D.new()
@@ -185,26 +230,33 @@ static func _add_embers(root: Node3D) -> Array:
 	ember_mat.emission_enabled = true
 	ember_mat.emission = Color(1.0, 0.28, 0.04)
 	ember_mat.emission_energy_multiplier = 2.6
+	ember_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4242
-	var nodes: Array = []
-	for i in 26:
-		var node := MeshInstance3D.new()
-		var sphere := SphereMesh.new()
-		var rr := rng.randf_range(0.008, 0.02)
-		sphere.radius = rr
-		sphere.height = rr * 2.0
-		sphere.radial_segments = 10
-		sphere.rings = 6
-		node.mesh = sphere
-		node.material_override = ember_mat
+	var sphere := SphereMesh.new()
+	sphere.radius = 0.016
+	sphere.height = 0.032
+	sphere.radial_segments = 6
+	sphere.rings = 4
+
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = sphere
+	mm.instance_count = 18
+	for i in 18:
 		var a := rng.randf_range(0.0, TAU)
-		var d := rng.randf_range(0.05, 0.5)
-		node.position = Vector3(cos(a) * d, rng.randf_range(0.04, 0.14), sin(a) * d)
-		root.add_child(node)
-		nodes.append(node)
-	return nodes
+		var d := rng.randf_range(0.04, 0.34)
+		var pos := Vector3(cos(a) * d, rng.randf_range(0.03, 0.10), sin(a) * d)
+		var sc := rng.randf_range(0.7, 1.4)
+		mm.set_instance_transform(i, Transform3D(Basis().scaled(Vector3.ONE * sc), pos))
+
+	var node := MultiMeshInstance3D.new()
+	node.multimesh = mm
+	node.material_override = ember_mat
+	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(node)
+	return []
 
 # --- пламя ---
 
@@ -216,11 +268,11 @@ static func _add_flames(root: Node3D) -> Node3D:
 	var flame_tex: Texture2D = load("res://assets/textures/flame_sprite.png")
 
 	# языки пламени
-	var core := _make_fire(flame_tex, 42, 0.45, Vector2(0.15, 0.34), 0.22, 0.48, 8.0, Color(1.0, 0.88, 0.55, 0.95))
+	var core := _make_fire(flame_tex, 22, 0.42, Vector2(0.13, 0.30), 0.22, 0.46, 8.0, Color(1.0, 0.88, 0.55, 0.95))
 	core.position.y = 0.30
 	holder.add_child(core)
 
-	var outer := _make_fire(flame_tex, 30, 0.7, Vector2(0.24, 0.52), 0.2, 0.42, 12.0, Color(1.0, 0.55, 0.18, 0.6))
+	var outer := _make_fire(flame_tex, 14, 0.6, Vector2(0.20, 0.42), 0.2, 0.4, 12.0, Color(1.0, 0.55, 0.18, 0.55))
 	outer.position.y = 0.34
 	holder.add_child(outer)
 
@@ -244,7 +296,7 @@ static func _add_flames(root: Node3D) -> Node3D:
 
 	# искры
 	var sparks := CPUParticles3D.new()
-	sparks.amount = 24
+	sparks.amount = 12
 	sparks.lifetime = 1.7
 	sparks.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	sparks.emission_sphere_radius = 0.18
@@ -267,7 +319,7 @@ static func _add_flames(root: Node3D) -> Node3D:
 
 	# дым
 	var smoke := CPUParticles3D.new()
-	smoke.amount = 16
+	smoke.amount = 8
 	smoke.lifetime = 2.8
 	smoke.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
 	smoke.emission_sphere_radius = 0.2
