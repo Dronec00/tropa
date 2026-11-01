@@ -74,12 +74,23 @@ static func build(parent: Node3D) -> Dictionary:
 	rig["grip"] = arm_r["grip"]
 
 	# --- оружие ---
-	var mount: Node3D = _pivot(torso, "SwordMount", Vector3(0.105, 0.305, 0.262),
-			Vector3(0.04, 0.0, -0.55))
+	var mount: Node3D = _pivot(torso, "SwordMount", Vector3(0.160, 0.300, 0.310),
+			Vector3(0.06, 0.0, -0.55))
 	rig["sword_mount"] = mount
 	_build_scabbard(mount, kit)
 	var hilt: Node3D = _build_hilt_prop(mount, kit)
 	rig["hilt"] = hilt
+
+	# мягкая подсветка лица и груди: ночью герой не превращается в чёрный силуэт
+	var face_fill: OmniLight3D = OmniLight3D.new()
+	face_fill.name = "FaceFill"
+	face_fill.position = Vector3(0.0, 0.565, -0.300)
+	face_fill.light_color = Color(0.74, 0.82, 1.0)
+	face_fill.light_energy = 0.16
+	face_fill.omni_range = 1.05
+	face_fill.omni_attenuation = 1.8
+	face_fill.shadow_enabled = false
+	torso.add_child(face_fill)
 
 	var sword: Node3D = _build_sword(parent, kit)
 	rig["sword"] = sword
@@ -353,15 +364,18 @@ static func _build_leg(hips: Node3D, side: float, suffix: String, kit: Kit) -> D
 	_add(knee, _box(Vector3(0.010, 0.33, 0.012)), kit.leather_dark, Vector3(0.0, -0.245, 0.086))
 
 	var ankle: Node3D = _pivot(knee, "Ankle" + suffix, Vector3(0.0, -0.415, 0.0))
-	# ступня
-	_add(ankle, _box(Vector3(0.096, 0.085, 0.235)), kit.leather, Vector3(0.0, -0.055, -0.052))
-	_add(ankle, _sphere(0.055, 14, 8), kit.leather, Vector3(0.0, -0.070, -0.164),
-			Vector3.ZERO, Vector3(0.92, 0.62, 1.35))
-	_add(ankle, _cone(0.050, 0.030, 0.085, 10), kit.leather,
-			Vector3(0.0, -0.078, -0.218), Vector3(-PI * 0.5, 0.0, 0.0))
-	_add(ankle, _box(Vector3(0.102, 0.045, 0.130)), kit.leather, Vector3(0.0, -0.070, 0.058))
-	_add(ankle, _box(Vector3(0.108, 0.026, 0.290)), kit.leather_dark, Vector3(0.0, -0.092, -0.048))
-	_add(ankle, _box(Vector3(0.070, 0.030, 0.070)), kit.leather_dark, Vector3(0.0, -0.090, 0.084))
+	# ступня: короче, с подъёмом и скруглённым носком, без «лыжи»
+	_add(ankle, _box(Vector3(0.094, 0.080, 0.200)), kit.leather, Vector3(0.0, -0.052, -0.040))
+	_add(ankle, _sphere(0.052, 14, 10), kit.leather, Vector3(0.0, -0.066, -0.148),
+			Vector3.ZERO, Vector3(0.90, 0.62, 1.10))
+	_add(ankle, _box(Vector3(0.090, 0.048, 0.095)), kit.leather, Vector3(0.0, -0.060, 0.058))
+	_add(ankle, _sphere(0.040, 12, 8), kit.leather, Vector3(0.0, -0.086, 0.085),
+			Vector3.ZERO, Vector3(1.05, 0.55, 0.80))
+	# подошва: 0.25, низ ровно на y = 0 (origin у ступней)
+	_add(ankle, _box(Vector3(0.100, 0.020, 0.250)), kit.leather_dark, Vector3(0.0, -0.096, -0.038))
+	_add(ankle, _sphere(0.050, 12, 8), kit.leather_dark, Vector3(0.0, -0.086, -0.158),
+			Vector3.ZERO, Vector3(0.95, 0.28, 0.55))
+	_add(ankle, _box(Vector3(0.086, 0.032, 0.080)), kit.leather_dark, Vector3(0.0, -0.092, 0.075))
 	# ремни
 	for i in range(3):
 		var y: float = -0.022 - float(i) * 0.032
@@ -641,7 +655,7 @@ static func _build_mantle(torso: Node3D, kit: Kit) -> void:
 
 static func _build_head(head: Node3D, kit: Kit) -> Array:
 	# шея
-	_add(head, _capsule(0.044, 0.135, 10), kit.skin, Vector3(0.0, -0.042, 0.012))
+	_add(head, _capsule(0.044, 0.135, 10), kit.skin_shade, Vector3(0.0, -0.042, 0.012))
 	_add(head, _cyl(0.050, 0.058, 0.030, 12), kit.skin_shade, Vector3(0.0, -0.098, 0.012))
 
 	# череп: своя сетка, узкое длинное лицо
@@ -1049,14 +1063,18 @@ static func _build_arm(torso: Node3D, side: float, is_right: bool, kit: Kit) -> 
 			"weapon": grip}
 
 static func _build_hand(wrist: Node3D, side: float, kit: Kit) -> void:
+	# ладонь развёрнута к бедру: +90° для правой, −90° для левой.
+	# Грип (меч) остаётся в кисти, но геометрия кисти больше не смотрит вверх.
+	var hand: Node3D = _pivot(wrist, "HandMesh", Vector3.ZERO,
+			Vector3(0.0, side * PI * 0.5, 0.0))
 	# ладонь
-	_add(wrist, _box(Vector3(0.072, 0.090, 0.038)), kit.skin, Vector3(0.0, -0.048, 0.0),
+	_add(hand, _box(Vector3(0.072, 0.090, 0.038)), kit.skin, Vector3(0.0, -0.048, 0.0),
 			Vector3(0.04, 0.0, side * 0.03))
-	_add(wrist, _sphere(0.036, 12, 8), kit.skin, Vector3(0.0, -0.082, 0.0),
+	_add(hand, _sphere(0.036, 12, 8), kit.skin, Vector3(0.0, -0.082, 0.0),
 			Vector3.ZERO, Vector3(0.95, 0.70, 0.62))
 	# костяшки
 	for i in range(4):
-		_add(wrist, _sphere(0.0095, 8, 6), kit.skin,
+		_add(hand, _sphere(0.0095, 8, 6), kit.skin,
 				Vector3(-0.0255 + float(i) * 0.017, -0.088, -0.012))
 	# пальцы: три фаланги, лёгкий изгиб внутрь
 	for i in range(4):
@@ -1068,16 +1086,16 @@ static func _build_hand(wrist: Node3D, side: float, kit: Kit) -> void:
 		for seg in range(3):
 			var seg_len: float = length * (0.40 - float(seg) * 0.06)
 			var ang: float = curl * float(seg + 1)
-			var mi: MeshInstance3D = _add(wrist, _capsule(0.0062, seg_len + 0.004, 6),
+			var mi: MeshInstance3D = _add(hand, _capsule(0.0062, seg_len + 0.004, 6),
 					kit.skin, Vector3(x, y0 - seg_len * 0.5, z0))
 			mi.rotation.x = ang
 			y0 -= cos(ang) * seg_len
 			z0 -= sin(ang) * seg_len
 		# ноготь
-		_add(wrist, _box(Vector3(0.009, 0.012, 0.005)), kit.fang,
+		_add(hand, _box(Vector3(0.009, 0.012, 0.005)), kit.fang,
 				Vector3(x, y0 + 0.006, z0 - 0.002), Vector3(curl * 3.0, 0.0, 0.0))
 	# большой палец
-	var thumb: Node3D = _pivot(wrist, "Thumb", Vector3(side * 0.034, -0.045, -0.004),
+	var thumb: Node3D = _pivot(hand, "Thumb", Vector3(side * 0.034, -0.045, -0.004),
 			Vector3(-0.25, 0.0, side * 0.85))
 	_add(thumb, _capsule(0.0085, 0.040, 6), kit.skin, Vector3(0.0, -0.020, 0.0))
 	var thumb2: Node3D = _pivot(thumb, "Thumb2", Vector3(0.0, -0.042, 0.0),
@@ -1085,7 +1103,7 @@ static func _build_hand(wrist: Node3D, side: float, kit: Kit) -> void:
 	_add(thumb2, _capsule(0.0072, 0.030, 6), kit.skin, Vector3(0.0, -0.014, 0.0))
 	_add(thumb2, _box(Vector3(0.008, 0.010, 0.005)), kit.fang, Vector3(0.0, -0.028, -0.003))
 	# вена/сухожилие на тыле кисти
-	_add(wrist, _box(Vector3(0.004, 0.045, 0.004)), kit.skin_shade,
+	_add(hand, _box(Vector3(0.004, 0.045, 0.004)), kit.skin_shade,
 			Vector3(side * 0.012, -0.050, -0.019), Vector3(0.0, 0.0, side * 0.10))
 
 # =========================================================================
@@ -1160,12 +1178,12 @@ static func _build_hilt_prop(mount: Node3D, kit: Kit) -> Node3D:
 		_add(hilt, _sphere(0.011, 8, 6), kit.gold_dark,
 				Vector3(side * 0.108, 0.024, 0.0))
 	# рукоять вверх
-	_add(hilt, _cyl(0.0165, 0.0185, 0.195, 12), kit.lip, Vector3(0.0, 0.115, 0.0))
+	_add(hilt, _cyl(0.0135, 0.0155, 0.180, 12), kit.lip, Vector3(0.0, 0.108, 0.0))
 	for i in range(6):
-		_add(hilt, _torus(0.0175, 0.0205, 10, 5), kit.gold_dark,
-				Vector3(0.0, 0.048 + float(i) * 0.028, 0.0), Vector3(PI * 0.5, 0.0, 0.0))
-	_add(hilt, _cyl(0.024, 0.030, 0.020, 12), kit.gold, Vector3(0.0, 0.218, 0.0))
-	_add(hilt, _sphere(0.026, 12, 10), kit.gold, Vector3(0.0, 0.236, 0.0),
+		_add(hilt, _torus(0.0145, 0.0175, 10, 5), kit.gold_dark,
+				Vector3(0.0, 0.044 + float(i) * 0.026, 0.0), Vector3(PI * 0.5, 0.0, 0.0))
+	_add(hilt, _cyl(0.021, 0.026, 0.018, 12), kit.gold, Vector3(0.0, 0.200, 0.0))
+	_add(hilt, _sphere(0.023, 12, 10), kit.gold, Vector3(0.0, 0.216, 0.0),
 			Vector3.ZERO, Vector3(1.0, 0.86, 1.0))
 	return hilt
 

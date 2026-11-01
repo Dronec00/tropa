@@ -16,10 +16,11 @@ extends Node3D
 const DhampirScript := preload("res://scripts/dhampir_model.gd")
 
 const SHOTS := [
-	{"name": "весь рост", "dist": 3.40, "pitch": 0.14, "target": 1.02},
-	{"name": "лицо", "dist": 1.12, "pitch": 0.07, "target": 1.66},
-	{"name": "спина и меч", "dist": 3.15, "pitch": 0.20, "target": 1.10},
-	{"name": "снизу", "dist": 3.05, "pitch": -0.26, "target": 1.20},
+	{"name": "весь рост", "dist": 3.40, "pitch": 0.14, "target": 1.02, "angle": 0.42},
+	{"name": "лицо", "dist": 1.12, "pitch": 0.07, "target": 1.66, "angle": 0.00},
+	{"name": "кисти", "dist": 1.05, "pitch": 0.03, "target": 0.86, "angle": 0.30},
+	{"name": "спина и меч", "dist": 3.15, "pitch": 0.20, "target": 1.10, "angle": 3.14},
+	{"name": "снизу", "dist": 3.05, "pitch": -0.26, "target": 1.20, "angle": 0.42},
 ]
 
 const LIGHTS := ["студия", "луна", "огонь"]
@@ -63,6 +64,12 @@ func _ready() -> void:
 	_setup_model()
 	_setup_ui()
 	_apply_light()
+	if _args.has("light"):
+		var want: String = String(_args["light"]).to_lower()
+		for i in range(LIGHTS.size()):
+			if String(LIGHTS[i]).to_lower() == want:
+				_light_index = i
+		_apply_light()
 	_apply_shot()
 	if _args.has("angle"):
 		_orbit = deg_to_rad(float(_args["angle"]))
@@ -79,6 +86,30 @@ func _ready() -> void:
 		_capture.call_deferred()
 	if _args.has("dump"):
 		_dump_meshes.call_deferred()
+	if _args.has("cape-test"):
+		_cape_test.call_deferred()
+	if _args.has("ui-shot"):
+		_capture_ui.call_deferred()
+
+func _capture_ui() -> void:
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	var img: Image = get_viewport().get_texture().get_image()
+	_save_image(img, String(_args["ui-shot"]))
+	await get_tree().create_timer(0.1).timeout
+	get_tree().quit()
+
+## Проверка S0-02: углы плаща на трёх скоростях.
+func _cape_test() -> void:
+	if _animator == null:
+		get_tree().quit(1)
+		return
+	for speed in [0.0, 2.6, 6.2]:
+		_set_locomotion(speed)
+		await get_tree().create_timer(1.8).timeout
+		print("[cape] ", _animator.call("cape_report"))
+	get_tree().quit(0)
 
 func _dump_meshes() -> void:
 	await get_tree().process_frame
@@ -104,7 +135,7 @@ func _parse_args() -> void:
 		var a: String = argv[i]
 		if a.begins_with("--"):
 			var key: String = a.substr(2)
-			if key == "clean" or key == "turntable":
+			if key == "clean" or key == "turntable" or key == "dump" or key == "cape-test":
 				_args[key] = true
 			elif i + 1 < argv.size():
 				_args[key] = argv[i + 1]
@@ -232,7 +263,7 @@ func _setup_ui() -> void:
 	_hint.add_theme_font_size_override("font_size", 13)
 	_hint.add_theme_color_override("font_color", Color(0.68, 0.67, 0.62, 0.85))
 	_hint.text = ("ЛКМ — вращать · колесо — зум · ПКМ — сдвинуть\n"
-			+ "1 стойка · 2 шаг · 3 бег · 4-6 удары · 7 блок · 8 меч\n"
+			+ "1 стойка · 2 шаг · 3 бег · 4-6 удары · 7 блок · 8 меч · 0 сброс\n"
 			+ "C ракурс · L свет · T автоповорот · W сетка · H шляпа · F12 скрин · E .glb")
 	_ui.add_child(_hint)
 
@@ -246,6 +277,30 @@ func _setup_ui() -> void:
 	_stats.offset_top = -112
 	_ui.add_child(_stats)
 	_update_stats()
+
+	var col: VBoxContainer = VBoxContainer.new()
+	col.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	col.offset_left = -176.0
+	col.offset_right = -20.0
+	col.offset_top = 18.0
+	col.add_theme_constant_override("separation", 4)
+	_ui.add_child(col)
+	for i in range(SHOTS.size()):
+		var idx: int = i
+		var b: Button = Button.new()
+		b.text = String(SHOTS[i]["name"])
+		b.custom_minimum_size = Vector2(156, 26)
+		b.add_theme_font_size_override("font_size", 13)
+		b.add_theme_color_override("font_color", Color(0.82, 0.80, 0.74))
+		b.pressed.connect(func() -> void: _goto_shot(idx))
+		col.add_child(b)
+	var reset_btn: Button = Button.new()
+	reset_btn.text = "сброс позы"
+	reset_btn.custom_minimum_size = Vector2(156, 26)
+	reset_btn.add_theme_font_size_override("font_size", 13)
+	reset_btn.add_theme_color_override("font_color", Color(0.90, 0.78, 0.55))
+	reset_btn.pressed.connect(_reset_pose)
+	col.add_child(reset_btn)
 
 	if _args.has("clean"):
 		_ui.visible = false
@@ -316,7 +371,24 @@ func _apply_shot() -> void:
 	_dist = float(s["dist"])
 	_pitch = float(s["pitch"])
 	_target = float(s["target"])
+	_orbit = float(s.get("angle", _orbit))
 	_pan = Vector3.ZERO
+
+func _goto_shot(index: int) -> void:
+	_shot_index = clampi(index, 0, SHOTS.size() - 1)
+	_apply_shot()
+	_update_stats()
+
+func _reset_pose() -> void:
+	_walk = 0.0
+	_drawn = false
+	_block = false
+	if _animator != null:
+		_animator.call("set_locomotion", 0.0)
+		_animator.call("set_block", false)
+		_animator.call("set_drawn", false)
+	_apply_pose("idle")
+	_hint.text = "Поза сброшена · 1 стойка · 2 шаг · 3 бег · 4-6 удары"
 
 func _apply_pose(name: String) -> void:
 	if _animator == null:
@@ -346,6 +418,8 @@ func _apply_pose(name: String) -> void:
 		"sheathe":
 			_drawn = false
 			_animator.call("set_drawn", false)
+		"reset":
+			_reset_pose()
 
 func _set_locomotion(speed: float) -> void:
 	if _animator != null and _animator.has_method("set_locomotion"):
@@ -392,6 +466,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			_pan += up * mm.relative.y * 0.0016 * _dist
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match (event as InputEventKey).keycode:
+			KEY_0:
+				_reset_pose()
 			KEY_1:
 				_apply_pose("idle")
 			KEY_2:

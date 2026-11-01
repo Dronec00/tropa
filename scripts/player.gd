@@ -20,10 +20,7 @@ const JUMP_VELOCITY := 4.2
 const MOUSE_SENSITIVITY := 0.0024
 const GRAVITY := 18.0
 const INVULN_TIME := 0.30
-const KnightModelScript := preload("res://scripts/knight_model.gd")
-const KnightV2Path := "res://scripts/knight_model_v2.gd"
-const DhampirPath := "res://scripts/dhampir_model.gd"
-const CapeScript := preload("res://scripts/cape.gd")
+const DhampirModelScript := preload("res://scripts/dhampir_model.gd")
 
 var max_health := 100.0
 var health := 100.0
@@ -59,9 +56,7 @@ var torch_fuel := 80.0
 var torch_lit := false
 
 var _torch_time := 0.0
-var _sword_pivot: Node3D
 var _animator: Node
-var _use_v2 := false
 var blocking := false
 var _parry_timer := 0.0
 var _combo_index := 0
@@ -72,10 +67,6 @@ var _torch_flame: Node3D
 var _torch_light: OmniLight3D
 var _torch_particles: CPUParticles3D
 
-const SWORD_BACK_POS := Vector3(0.02, 1.22, 0.19)
-const SWORD_BACK_ROT := Vector3(0.10, 0.0, -0.55)
-const SWORD_HAND_POS := Vector3(0.30, 1.14, -0.16)
-
 @onready var rig: Node3D = $Rig
 @onready var arm: SpringArm3D = $Rig/SpringArm3D
 @onready var camera: Camera3D = $Rig/SpringArm3D/Camera3D
@@ -83,8 +74,6 @@ const SWORD_HAND_POS := Vector3(0.30, 1.14, -0.16)
 
 func _ready() -> void:
 	_build_model()
-	if not _use_v2:
-		_build_cape()
 	_build_lock_marker()
 	arm.add_excluded_object(get_rid())
 	arm.rotation.x = -0.14
@@ -93,11 +82,6 @@ func _ready() -> void:
 	health_changed.emit(health, max_health)
 	stamina_changed.emit(stamina, max_stamina)
 	souls_changed.emit(souls)
-
-func _build_cape() -> void:
-	var cape = CapeScript.new()
-	model.add_child(cape)
-	cape.body = self
 
 func _build_lock_marker() -> void:
 	_lock_marker = MeshInstance3D.new()
@@ -118,21 +102,9 @@ func _build_lock_marker() -> void:
 	add_child(_lock_marker)
 
 func _build_model() -> void:
-	var parts: Dictionary
-	if ResourceLoader.exists(DhampirPath):
-		var script: Script = load(DhampirPath)
-		parts = script.build(model)
-		_use_v2 = true
-		_animator = parts.get("animator")
-		print("[player] дампир загружен")
-	elif ResourceLoader.exists(KnightV2Path):
-		var script: Script = load(KnightV2Path)
-		parts = script.build(model)
-		_use_v2 = true
-		_animator = parts.get("animator")
-	else:
-		parts = KnightModelScript.build(model)
-	_sword_pivot = parts["sword_pivot"]
+	var parts: Dictionary = DhampirModelScript.build(model)
+	_animator = parts.get("animator")
+	print("[player] дампир загружен")
 	_torch_flame = parts["torch_flame"]
 	_torch_light = parts["torch_light"]
 	_torch_particles = parts["torch_particles"]
@@ -165,7 +137,7 @@ func toggle_torch() -> void:
 func _set_torch(on: bool) -> void:
 	torch_lit = on
 	_one_handed = on
-	if _use_v2 and _animator and _animator.has_method("set_two_handed"):
+	if _animator and _animator.has_method("set_two_handed"):
 		_animator.call("set_two_handed", not on)
 	_torch_flame.visible = on
 	_torch_particles.emitting = on
@@ -205,7 +177,7 @@ func _physics_process(delta: float) -> void:
 		_parry_timer = 0.25
 	if Input.is_action_just_released("block"):
 		blocking = false
-	if _use_v2 and _animator and _animator.has_method("set_block"):
+	if _animator and _animator.has_method("set_block"):
 		_animator.call("set_block", blocking)
 
 	if not is_on_floor():
@@ -239,7 +211,7 @@ func _physics_process(delta: float) -> void:
 
 	move_and_slide()
 
-	if _use_v2 and _animator and _animator.has_method("set_locomotion"):
+	if _animator and _animator.has_method("set_locomotion"):
 		var planar := Vector2(velocity.x, velocity.z).length()
 		_animator.call("set_locomotion", planar)
 
@@ -373,29 +345,13 @@ func _try_attack() -> void:
 	stamina -= ATTACK_COST
 	stamina_changed.emit(stamina, max_stamina)
 	_swing(_combo_index - 1)
-	await get_tree().create_timer(0.46 if _use_v2 else 0.16).timeout
+	await get_tree().create_timer(0.46).timeout
 	if not _dead:
 		_apply_hit()
 
 func _swing(variant: int = 0) -> void:
-	if _use_v2 and _animator and _animator.has_method("play_attack"):
+	if _animator and _animator.has_method("play_attack"):
 		_animator.call("play_attack", variant)
-		return
-
-	var pivot := _sword_pivot
-	var draw := create_tween().set_parallel(true)
-	draw.tween_property(pivot, "position", SWORD_HAND_POS, 0.09)
-	draw.tween_property(pivot, "rotation", Vector3.ZERO, 0.09)
-	await draw.finished
-
-	var slash := create_tween()
-	slash.tween_property(pivot, "rotation:x", -1.45, 0.09)
-	slash.tween_property(pivot, "rotation:x", 1.15, 0.12)
-	await slash.finished
-
-	var back := create_tween().set_parallel(true)
-	back.tween_property(pivot, "position", SWORD_BACK_POS, 0.22)
-	back.tween_property(pivot, "rotation", SWORD_BACK_ROT, 0.22)
 
 func _apply_hit() -> void:
 	var origin := global_position + Vector3.UP * 1.2

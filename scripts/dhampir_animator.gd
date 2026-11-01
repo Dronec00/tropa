@@ -92,6 +92,18 @@ func set_drawn(on: bool) -> void:
 func is_attacking() -> bool:
 	return _attacking
 
+## Для проверки S0-02: суммарный угол плаща в градусах и по сегментам.
+func cape_report() -> String:
+	var total: float = 0.0
+	var parts: PackedStringArray = PackedStringArray()
+	for i in range(_cape_rot.size()):
+		var base: Vector3 = _rest.get("cape_%d" % i, Vector3.ZERO)
+		var deg: float = rad_to_deg(_cape_rot[i].x - base.x)
+		total += deg
+		parts.append("%d:%+.1f" % [i, deg])
+	return "speed=%.1f м/с, суммарно %+.1f°, сегменты [%s]" % [
+		_speed, total, ", ".join(parts)]
+
 # =========================================================================
 
 func _process(delta: float) -> void:
@@ -364,7 +376,7 @@ func _apply(p: Dictionary, delta: float) -> void:
 		var base: Vector3 = _rest.get("cape_%d" % i, Vector3.ZERO)
 		var lag: float = 1.0 - exp(-delta * (3.6 - float(i) * 0.45))
 		var flutter: float = sin(_t * 3.4 + float(i) * 1.1) * (0.008 + 0.010 * trail)
-		var target_x: float = base.x - trail * (0.24 + 0.15 * float(i))
+		var target_x: float = base.x - trail * (0.16 + 0.08 * float(i))
 		target_x += sin(_t * 1.05 + float(i) * 0.8) * wind_amp * (1.0 - trail * 0.45)
 		target_x += flutter
 		var target_z: float = base.z + sin(_t * 0.72 + float(i) * 0.65) * wind_amp * 0.9

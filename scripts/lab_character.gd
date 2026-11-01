@@ -1,11 +1,9 @@
 extends Node3D
 
-## Верстак персонажа: только рыцарь, свет и камера. Никакого леса и врагов.
+## Верстак персонажа: только дампир, свет и камера. Никакого леса и врагов.
 ## ./run.sh character
 
-const KnightModelScript := preload("res://scripts/knight_model.gd")
-const KnightV2Path := "res://scripts/knight_model_v2.gd"
-const DhampirPath := "res://scripts/dhampir_model.gd"
+const DhampirModelScript := preload("res://scripts/dhampir_model.gd")
 
 var _camera: Camera3D
 var _model: Node3D
@@ -80,18 +78,8 @@ func _setup_model() -> void:
 	_model = Node3D.new()
 	add_child(_model)
 
-	var parts: Dictionary
-	if ResourceLoader.exists(DhampirPath):
-		var script: Script = load(DhampirPath)
-		parts = script.build(_model)
-		print("[lab] дампир загружен")
-	elif ResourceLoader.exists(KnightV2Path):
-		var script: Script = load(KnightV2Path)
-		parts = script.build(_model)
-		print("[lab] knight v2 loaded")
-	else:
-		parts = KnightModelScript.build(_model)
-		print("[lab] knight v1")
+	var parts: Dictionary = DhampirModelScript.build(_model)
+	print("[lab] дампир загружен")
 
 	_animator = parts.get("animator")
 	if _animator == null:
