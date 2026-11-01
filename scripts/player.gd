@@ -177,8 +177,6 @@ func _unhandled_input(event: InputEvent) -> void:
 			return
 		rig.rotation.y -= event.relative.x * MOUSE_SENSITIVITY
 		arm.rotation.x = clampf(arm.rotation.x - event.relative.y * MOUSE_SENSITIVITY, -1.05, 0.45)
-	if event.is_action_pressed("ui_cancel"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
 func _physics_process(delta: float) -> void:
 	if _dead:

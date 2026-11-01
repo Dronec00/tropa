@@ -8,6 +8,7 @@ const GrassScript := preload("res://scripts/grass.gd")
 const WindScript := preload("res://scripts/wind.gd")
 const HutScript := preload("res://scripts/hut.gd")
 const LabStateScript := preload("res://scripts/lab_state.gd")
+const PauseScript := preload("res://scripts/pause_menu.gd")
 
 const TREE_COUNT := 950
 const WORLD_LIMIT := 92.0
@@ -127,6 +128,9 @@ func _ready() -> void:
 	_build_rocks()
 	_spawn_player()
 	_build_hud()
+	var pause = PauseScript.new()
+	add_child(pause)
+	pause.game = self
 	hud.show_notice("Костёр гаснет. Лес ждёт.", 4.0)
 
 
