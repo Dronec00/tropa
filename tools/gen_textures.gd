@@ -4,7 +4,7 @@ extends SceneTree
 ##   godot --headless --path . --script res://tools/gen_textures.gd
 ## Пишет PNG в assets/textures. Все текстуры тайлятся (периодический шум).
 
-const SIZE := 256
+const SIZE := 512
 const OUT := "res://assets/textures/"
 
 var _rng := RandomNumberGenerator.new()
@@ -86,9 +86,15 @@ func _gen_ground() -> void:
 
 			var moss := clampf((n - 0.42) * 3.2, 0.0, 1.0)
 			var litter := clampf((0.55 - n) * 2.6, 0.0, 1.0)
-			var base := Color(0.92, 0.92, 0.88).lerp(Color(0.82, 0.88, 0.74), moss)
-			base = base.lerp(Color(0.78, 0.66, 0.50), litter * 0.8)
-			var speck := 0.70 + f * 0.46
+			var sand := clampf((0.36 - n) * 4.0, 0.0, 1.0)
+			var base := Color(0.92, 0.92, 0.88).lerp(Color(0.80, 0.87, 0.72), moss)
+			base = base.lerp(Color(0.72, 0.60, 0.44), litter * 0.85)
+			base = base.lerp(Color(0.98, 0.93, 0.80), sand * 0.7)
+			# хвойные иглы: тонкие штрихи
+			var needle := sin(u * 900.0 + f * 22.0) * sin(v * 90.0 + n * 12.0)
+			if needle > 0.55:
+				base = base.lerp(Color(0.62, 0.46, 0.30), 0.5)
+			var speck := 0.62 + f * 0.58
 			base = Color(base.r * speck, base.g * speck, base.b * speck)
 			if f > 0.84:
 				base = base.lightened(0.10)

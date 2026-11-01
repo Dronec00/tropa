@@ -42,19 +42,11 @@ func populate(terrain: Node3D, amount: int = 12000, radius: float = 55.0) -> voi
 	var material := ShaderMaterial.new()
 	material.shader = shader
 
-	multimesh = MultiMesh.new()
-	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = blade
-	multimesh.instance_count = amount
-
-	material_override = material
-	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	visibility_range_end = radius + 25.0
-	visibility_range_end_margin = 10.0
-
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1907
 
+	var chunks: Dictionary = {}
+	var chunk_size := 14.0
 	var placed := 0
 	var attempts := 0
 	var max_attempts := amount * 4
@@ -75,13 +67,32 @@ func populate(terrain: Node3D, amount: int = 12000, radius: float = 55.0) -> voi
 		basis = basis.scaled(Vector3(
 			rng.randf_range(0.6, 1.0),
 			rng.randf_range(0.16, 0.38),
-			rng.randf_range(0.7, 1.15)
+			rng.randf_range(0.6, 1.0)
 		))
-		multimesh.set_instance_transform(placed, Transform3D(basis, Vector3(x, h - 0.05, z)))
+		var key := Vector2i(int(floor(x / chunk_size)), int(floor(z / chunk_size)))
+		if not chunks.has(key):
+			chunks[key] = []
+		(chunks[key] as Array).append(Transform3D(basis, Vector3(x, h - 0.05, z)))
 		placed += 1
 
-	multimesh.instance_count = placed
-	print("[grass] blades: ", placed)
+	for key in chunks:
+		var transforms: Array = chunks[key]
+		var mm := MultiMesh.new()
+		mm.transform_format = MultiMesh.TRANSFORM_3D
+		mm.mesh = blade
+		mm.instance_count = transforms.size()
+		for i in transforms.size():
+			mm.set_instance_transform(i, transforms[i])
+		var node := MultiMeshInstance3D.new()
+		node.multimesh = mm
+		node.material_override = material
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		node.visibility_range_end = radius + 18.0
+		node.visibility_range_end_margin = 8.0
+		add_child(node)
+
+	multimesh = null
+	print("[grass] blades: ", placed, " chunks: ", chunks.size())
 
 func _make_blade_mesh() -> ArrayMesh:
 	var verts := PackedVector3Array()

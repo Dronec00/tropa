@@ -125,6 +125,7 @@ func _ready() -> void:
 	_build_ferns()
 	_build_bog()
 	_build_path_strips()
+	_build_puddles()
 	_build_rocks()
 	_spawn_player()
 	_build_hud()
@@ -244,7 +245,7 @@ func _build_environment() -> void:
 	env.ambient_light_energy = 0.6
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.10, 0.11, 0.13)
-	env.fog_density = 0.046
+	env.fog_density = 0.052
 	env.fog_sky_affect = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.tonemap_exposure = 1.15
@@ -289,7 +290,7 @@ func _build_terrain() -> void:
 	var grass = GrassScript.new()
 	grass.name = "Grass"
 	add_child(grass)
-	grass.populate(terrain, 60000, 40.0)
+	grass.populate(terrain, 95000, 42.0)
 
 # --- лес ---
 
@@ -622,6 +623,59 @@ func _add_rock(list: Array, x: float, z: float) -> void:
 	))
 	list.append(Transform3D(basis, Vector3(x, h + 0.02, z)))
 
+func _build_puddles() -> void:
+	var water_mat := StandardMaterial3D.new()
+	water_mat.albedo_color = Color(0.05, 0.075, 0.08, 0.92)
+	water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water_mat.roughness = 0.06
+	water_mat.metallic = 0.4
+	water_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	var mud_mat := StandardMaterial3D.new()
+	mud_mat.albedo_color = Color(0.12, 0.09, 0.06, 0.85)
+	mud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mud_mat.roughness = 1.0
+
+	var made := 0
+	var attempts := 0
+	while made < 34 and attempts < 600:
+		attempts += 1
+		var use_path := _rng.randf() < 0.65 and _path_points.size() > 4
+		var x := 0.0
+		var z := 0.0
+		if use_path:
+			var p: Vector3 = _path_points[_rng.randi_range(0, _path_points.size() - 1)]
+			var side := _rng.randf_range(-2.4, 2.4)
+			x = p.x + side
+			z = p.z + _rng.randf_range(-1.5, 1.5)
+		else:
+			var angle := _rng.randf_range(0.0, TAU)
+			var dist := sqrt(_rng.randf()) * 55.0
+			x = cos(angle) * dist
+			z = sin(angle) * dist
+		if Vector2(x, z).length() < 4.0:
+			continue
+		var h: float = terrain.height_at(x, z)
+		if h < TerrainScript.WATER_LEVEL + 0.3:
+			continue
+		if terrain.slope_at(x, z) > 0.35:
+			continue
+
+		var is_water := _rng.randf() < 0.55
+		var radius := _rng.randf_range(0.7, 2.2)
+		var disc := CylinderMesh.new()
+		disc.top_radius = radius
+		disc.bottom_radius = radius * 0.95
+		disc.height = 0.06
+		var node := MeshInstance3D.new()
+		node.mesh = disc
+		node.material_override = water_mat if is_water else mud_mat
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(node)
+		node.global_position = Vector3(x, h + 0.035, z)
+		made += 1
+	print("[puddles] ", made)
+
 func _build_rocks() -> void:
 	var transforms: Array = []
 
@@ -732,7 +786,7 @@ func _marker_birch(pos: Vector3) -> void:
 	wreath.material_override = wreath_mat
 	wreath.position = Vector3(0.0, 1.75, 0.0)
 	wreath.rotation.x = PI * 0.5
-	wreath.scale = Vector3(0.85, 0.85, 0.85)
+	wreath.scale = Vector3(0.6, 0.6, 0.6)
 	root.add_child(wreath)
 
 	var berry_mat := StandardMaterial3D.new()
@@ -743,8 +797,8 @@ func _marker_birch(pos: Vector3) -> void:
 	for i in 5:
 		var berry := MeshInstance3D.new()
 		var bm := SphereMesh.new()
-		bm.radius = 0.045
-		bm.height = 0.09
+		bm.radius = 0.028
+		bm.height = 0.056
 		berry.mesh = bm
 		berry.material_override = berry_mat
 		var a := TAU * float(i) / 5.0

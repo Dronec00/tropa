@@ -51,6 +51,7 @@ var _invuln := 0.0
 var _attack_cd := 0.0
 var _heal_cd := 0.0
 var _skip_first_motion := true
+var _look_block := 0.4
 
 var torch_max := 80.0
 var torch_fuel := 80.0
@@ -87,6 +88,7 @@ func _ready() -> void:
 	arm.add_excluded_object(get_rid())
 	arm.rotation.x = -0.14
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	_look_block = 0.4
 	health_changed.emit(health, max_health)
 	stamina_changed.emit(stamina, max_stamina)
 	souls_changed.emit(souls)
@@ -132,6 +134,7 @@ func _process(delta: float) -> void:
 	if _lock_marker.visible:
 		_lock_marker.rotate_y(0.04)
 	model.visible = arm.get_hit_length() > 0.9
+	_look_block = maxf(0.0, _look_block - delta)
 	if torch_lit:
 		_torch_time += delta
 		torch_fuel = maxf(0.0, torch_fuel - delta)
@@ -172,8 +175,10 @@ func torch_is_lit() -> bool:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not _dead:
 		# первый событийный сдвиг после захвата курсора на macOS бывает огромным — пропускаем
-		if _skip_first_motion:
+		if _skip_first_motion or _look_block > 0.0:
 			_skip_first_motion = false
+			return
+		if event.relative.length() > 180.0:
 			return
 		rig.rotation.y -= event.relative.x * MOUSE_SENSITIVITY
 		arm.rotation.x = clampf(arm.rotation.x - event.relative.y * MOUSE_SENSITIVITY, -1.05, 0.45)
