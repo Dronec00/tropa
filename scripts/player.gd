@@ -22,6 +22,7 @@ const GRAVITY := 18.0
 const INVULN_TIME := 0.30
 const KnightModelScript := preload("res://scripts/knight_model.gd")
 const KnightV2Path := "res://scripts/knight_model_v2.gd"
+const DhampirPath := "res://scripts/dhampir_model.gd"
 const CapeScript := preload("res://scripts/cape.gd")
 
 var max_health := 100.0
@@ -118,7 +119,13 @@ func _build_lock_marker() -> void:
 
 func _build_model() -> void:
 	var parts: Dictionary
-	if ResourceLoader.exists(KnightV2Path):
+	if ResourceLoader.exists(DhampirPath):
+		var script: Script = load(DhampirPath)
+		parts = script.build(model)
+		_use_v2 = true
+		_animator = parts.get("animator")
+		print("[player] дампир загружен")
+	elif ResourceLoader.exists(KnightV2Path):
 		var script: Script = load(KnightV2Path)
 		parts = script.build(model)
 		_use_v2 = true

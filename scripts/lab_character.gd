@@ -5,6 +5,7 @@ extends Node3D
 
 const KnightModelScript := preload("res://scripts/knight_model.gd")
 const KnightV2Path := "res://scripts/knight_model_v2.gd"
+const DhampirPath := "res://scripts/dhampir_model.gd"
 
 var _camera: Camera3D
 var _model: Node3D
@@ -80,7 +81,11 @@ func _setup_model() -> void:
 	add_child(_model)
 
 	var parts: Dictionary
-	if ResourceLoader.exists(KnightV2Path):
+	if ResourceLoader.exists(DhampirPath):
+		var script: Script = load(DhampirPath)
+		parts = script.build(_model)
+		print("[lab] дампир загружен")
+	elif ResourceLoader.exists(KnightV2Path):
 		var script: Script = load(KnightV2Path)
 		parts = script.build(_model)
 		print("[lab] knight v2 loaded")
@@ -105,7 +110,7 @@ func _setup_ui() -> void:
 	_label.size = Vector2(900, 60)
 	_label.add_theme_font_size_override("font_size", 18)
 	_label.add_theme_color_override("font_color", Color(0.9, 0.88, 0.82))
-	_label.text = "РЕЖИМ: ПЕРСОНАЖ\n1 — стойка   2 — ходьба   3 — удар   ЛКМ тащить — поворот   колесо — зум"
+	_label.text = "РЕЖИМ: ПЕРСОНАЖ — ДАМПИР\n1 — стойка   2 — ходьба   3 — удар   ЛКМ тащить — поворот   колесо — зум"
 	root.add_child(_label)
 
 func _unhandled_input(event: InputEvent) -> void:

@@ -136,6 +136,7 @@ func _show_main() -> void:
 	_spacer(18)
 	_button("Играть", _play)
 	_button("Локация", _show_locations)
+	_button("Модель ГГ", _open_model)
 	_button("Персонаж", _open_character)
 	_button("Враги", _show_enemies)
 	_button("Время суток", _show_times)
@@ -223,6 +224,9 @@ func _play() -> void:
 
 func _open_character() -> void:
 	get_tree().change_scene_to_file("res://scenes/character_lab.tscn")
+
+func _open_model() -> void:
+	get_tree().change_scene_to_file("res://scenes/model_viewer.tscn")
 
 func _spacer(height: float) -> void:
 	var s := Control.new()

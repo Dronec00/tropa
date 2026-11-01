@@ -16,10 +16,10 @@ extends Node3D
 const DhampirScript := preload("res://scripts/dhampir_model.gd")
 
 const SHOTS := [
-	{"name": "весь рост", "dist": 3.55, "pitch": 0.06, "target": 1.03},
-	{"name": "лицо", "dist": 1.28, "pitch": 0.10, "target": 1.62},
-	{"name": "спина и меч", "dist": 3.15, "pitch": 0.16, "target": 1.15},
-	{"name": "снизу", "dist": 3.05, "pitch": -0.30, "target": 1.22},
+	{"name": "весь рост", "dist": 3.40, "pitch": 0.14, "target": 1.02},
+	{"name": "лицо", "dist": 1.12, "pitch": 0.07, "target": 1.66},
+	{"name": "спина и меч", "dist": 3.15, "pitch": 0.20, "target": 1.10},
+	{"name": "снизу", "dist": 3.05, "pitch": -0.26, "target": 1.20},
 ]
 
 const LIGHTS := ["студия", "луна", "огонь"]
@@ -31,10 +31,10 @@ var _camera: Camera3D
 var _env: Environment
 var _world: WorldEnvironment
 
-var _orbit := 0.55
-var _pitch := 0.05
-var _dist := 3.55
-var _target := 1.03
+var _orbit := 0.42
+var _pitch := 0.14
+var _dist := 3.40
+var _target := 1.02
 var _pan := Vector3.ZERO
 var _dragging := false
 var _panning := false
@@ -77,6 +77,25 @@ func _ready() -> void:
 	_update_camera()
 	if _args.has("shot"):
 		_capture.call_deferred()
+	if _args.has("dump"):
+		_dump_meshes.call_deferred()
+
+func _dump_meshes() -> void:
+	await get_tree().process_frame
+	var sword: Node3D = _parts.get("sword_pivot") as Node3D
+	print("[dump] sword visible=", sword.visible, " xf=", sword.global_transform)
+	_dump_node(_model, 0)
+
+func _dump_node(node: Node, depth: int) -> void:
+	if node is MeshInstance3D:
+		var mi: MeshInstance3D = node as MeshInstance3D
+		var aabb: AABB = mi.global_transform * mi.get_aabb()
+		if aabb.end.y > 1.55 or aabb.size.x > 0.42:
+			print("[dump] %s%s  y[%.2f..%.2f] x[%.2f..%.2f] z[%.2f..%.2f] vis=%s" % [
+				"  ".repeat(depth), mi.name, aabb.position.y, aabb.end.y,
+				aabb.position.x, aabb.end.x, aabb.position.z, aabb.end.z, mi.visible])
+	for child in node.get_children():
+		_dump_node(child, depth + 1)
 
 func _parse_args() -> void:
 	var argv: PackedStringArray = OS.get_cmdline_user_args()
@@ -132,8 +151,8 @@ func _setup_world() -> void:
 
 	_rim = OmniLight3D.new()
 	_rim.position = Vector3(-1.2, 2.1, 2.3)
-	_rim.light_color = Color(1.0, 0.66, 0.38)
-	_rim.light_energy = 4.0
+	_rim.light_color = Color(1.0, 0.72, 0.45)
+	_rim.light_energy = 2.6
 	_rim.omni_range = 6.0
 	_rim.omni_attenuation = 1.4
 	add_child(_rim)
@@ -241,6 +260,8 @@ func _update_stats() -> void:
 	_stats.text = "мешей: %d · треугольников: %d · материалов: %d\nвысота: %.2f м · ракурс: %s · свет: %s" % [
 		meshes, tris, int(mats.get("materials", 0)), float(_parts.get("height", 1.93)),
 		SHOTS[_shot_index]["name"], LIGHTS[_light_index]]
+	if _args.has("dump"):
+		print("[stats] ", _stats.text.replace("\n", " | "))
 
 func _count(node: Node, acc: Dictionary) -> void:
 	if node is MeshInstance3D:
@@ -266,8 +287,8 @@ func _apply_light() -> void:
 			_key.light_energy = 3.2
 			_fill.light_color = Color(0.62, 0.74, 1.0)
 			_fill.light_energy = 1.35
-			_rim.light_color = Color(1.0, 0.66, 0.38)
-			_rim.light_energy = 4.0
+			_rim.light_color = Color(1.0, 0.72, 0.45)
+			_rim.light_energy = 2.6
 		1:
 			_env.background_color = Color(0.012, 0.020, 0.038)
 			_env.ambient_light_color = Color(0.16, 0.24, 0.42)
@@ -277,7 +298,7 @@ func _apply_light() -> void:
 			_fill.light_color = Color(0.30, 0.44, 0.85)
 			_fill.light_energy = 1.0
 			_rim.light_color = Color(0.55, 0.72, 1.0)
-			_rim.light_energy = 2.5
+			_rim.light_energy = 2.0
 		_:
 			_env.background_color = Color(0.035, 0.020, 0.014)
 			_env.ambient_light_color = Color(0.30, 0.16, 0.08)
@@ -286,8 +307,8 @@ func _apply_light() -> void:
 			_key.light_energy = 1.9
 			_fill.light_color = Color(0.90, 0.36, 0.12)
 			_fill.light_energy = 2.4
-			_rim.light_color = Color(1.0, 0.80, 0.45)
-			_rim.light_energy = 4.0
+			_rim.light_color = Color(1.0, 0.78, 0.45)
+			_rim.light_energy = 3.0
 
 func _apply_shot() -> void:
 	_shot_index = _shot_index % SHOTS.size()
@@ -412,10 +433,10 @@ func _unhandled_input(event: InputEvent) -> void:
 				if hat != null:
 					hat.visible = not _hat_off
 			KEY_R:
-				_orbit = 0.55
-				_pitch = 0.05
-				_dist = 3.55
-				_target = 1.03
+				_orbit = 0.42
+				_pitch = 0.14
+				_dist = 3.40
+				_target = 1.02
 				_pan = Vector3.ZERO
 			KEY_F12:
 				_save_shot("user://screenshot_%d.png" % Time.get_ticks_msec(), true)
@@ -443,6 +464,8 @@ func _search_node(node: Node, target: String) -> Node3D:
 # =========================================================================
 
 func _capture() -> void:
+	if _args.has("wait"):
+		await get_tree().create_timer(float(_args["wait"])).timeout
 	var size: Vector2i = Vector2i(900, 1200)
 	if _args.has("shot-size"):
 		var parts: PackedStringArray = String(_args["shot-size"]).split("x")
@@ -485,12 +508,14 @@ func _save_shot(path: String, notify: bool) -> void:
 		_hint.text = "Скриншот: %s" % ProjectSettings.globalize_path(path)
 
 func _export_glb() -> void:
+	var root: Node3D = _model.duplicate() as Node3D
+	_strip_for_export(root)
 	var doc: GLTFDocument = GLTFDocument.new()
 	var state: GLTFState = GLTFState.new()
-	var root: Node3D = _model
 	var err: Error = doc.append_from_scene(root, state)
 	if err != OK:
 		_hint.text = "Экспорт не удался: %s" % error_string(err)
+		root.free()
 		return
 	if not DirAccess.dir_exists_absolute(ProjectSettings.globalize_path("res://models")):
 		DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path("res://models"))
@@ -498,3 +523,12 @@ func _export_glb() -> void:
 	var werr: Error = doc.write_to_filesystem(state, path)
 	_hint.text = "Экспорт: %s (%s)" % [path, error_string(werr)]
 	print("[viewer] glb %s -> %s" % [path, error_string(werr)])
+	root.free()
+
+func _strip_for_export(node: Node) -> void:
+	for child in node.get_children():
+		if child.name == "Sword" or child.name == "Animator" or child.name == "Ember":
+			node.remove_child(child)
+			child.free()
+		else:
+			_strip_for_export(child)

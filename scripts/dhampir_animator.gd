@@ -236,6 +236,7 @@ func _block_pose(p: Dictionary) -> void:
 	p["kn_rx"] -= 0.16
 
 func _attack_pose(p: Dictionary) -> void:
+	var neutral: Dictionary = p.duplicate()
 	var t: float = _attack_t / _attack_len
 	var wind: Dictionary
 	var strike: Dictionary
@@ -278,7 +279,13 @@ func _attack_pose(p: Dictionary) -> void:
 		_blend(p, strike, _ease((t - wind_end) / (hit_end - wind_end)))
 	else:
 		var tail: float = (t - hit_end) / maxf(0.01, 1.0 - hit_end)
-		_blend(p, reach, _ease(tail) * 0.75)
+		_blend(p, neutral, _ease(tail))
+	if not _two_handed:
+		p["sh_lx"] = neutral["sh_lx"]
+		p["sh_ly"] = neutral["sh_ly"]
+		p["sh_lz"] = neutral["sh_lz"]
+		p["el_lx"] = neutral["el_lx"]
+		p["el_ly"] = neutral["el_ly"]
 
 func _pose(values: Dictionary) -> Dictionary:
 	var p: Dictionary = _base_pose()
