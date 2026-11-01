@@ -145,6 +145,7 @@ func _ready() -> void:
 	add_child(pause)
 	pause.game = self
 	hud.show_notice("Костёр гаснет. Лес ждёт.", 4.0)
+	hud.show_notice("Время суток: " + TimeOfDayScript.label(_tod) + "  ·  T — сменить", 5.0)
 
 
 func _apply_time_of_day() -> void:
@@ -644,7 +645,7 @@ func _create_tree_materials() -> void:
 		for v in 2:
 			var mesh := TreeLibScript.build(SPECIES[i], 1000 + i * 17 + v * 5, false)
 			var simple_mesh := mesh
-			var material := _mat_dark if SPECIES[i] in ["cedar", "spruce", "willow"] else _mat_light
+			var material := _mat_light if SPECIES[i] in ["birch", "birch_multi"] else _mat_dark
 			_tree_variants.append({
 				"mesh": mesh,
 				"simple_mesh": simple_mesh,
@@ -677,12 +678,12 @@ func _species_index(species: String) -> int:
 
 func _habitat_weights(h: float, stream_d: float) -> Dictionary:
 	if stream_d < 8.0:
-		return {"birch": 0.28, "birch_multi": 0.15, "willow": 0.26, "ash": 0.13, "oak": 0.08, "cedar": 0.02, "spruce": 0.02, "pine": 0.06}
+		return {"birch": 0.20, "birch_multi": 0.10, "willow": 0.26, "ash": 0.12, "oak": 0.10, "cedar": 0.04, "spruce": 0.04, "pine": 0.14}
 	if h < 2.6:
-		return {"birch": 0.34, "birch_multi": 0.15, "ash": 0.19, "oak": 0.13, "cedar": 0.06, "spruce": 0.06, "willow": 0.0, "pine": 0.07}
+		return {"birch": 0.20, "birch_multi": 0.10, "ash": 0.18, "oak": 0.16, "cedar": 0.10, "spruce": 0.12, "willow": 0.0, "pine": 0.14}
 	if h > 6.0:
-		return {"birch": 0.14, "birch_multi": 0.06, "ash": 0.08, "oak": 0.10, "cedar": 0.22, "spruce": 0.18, "willow": 0.0, "pine": 0.22}
-	return {"birch": 0.26, "birch_multi": 0.12, "ash": 0.15, "oak": 0.14, "cedar": 0.11, "spruce": 0.10, "willow": 0.0, "pine": 0.12}
+		return {"birch": 0.07, "birch_multi": 0.04, "ash": 0.06, "oak": 0.08, "cedar": 0.26, "spruce": 0.22, "willow": 0.0, "pine": 0.27}
+	return {"birch": 0.15, "birch_multi": 0.08, "ash": 0.16, "oak": 0.16, "cedar": 0.14, "spruce": 0.14, "willow": 0.0, "pine": 0.17}
 
 func _build_forest() -> void:
 	var on_path := 0
@@ -1522,7 +1523,7 @@ func _build_camp_trees() -> void:
 		var species: String = ["birch", "birch_multi", "spruce", "oak", "pine"][placed % 5]
 		var variant: int = _rng.randi_range(0, 1)
 		var mesh := TreeLibScript.build(species, 7000 + placed * 13, false)
-		var mat := _mat_dark if species in ["cedar", "spruce", "willow"] else _mat_light
+		var mat := _mat_light if species in ["birch", "birch_multi"] else _mat_dark
 		var node := MeshInstance3D.new()
 		node.mesh = mesh
 		node.material_override = mat
