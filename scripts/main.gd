@@ -452,16 +452,11 @@ func _build_bog() -> void:
 		var r := _rng.randf_range(1.0, 7.5)
 		var px := center.x + cos(angle) * r
 		var pz := center.y + sin(angle) * r
-		var disc := CylinderMesh.new()
-		disc.top_radius = _rng.randf_range(1.6, 3.4)
-		disc.bottom_radius = disc.top_radius
-		disc.height = 0.1
 		var water := MeshInstance3D.new()
-		water.mesh = disc
+		water.mesh = _puddle_patch(px, pz, _rng.randf_range(1.6, 3.4), 28)
 		water.material_override = water_mat
 		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(water)
-		water.global_position = Vector3(px, base + 0.12, pz)
 
 	# камыш по краям
 	var reeds: Array = [TreeLibScript.build("reed", 401), TreeLibScript.build("reed", 555)]
@@ -609,28 +604,63 @@ func _make_puddle_material(scale: float, soft: float) -> ShaderMaterial:
 	mat.set_shader_parameter("edge_softness", soft)
 	return mat
 
+func _puddle_patch(cx: float, cz: float, radius: float, segs: int = 20) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+
+	var cy: float = terrain.height_at(cx, cz) + 0.02
+	verts.append(Vector3(cx, cy, cz))
+	normals.append(Vector3.UP)
+	uvs.append(Vector2(0.5, 0.5))
+
+	for i in segs:
+		var a := TAU * float(i) / float(segs)
+		var px := cx + cos(a) * radius
+		var pz := cz + sin(a) * radius
+		var py: float = terrain.height_at(px, pz) + 0.02
+		verts.append(Vector3(px, py, pz))
+		normals.append(Vector3.UP)
+		uvs.append(Vector2(0.5 + cos(a) * 0.5, 0.5 + sin(a) * 0.5))
+
+	for i in segs:
+		var a := 1 + i
+		var b := 1 + (i + 1) % segs
+		indices.append(0)
+		indices.append(a)
+		indices.append(b)
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
 func _build_puddles() -> void:
-	var water_mat := _make_puddle_material(5.0, 0.22)
+	var water_mat := _make_puddle_material(7.0, 0.34)
 
 	var mud_mat := StandardMaterial3D.new()
-	mud_mat.albedo_color = Color(0.10, 0.075, 0.05, 0.9)
+	mud_mat.albedo_color = Color(0.09, 0.068, 0.045, 0.85)
 	mud_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mud_mat.roughness = 0.35
-	mud_mat.metallic = 0.05
-	mud_mat.metallic_specular = 0.7
+	mud_mat.roughness = 0.45
+	mud_mat.metallic_specular = 0.6
 
 	var made := 0
 	var attempts := 0
-	while made < 48 and attempts < 900:
+	while made < 60 and attempts < 1200:
 		attempts += 1
-		var use_path := _rng.randf() < 0.65 and _path_points.size() > 4
+		var use_path := _rng.randf() < 0.6 and _path_points.size() > 4
 		var x := 0.0
 		var z := 0.0
 		if use_path:
 			var p: Vector3 = _path_points[_rng.randi_range(0, _path_points.size() - 1)]
-			var side := _rng.randf_range(-2.4, 2.4)
-			x = p.x + side
-			z = p.z + _rng.randf_range(-1.5, 1.5)
+			x = p.x + _rng.randf_range(-2.2, 2.2)
+			z = p.z + _rng.randf_range(-1.4, 1.4)
 		else:
 			var angle := _rng.randf_range(0.0, TAU)
 			var dist := sqrt(_rng.randf()) * 55.0
@@ -641,22 +671,31 @@ func _build_puddles() -> void:
 		var h: float = terrain.height_at(x, z)
 		if h < TerrainScript.WATER_LEVEL + 0.3:
 			continue
-		if terrain.slope_at(x, z) > 0.35:
+		if terrain.slope_at(x, z) > 0.30:
 			continue
 
-		var is_water := _rng.randf() < 0.55
-		var radius := _rng.randf_range(0.7, 2.2)
-		var disc := CylinderMesh.new()
-		disc.top_radius = radius
-		disc.bottom_radius = radius * 0.95
-		disc.height = 0.06
+		var is_water := _rng.randf() < 0.6
+		var radius := _rng.randf_range(0.6, 1.9)
 		var node := MeshInstance3D.new()
-		node.mesh = disc
-		node.material_override = water_mat if is_water else mud_mat
+		if is_water:
+			node.mesh = _puddle_patch(x, z, radius)
+			node.material_override = water_mat
+		else:
+			var disc := CylinderMesh.new()
+			disc.top_radius = radius * 1.25
+			disc.bottom_radius = disc.top_radius
+			disc.height = 0.04
+			node.mesh = disc
+			node.material_override = mud_mat
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		add_child(node)
-		node.global_position = Vector3(x, h + 0.035, z)
+		node.global_position = Vector3(x, h + 0.015, z) if not is_water else Vector3.ZERO
+		if is_water:
+			node.position = Vector3.ZERO
 		made += 1
+		if made == 1:
+			print("[puddle] first at ", x, ", ", z)
+
 	print("[puddles] ", made)
 
 func _build_rocks() -> void:
