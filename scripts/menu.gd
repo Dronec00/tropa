@@ -136,7 +136,7 @@ func _show_main() -> void:
 	_button("Локация", _show_locations)
 	_button("Персонаж", _open_character)
 	_button("Враги", _show_enemies)
-	_button("Объекты", _show_objects)
+	_button("Время суток", _show_times)
 	_button("Трава", func() -> void: get_tree().change_scene_to_file("res://scenes/grass_lab.tscn"))
 	_button("Выход", func() -> void: get_tree().quit())
 
@@ -163,6 +163,27 @@ func _show_enemies() -> void:
 		_button(entry["name"], func() -> void:
 			LabStateScript.enemy = kind
 			get_tree().change_scene_to_file("res://scenes/enemy_lab.tscn"))
+	_spacer(10)
+	_button("Назад", _show_main)
+
+const TIMES := [
+	{"name": "Вечер", "kind": "evening"},
+	{"name": "Ночь", "kind": "night"},
+	{"name": "Утро", "kind": "morning"},
+	{"name": "День", "kind": "day"},
+]
+
+func _show_times() -> void:
+	_clear()
+	_label("ВРЕМЯ СУТОК", 34)
+	_label("с какой точки начать игру", 15, 0.6)
+	_spacer(12)
+	for entry in TIMES:
+		var kind: String = entry["kind"]
+		_button(entry["name"], func() -> void:
+			LabStateScript.time_of_day = kind
+			LabStateScript.spawn_at = Vector3.INF
+			get_tree().change_scene_to_file("res://scenes/main.tscn"))
 	_spacer(10)
 	_button("Назад", _show_main)
 

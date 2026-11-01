@@ -10,6 +10,7 @@ const HutScript := preload("res://scripts/hut.gd")
 const LabStateScript := preload("res://scripts/lab_state.gd")
 const PauseScript := preload("res://scripts/pause_menu.gd")
 const BonfireScript := preload("res://libraries/bonfire.gd")
+const TimeOfDayScript := preload("res://libraries/time_of_day.gd")
 const PerfOverlay := preload("res://scripts/perf_overlay.gd")
 
 const TREE_COUNT := 950
@@ -61,6 +62,9 @@ var _wreaths: Array = []
 var _time_wreath := 0.0
 var _env: Environment
 var _underwater := false
+var _sky_mat: ShaderMaterial
+var _sun: DirectionalLight3D
+var _tod := "night"
 const TREE_CHUNK := 80.0
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
@@ -88,6 +92,10 @@ func _ready() -> void:
 	_build_rocks()
 	_spawn_player()
 	_build_hud()
+	_tod = LabStateScript.time_of_day
+	if OS.get_environment("TROPA_TOD") != "":
+		_tod = OS.get_environment("TROPA_TOD")
+	TimeOfDayScript.apply(_tod, _env, _sun, _sky_mat)
 	var perf := PerfOverlay.new()
 	add_child(perf)
 	var pause = PauseScript.new()
@@ -200,6 +208,7 @@ func _build_environment() -> void:
 
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
+	_sky_mat = sky_mat
 
 	var env := Environment.new()
 	env.background_mode = Environment.BG_SKY
@@ -261,6 +270,7 @@ func _build_environment() -> void:
 	moon.rotation_degrees = Vector3(-46, 28, 0)
 	moon.light_color = Color(0.50, 0.64, 0.92)
 	moon.light_energy = 1.3
+	_sun = moon
 	moon.shadow_enabled = OS.get_environment("TROPA_NO_SHADOWS") != "1"
 	moon.directional_shadow_max_distance = 55.0
 	moon.shadow_blur = 1.4
