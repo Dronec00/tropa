@@ -113,6 +113,12 @@ static func build(species: String, seed_value: int) -> ArrayMesh:
 			_ash(b, rng)
 		"willow":
 			_willow(b, rng)
+		"pine":
+			_pine(b, rng)
+		"fern":
+			_fern(b, rng)
+		"reed":
+			_reed(b, rng)
 		"bush":
 			_bush(b, rng)
 		"cedar":
@@ -135,6 +141,12 @@ static func trunk_radius(species: String) -> float:
 			return 0.34
 		"bush":
 			return 0.30
+		"fern":
+			return 0.08
+		"reed":
+			return 0.04
+		"pine":
+			return 0.34
 		_:
 			return 0.24
 
@@ -152,6 +164,12 @@ static func height_of(species: String) -> float:
 			return 6.0
 		"bush":
 			return 1.2
+		"fern":
+			return 0.9
+		"reed":
+			return 1.6
+		"pine":
+			return 13.0
 		_:
 			return 7.5
 
@@ -192,11 +210,12 @@ static func _deciduous(b: Builder, rng: RandomNumberGenerator, trunks: int) -> v
 			var dir := Vector3(cos(a), rng.randf_range(-0.15, 0.25), sin(a)).normalized()
 			var tip := base + dir * branch_len
 			b.tube(base, tip, 0.05, 0.013, 4, BARK_BIRCH)
-			for c in 10:
+			var leaf_tint := LEAF_BIRCH.lerp(Color(0.62, 0.50, 0.16), rng.randf_range(0.0, 0.55))
+			for c in 12:
 				var along := rng.randf_range(0.15, 1.15)
 				var cp := base + dir * branch_len * along \
 					+ Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(-0.35, 0.45), rng.randf_range(-0.6, 0.6))
-				b.card(cp, rng.randf_range(1.1, 1.7), rng.randf() * TAU, rng.randf_range(-0.5, 0.5), LEAF_BIRCH)
+				b.card(cp, rng.randf_range(1.1, 1.7), rng.randf() * TAU, rng.randf_range(-0.5, 0.5), leaf_tint)
 
 # --- ива ---
 
@@ -348,3 +367,74 @@ static func _conifer(b: Builder, rng: RandomNumberGenerator, narrow: bool) -> vo
 		var tip := Vector3(rng.randf_range(-0.18, 0.18), h + rng.randf_range(-0.05, 0.22), rng.randf_range(-0.18, 0.18))
 		b.tube(top_base, tip, 0.022, 0.004, 3, bark)
 		b.card(tip, rng.randf_range(0.30, 0.5), rng.randf() * TAU, rng.randf_range(-0.4, 0.4), needle)
+
+# --- сосна ---
+
+static func _pine(b: Builder, rng: RandomNumberGenerator) -> void:
+	var h := rng.randf_range(11.0, 16.0)
+	b.height = h
+	var bark := Color(0.42, 0.30, 0.22)
+	var needle := Color(0.10, 0.17, 0.10)
+
+	var p0 := Vector3.ZERO
+	var r := 0.24
+	for i in 4:
+		var t := float(i + 1) / 4.0
+		var p1 := Vector3(0.0, h * t, 0.0)
+		b.tube(p0, p1, r, r * 0.7, 6, bark)
+		p0 = p1
+		r *= 0.7
+
+	# крона только в верхней части
+	for i in 6:
+		var t := 0.58 + float(i) * 0.07
+		var y := h * t
+		var radius := 1.7 * (1.0 - (t - 0.58) / 0.42) + 0.3
+		for j in 5:
+			var a := TAU * float(j) / 5.0 + rng.randf_range(-0.2, 0.2) + float(i) * 0.4
+			var dir := Vector3(cos(a), 0.0, sin(a))
+			var base := Vector3(0.0, y, 0.0)
+			var tip := base + dir * radius + Vector3(0.0, rng.randf_range(-0.1, 0.1), 0.0)
+			b.tube(base, tip, 0.035, 0.012, 4, bark)
+			for c in 3:
+				var cp := base.lerp(tip, rng.randf_range(0.4, 1.0)) + Vector3(0.0, 0.1, 0.0)
+				b.card(cp, rng.randf_range(0.7, 1.05), rng.randf() * TAU, rng.randf_range(-0.6, 0.6), needle)
+
+	for i in 4:
+		var tip := Vector3(rng.randf_range(-0.12, 0.12), h + rng.randf_range(0.0, 0.3), rng.randf_range(-0.12, 0.12))
+		b.tube(Vector3(0.0, h * 0.98, 0.0), tip, 0.02, 0.004, 3, bark)
+
+# --- папоротник ---
+
+static func _fern(b: Builder, rng: RandomNumberGenerator) -> void:
+	var h := rng.randf_range(0.55, 1.05)
+	b.height = h
+	var leaf := Color(0.10, 0.20, 0.085).lerp(Color(0.22, 0.30, 0.10), rng.randf_range(0.0, 0.6))
+
+	for i in 9:
+		var a := TAU * float(i) / 9.0 + rng.randf_range(-0.25, 0.25)
+		var dir := Vector3(cos(a), 0.0, sin(a))
+		var p0 := Vector3(0.0, 0.04, 0.0)
+		var p1 := dir * 0.22 + Vector3(0.0, h * 0.55, 0.0)
+		var p2 := dir * 0.52 + Vector3(0.0, h * 0.95, 0.0)
+		b.tube(p0, p1, 0.012, 0.008, 3, BARK_BUSH)
+		b.tube(p1, p2, 0.008, 0.003, 3, BARK_BUSH)
+		for c in 5:
+			var tt := float(c) / 4.0
+			var cp := p1.lerp(p2, tt) + Vector3(rng.randf_range(-0.05, 0.05), 0.0, rng.randf_range(-0.05, 0.05))
+			b.card(cp, rng.randf_range(0.20, 0.34), rng.randf() * TAU, rng.randf_range(-0.6, 0.6), leaf)
+
+# --- камыш ---
+
+static func _reed(b: Builder, rng: RandomNumberGenerator) -> void:
+	var h := rng.randf_range(1.0, 1.7)
+	b.height = h
+	var stem := Color(0.18, 0.20, 0.10)
+	var head := Color(0.16, 0.12, 0.07)
+	for i in 6:
+		var a := rng.randf() * TAU
+		var dir := Vector3(cos(a), 0.0, sin(a)) * rng.randf_range(0.05, 0.22)
+		var top := dir + Vector3(0.0, h * rng.randf_range(0.8, 1.1), 0.0)
+		b.tube(Vector3(0.0, 0.02, 0.0), top, 0.014, 0.006, 3, stem)
+		var head_mesh_pos := top + Vector3(0.0, 0.12, 0.0)
+		b.card(head_mesh_pos, 0.16, rng.randf() * TAU, 0.0, head)

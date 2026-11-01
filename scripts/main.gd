@@ -9,7 +9,7 @@ const WindScript := preload("res://scripts/wind.gd")
 const HutScript := preload("res://scripts/hut.gd")
 const LabStateScript := preload("res://scripts/lab_state.gd")
 
-const TREE_COUNT := 380
+const TREE_COUNT := 620
 const WORLD_LIMIT := 92.0
 const WORLD_EDGE := 82.0
 const HUT_POS := Vector3(-34.0, 0.0, -52.0)
@@ -95,7 +95,7 @@ var _amulet_taken := false
 var _door_open := false
 var _checkpoint := Vector3(2.8, 0.0, 5.4)
 const TreeLibScript := preload("res://scripts/tree_lib.gd")
-const SPECIES := ["birch", "birch_multi", "oak", "ash", "cedar", "spruce", "willow"]
+const SPECIES := ["birch", "birch_multi", "oak", "ash", "cedar", "spruce", "willow", "pine"]
 
 var _tree_shader: Shader
 var _mat_light: ShaderMaterial
@@ -121,6 +121,9 @@ func _ready() -> void:
 	_build_forest()
 	_build_bonfire()
 	_build_undergrowth()
+	_build_ferns()
+	_build_bog()
+	_build_path_strips()
 	_build_rocks()
 	_spawn_player()
 	_build_hud()
@@ -237,7 +240,7 @@ func _build_environment() -> void:
 	env.ambient_light_energy = 0.6
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.10, 0.11, 0.13)
-	env.fog_density = 0.034
+	env.fog_density = 0.038
 	env.fog_sky_affect = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.glow_enabled = true
@@ -331,12 +334,12 @@ func _species_index(species: String) -> int:
 
 func _habitat_weights(h: float, stream_d: float) -> Dictionary:
 	if stream_d < 8.0:
-		return {"birch": 0.30, "birch_multi": 0.16, "willow": 0.28, "ash": 0.14, "oak": 0.08, "cedar": 0.02, "spruce": 0.02}
+		return {"birch": 0.28, "birch_multi": 0.15, "willow": 0.26, "ash": 0.13, "oak": 0.08, "cedar": 0.02, "spruce": 0.02, "pine": 0.06}
 	if h < 2.6:
-		return {"birch": 0.38, "birch_multi": 0.16, "ash": 0.20, "oak": 0.14, "cedar": 0.06, "spruce": 0.06, "willow": 0.0}
+		return {"birch": 0.34, "birch_multi": 0.15, "ash": 0.19, "oak": 0.13, "cedar": 0.06, "spruce": 0.06, "willow": 0.0, "pine": 0.07}
 	if h > 6.0:
-		return {"birch": 0.18, "birch_multi": 0.08, "ash": 0.12, "oak": 0.14, "cedar": 0.26, "spruce": 0.22, "willow": 0.0}
-	return {"birch": 0.30, "birch_multi": 0.14, "ash": 0.18, "oak": 0.16, "cedar": 0.12, "spruce": 0.10, "willow": 0.0}
+		return {"birch": 0.14, "birch_multi": 0.06, "ash": 0.08, "oak": 0.10, "cedar": 0.22, "spruce": 0.18, "willow": 0.0, "pine": 0.22}
+	return {"birch": 0.26, "birch_multi": 0.12, "ash": 0.15, "oak": 0.14, "cedar": 0.11, "spruce": 0.10, "willow": 0.0, "pine": 0.12}
 
 func _build_forest() -> void:
 	var density := FastNoiseLite.new()
@@ -426,6 +429,178 @@ func _build_undergrowth() -> void:
 	for i in 2:
 		_spawn_multimesh(bush_meshes[i], _mat_dark, bush_lists[i])
 	print("[bushes] ", bush_lists[0].size() + bush_lists[1].size())
+
+func _build_ferns() -> void:
+	var meshes: Array = [TreeLibScript.build("fern", 301), TreeLibScript.build("fern", 907)]
+	var lists: Array = [[], []]
+	var attempts := 0
+	while lists[0].size() + lists[1].size() < 520 and attempts < 9000:
+		attempts += 1
+		var angle := _rng.randf_range(0.0, TAU)
+		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
+		var x := cos(angle) * dist
+		var z := sin(angle) * dist
+		if terrain.is_water(x, z) or _near_path(x, z, 1.2):
+			continue
+		var h: float = terrain.height_at(x, z)
+		if h < TerrainScript.WATER_LEVEL + 0.5:
+			continue
+		if terrain.slope_at(x, z) > 0.9:
+			continue
+		var idx := _rng.randi_range(0, 1)
+		var sc := _rng.randf_range(0.8, 1.5)
+		var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
+		(lists[idx] as Array).append(Transform3D(basis, Vector3(x, h, z)))
+
+	for i in 2:
+		_spawn_multimesh(meshes[i], _mat_dark, lists[i])
+	print("[ferns] ", lists[0].size() + lists[1].size())
+
+func _build_bog() -> void:
+	var center := Vector2(-42.0, 30.0)
+	var base: float = terrain.height_at(center.x, center.y)
+
+	var water_mat := StandardMaterial3D.new()
+	water_mat.albedo_color = Color(0.05, 0.08, 0.08, 0.92)
+	water_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	water_mat.roughness = 0.08
+	water_mat.metallic = 0.35
+	water_mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+
+	for i in 7:
+		var angle := TAU * float(i) / 7.0 + _rng.randf_range(-0.2, 0.2)
+		var r := _rng.randf_range(1.0, 7.5)
+		var px := center.x + cos(angle) * r
+		var pz := center.y + sin(angle) * r
+		var disc := CylinderMesh.new()
+		disc.top_radius = _rng.randf_range(1.6, 3.4)
+		disc.bottom_radius = disc.top_radius
+		disc.height = 0.1
+		var water := MeshInstance3D.new()
+		water.mesh = disc
+		water.material_override = water_mat
+		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(water)
+		water.global_position = Vector3(px, base + 0.12, pz)
+
+	# камыш по краям
+	var reeds: Array = [TreeLibScript.build("reed", 401), TreeLibScript.build("reed", 555)]
+	var reed_lists: Array = [[], []]
+	for i in 260:
+		var angle := _rng.randf_range(0.0, TAU)
+		var r := _rng.randf_range(2.0, 13.0)
+		var px := center.x + cos(angle) * r
+		var pz := center.y + sin(angle) * r
+		var h: float = terrain.height_at(px, pz)
+		if h < TerrainScript.WATER_LEVEL + 0.3:
+			continue
+		var sc := _rng.randf_range(0.8, 1.3)
+		var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(sc, sc, sc))
+		(reed_lists[i % 2] as Array).append(Transform3D(basis, Vector3(px, h, pz)))
+
+	for i in 2:
+		_spawn_multimesh(reeds[i], _mat_dark, reed_lists[i])
+
+	# сухостой
+	for i in 9:
+		var angle := TAU * float(i) / 9.0
+		var r := _rng.randf_range(3.0, 11.0)
+		var px := center.x + cos(angle) * r
+		var pz := center.y + sin(angle) * r
+		_dead_tree(Vector3(px, terrain.height_at(px, pz), pz))
+	print("[bog] вода и камыш")
+
+func _dead_tree(pos: Vector3) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	root.rotation.y = _rng.randf_range(0.0, TAU)
+	add_child(root)
+
+	var bark := StandardMaterial3D.new()
+	bark.albedo_color = Color(0.16, 0.15, 0.14)
+	bark.roughness = 1.0
+
+	var h := _rng.randf_range(4.0, 7.0)
+	var trunk := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.04
+	cyl.bottom_radius = 0.16
+	cyl.height = h
+	trunk.mesh = cyl
+	trunk.material_override = bark
+	trunk.position.y = h * 0.5
+	trunk.rotation.z = _rng.randf_range(-0.12, 0.12)
+	root.add_child(trunk)
+
+	for i in 4:
+		var branch := MeshInstance3D.new()
+		var bm := CylinderMesh.new()
+		bm.top_radius = 0.01
+		bm.bottom_radius = 0.045
+		bm.height = _rng.randf_range(1.0, 1.8)
+		branch.mesh = bm
+		branch.material_override = bark
+		var a := _rng.randf_range(0.0, TAU)
+		var y := h * _rng.randf_range(0.45, 0.85)
+		branch.position = Vector3(0.0, y, 0.0)
+		branch.rotation = Vector3(_rng.randf_range(0.7, 1.2), a, 0.0)
+		root.add_child(branch)
+
+	_add_tree_collision(root, 0.2, h)
+
+func _build_path_strips() -> void:
+	if _path_points.size() < 3:
+		return
+	var verts := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+
+	for i in _path_points.size():
+		var p: Vector3 = _path_points[i]
+		var prev: Vector3 = _path_points[maxi(i - 1, 0)]
+		var next: Vector3 = _path_points[mini(i + 1, _path_points.size() - 1)]
+		var dir := (next - prev)
+		dir.y = 0.0
+		dir = dir.normalized()
+		var side := Vector3(-dir.z, 0.0, dir.x)
+		for s in [-1.0, 1.0]:
+			var q: Vector3 = p + side * 1.0 * s
+			q.y = terrain.height_at(q.x, q.z) + 0.05
+			verts.append(q)
+			uvs.append(Vector2(0.0 if s < 0.0 else 1.0, float(i) * 0.4))
+
+		if i > 0:
+			var a := (i - 1) * 2
+			var b := a + 1
+			var c := i * 2
+			var d := c + 1
+			indices.append(a)
+			indices.append(c)
+			indices.append(b)
+			indices.append(b)
+			indices.append(c)
+			indices.append(d)
+
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_TEX_UV] = uvs
+	arrays[Mesh.ARRAY_INDEX] = indices
+
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = Color(0.30, 0.24, 0.17)
+	mat.roughness = 1.0
+	if ResourceLoader.exists("res://assets/textures/ground_albedo.png"):
+		mat.albedo_texture = load("res://assets/textures/ground_albedo.png")
+		mat.uv1_scale = Vector3(3.0, 3.0, 1.0)
+
+	var strip := MeshInstance3D.new()
+	strip.mesh = mesh
+	strip.material_override = mat
+	add_child(strip)
 
 func _add_rock(list: Array, x: float, z: float) -> void:
 	var h: float = terrain.height_at(x, z)
