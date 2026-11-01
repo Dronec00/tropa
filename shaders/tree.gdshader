@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode cull_disabled;
+render_mode cull_disabled, depth_prepass_alpha;
 
 uniform sampler2D bark_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D leaf_tex : source_color, filter_linear_mipmap, repeat_disable;
@@ -38,11 +38,12 @@ void fragment() {
 	vec3 albedo;
 	if (v_leaf > 0.5) {
 		vec4 c = texture(leaf_tex, UV);
-		if (c.a < 0.35) {
-			discard;
-		}
 		albedo = COLOR.rgb * c.rgb * 2.2;
+		ALPHA = c.a;
+		ALPHA_SCISSOR_THRESHOLD = 0.22;
+		ALPHA_ANTIALIASING_EDGE = 0.18;
 	} else {
+		ALPHA = 1.0;
 		albedo = COLOR.rgb * texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.1;
 		if (use_normal > 0.5) {
 			NORMAL_MAP = texture(bark_normal, UV * vec2(1.0, 3.0)).rgb;

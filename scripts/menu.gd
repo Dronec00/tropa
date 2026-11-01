@@ -4,6 +4,23 @@ extends Control
 
 const LabStateScript := preload("res://scripts/lab_state.gd")
 
+const OBJECTS := [
+	{"name": "Берёза", "kind": "birch"},
+	{"name": "Берёза многствольная", "kind": "birch_multi"},
+	{"name": "Дуб", "kind": "oak"},
+	{"name": "Ясень", "kind": "ash"},
+	{"name": "Ель", "kind": "spruce"},
+	{"name": "Кедр", "kind": "cedar"},
+	{"name": "Сосна", "kind": "pine"},
+	{"name": "Ива", "kind": "willow"},
+	{"name": "Куст", "kind": "bush"},
+	{"name": "Папоротник", "kind": "fern"},
+	{"name": "Камыш", "kind": "reed"},
+	{"name": "Валун", "kind": "rock"},
+	{"name": "Лужа", "kind": "puddle"},
+	{"name": "Изба", "kind": "hut"},
+]
+
 const ENEMIES := [
 	{"kind": "wolf", "name": "Волк"},
 	{"kind": "cultist", "name": "Послушник"},
@@ -97,6 +114,7 @@ func _show_main() -> void:
 	_button("Локация", _show_locations)
 	_button("Персонаж", _open_character)
 	_button("Враги", _show_enemies)
+	_button("Объекты", _show_objects)
 	_button("Трава", func() -> void: get_tree().change_scene_to_file("res://scenes/grass_lab.tscn"))
 	_button("Выход", func() -> void: get_tree().quit())
 
@@ -123,6 +141,19 @@ func _show_enemies() -> void:
 		_button(entry["name"], func() -> void:
 			LabStateScript.enemy = kind
 			get_tree().change_scene_to_file("res://scenes/enemy_lab.tscn"))
+	_spacer(10)
+	_button("Назад", _show_main)
+
+func _show_objects() -> void:
+	_clear()
+	_label("ОБЪЕКТЫ", 34)
+	_label("витрина: один объект на ровной площадке", 15, 0.6)
+	_spacer(12)
+	for entry in OBJECTS:
+		var kind: String = entry["kind"]
+		_button(entry["name"], func() -> void:
+			LabStateScript.object_name = kind
+			get_tree().change_scene_to_file("res://scenes/object_lab.tscn"))
 	_spacer(10)
 	_button("Назад", _show_main)
 

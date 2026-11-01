@@ -5,3 +5,4 @@ extends RefCounted
 
 static var spawn_at := Vector3.INF
 static var enemy := ""
+static var object_name := ""

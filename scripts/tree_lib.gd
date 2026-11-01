@@ -328,11 +328,11 @@ static func _ash(b: Builder, rng: RandomNumberGenerator) -> void:
 # --- хвойные ---
 
 static func _conifer(b: Builder, rng: RandomNumberGenerator, narrow: bool) -> void:
-	var f := 0.45 if TreeLib.simple else 1.0
+	var f := 0.62 if TreeLib.simple else 1.0
 	var h := rng.randf_range(9.0, 13.0) if narrow else rng.randf_range(7.0, 10.5)
 	b.height = h
 	var max_r := 2.4 if narrow else 3.0
-	var needle := Color(0.085, 0.155, 0.085) if narrow else Color(0.10, 0.175, 0.095)
+	var needle := Color(0.14, 0.24, 0.13) if narrow else Color(0.16, 0.26, 0.14)
 	var bark := BARK_CONIFER
 
 	# ствол
@@ -380,7 +380,7 @@ static func _conifer(b: Builder, rng: RandomNumberGenerator, narrow: bool) -> vo
 # --- сосна ---
 
 static func _pine(b: Builder, rng: RandomNumberGenerator) -> void:
-	var f := 0.45 if TreeLib.simple else 1.0
+	var f := 0.62 if TreeLib.simple else 1.0
 	var h := rng.randf_range(11.0, 16.0)
 	b.height = h
 	var bark := Color(0.42, 0.30, 0.22)

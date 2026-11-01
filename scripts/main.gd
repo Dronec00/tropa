@@ -779,8 +779,8 @@ func _finish_trees() -> void:
 			if transforms.is_empty():
 				continue
 			var variant: Dictionary = _tree_variants[i]
-			_spawn_mm(variant["mesh"], variant["material"], transforms, 0.0, 55.0)
-			_spawn_mm(variant["simple_mesh"], variant["material"], transforms, 50.0, 120.0)
+			_spawn_mm(variant["mesh"], variant["material"], transforms, 0.0, 85.0)
+			_spawn_mm(variant["simple_mesh"], variant["material"], transforms, 80.0, 170.0)
 			detail_nodes += 1
 			simple_nodes += 1
 	print("[trees lod] detail: ", detail_nodes, " simple: ", simple_nodes)
