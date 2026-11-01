@@ -16,6 +16,12 @@ extends RefCounted
 ##
 ## Узлы скелета: Hips, Torso, Head, ShoulderR/L, ElbowR/L, WristR/L,
 ## ThighR/L, KneeR/L, AnkleR/L, CapeSeg1..3, SwordPivot, TorchPivot.
+##
+## Аниматор — внутренний class StackAnimator (Node):
+##   set_locomotion(speed)  — 0 = стойка, >0 = ходьба; звать каждый кадр
+##   play_attack()          — удар ~1.0 c (замах ~0.35 c, удар ~0.5 c)
+## Меч жёстко закреплён в правой кисти: не двигайте sword_pivot отдельно.
+## Плащ встроенный (3 сегмента): старый cape.gd при интеграции отключить.
 
 const ATTACK_LENGTH: float = 1.0
 const HIPS_HEIGHT: float = 0.96
@@ -125,7 +131,7 @@ static func _make_kit() -> Kit:
 	kit.mail_dark.uv1_scale = Vector3(7.0, 7.0, 7.0)
 	kit.mail_dark.texture_filter = BaseMaterial3D.TEXTURE_FILTER_LINEAR_WITH_MIPMAPS
 
-	kit.plate = _mat(Color(0.235, 0.245, 0.265), 0.72, 0.46)
+	kit.plate = _mat(Color(0.235, 0.245, 0.265), 0.62, 0.54)
 	kit.plate_dark = _mat(Color(0.160, 0.170, 0.190), 0.68, 0.54)
 	kit.steel = _mat(Color(0.300, 0.310, 0.340), 0.82, 0.36)
 	kit.iron = _mat(Color(0.200, 0.200, 0.220), 0.80, 0.50)
@@ -135,7 +141,7 @@ static func _make_kit() -> Kit:
 
 	kit.leather = _mat(Color(0.075, 0.058, 0.043), 0.04, 0.86)
 	kit.leather_dark = _mat(Color(0.042, 0.034, 0.026), 0.0, 0.92)
-	kit.cloth = _mat(Color(0.165, 0.120, 0.082), 0.0, 1.0)
+	kit.cloth = _mat(Color(0.180, 0.132, 0.090), 0.0, 1.0)
 	kit.cloth.cull_mode = BaseMaterial3D.CULL_DISABLED
 	kit.cloth_dark = _mat(Color(0.105, 0.078, 0.055), 0.0, 1.0)
 	kit.cloth_dark.cull_mode = BaseMaterial3D.CULL_DISABLED
@@ -188,14 +194,14 @@ static func _build_hips(hips: Node3D, kit: Kit) -> void:
 	_add(hips, _cyl(0.19, 0.205, 0.17, 16), kit.mail, Vector3(0.0, -0.02, 0.0))
 
 	# кольчужная юбка до колен
-	_add(hips, _cyl(0.205, 0.305, 0.36, 20), kit.mail, Vector3(0.0, -0.19, 0.0))
-	_add(hips, _cyl(0.30, 0.315, 0.06, 20), kit.mail_dark, Vector3(0.0, -0.355, 0.0))
+	_add(hips, _cyl(0.205, 0.278, 0.35, 20), kit.mail, Vector3(0.0, -0.185, 0.0))
+	_add(hips, _cyl(0.275, 0.285, 0.055, 20), kit.mail_dark, Vector3(0.0, -0.355, 0.0))
 	# тёмная ткань под кольчугой, чтобы не просвечивал низ
-	_add(hips, _cyl(0.19, 0.27, 0.30, 16), kit.cloth_dark, Vector3(0.0, -0.22, 0.0))
+	_add(hips, _cyl(0.19, 0.25, 0.30, 16), kit.cloth_dark, Vector3(0.0, -0.22, 0.0))
 
 	# стягивающие ремни юбки
-	_add(hips, _cyl(0.238, 0.238, 0.028, 20), kit.leather, Vector3(0.0, -0.12, 0.0))
-	_add(hips, _cyl(0.278, 0.278, 0.026, 20), kit.leather, Vector3(0.0, -0.28, 0.0))
+	_add(hips, _cyl(0.234, 0.234, 0.028, 20), kit.leather, Vector3(0.0, -0.12, 0.0))
+	_add(hips, _cyl(0.262, 0.262, 0.026, 20), kit.leather, Vector3(0.0, -0.28, 0.0))
 
 	# пояс
 	_add(hips, _cyl(0.213, 0.218, 0.062, 20), kit.leather, Vector3(0.0, 0.055, 0.0))
@@ -206,25 +212,23 @@ static func _build_hips(hips: Node3D, kit: Kit) -> void:
 		_add(hips, _sphere(0.009, 8, 6), kit.iron,
 				Vector3(sin(a) * 0.218, 0.055, -cos(a) * 0.218))
 
-	# подсумок на левом бедре
-	_add(hips, _box(Vector3(0.105, 0.125, 0.062)), kit.leather,
-			Vector3(-0.185, -0.045, -0.115), Vector3(0.0, -0.35, 0.06))
-	_add(hips, _box(Vector3(0.108, 0.045, 0.066)), kit.leather_dark,
-			Vector3(-0.185, 0.018, -0.115), Vector3(0.0, -0.35, 0.06))
-	_add(hips, _box(Vector3(0.022, 0.022, 0.012)), kit.iron,
-			Vector3(-0.185, -0.012, -0.145), Vector3(0.0, -0.35, 0.06))
+	# подсумок на левом бедре (сбоку, не мешает спереди)
+	_add(hips, _box(Vector3(0.078, 0.10, 0.055)), kit.leather,
+			Vector3(-0.238, -0.035, 0.012), Vector3(0.0, PI * 0.5, 0.04))
+	_add(hips, _box(Vector3(0.082, 0.038, 0.058)), kit.leather_dark,
+			Vector3(-0.238, 0.02, 0.012), Vector3(0.0, PI * 0.5, 0.04))
+	_add(hips, _box(Vector3(0.018, 0.02, 0.012)), kit.iron,
+			Vector3(-0.269, -0.008, 0.012), Vector3(0.0, PI * 0.5, 0.04))
 
 	# стальные пластины-тассеты по кругу
 	for i in range(6):
 		var a: float = TAU * float(i) / 6.0
 		var pivot: Node3D = _pivot(hips, "Tasset%d" % i, Vector3.ZERO, Vector3(0.0, a, 0.0))
-		var plate: MeshInstance3D = _add(pivot, _box(Vector3(0.125, 0.165, 0.022)), kit.plate_dark,
-				Vector3(0.0, -0.105, -0.252), Vector3(-0.10, 0.0, 0.0))
-		plate.rotation.z = 0.0
-		_add(pivot, _sphere(0.011, 8, 6), kit.iron,
-				Vector3(0.0, 0.0, -0.245) + Vector3(0.0, -0.035, 0.0))
-		_add(pivot, _box(Vector3(0.032, 0.028, 0.014)), kit.leather,
-				Vector3(0.0, -0.16, -0.262))
+		_add(pivot, _box(Vector3(0.092, 0.13, 0.018)), kit.plate_dark,
+				Vector3(0.0, -0.10, -0.238), Vector3(-0.14, 0.0, 0.0))
+		_add(pivot, _sphere(0.009, 8, 6), kit.iron, Vector3(0.0, -0.04, -0.232))
+		_add(pivot, _box(Vector3(0.026, 0.024, 0.012)), kit.leather,
+				Vector3(0.0, -0.155, -0.25))
 
 # =========================================================================
 #  Ноги
@@ -233,9 +237,9 @@ static func _build_hips(hips: Node3D, kit: Kit) -> void:
 static func _build_leg(hips: Node3D, side: float, suffix: String, kit: Kit) -> Dictionary:
 	var thigh: Node3D = _pivot(hips, "Thigh" + suffix, Vector3(side * 0.135, -0.02, 0.0))
 	# кольчужное бедро
-	_add(thigh, _capsule(0.076, 0.43, 12), kit.mail, Vector3(0.0, -0.205, 0.0))
+	_add(thigh, _capsule(0.082, 0.43, 12), kit.mail, Vector3(0.0, -0.205, 0.0))
 	# набедренная пластина
-	_add(thigh, _sphere(0.088, 14, 8), kit.plate, Vector3(0.0, -0.175, -0.052),
+	_add(thigh, _sphere(0.092, 14, 8), kit.plate, Vector3(0.0, -0.175, -0.055),
 			Vector3.ZERO, Vector3(0.82, 1.35, 0.42))
 	# ремни
 	_add(thigh, _cyl(0.081, 0.081, 0.026, 14), kit.leather, Vector3(0.0, -0.10, 0.0))
@@ -250,7 +254,7 @@ static func _build_leg(hips: Node3D, side: float, suffix: String, kit: Kit) -> D
 	_add(knee, _sphere(0.009, 8, 6), kit.iron, Vector3(0.0, 0.04, -0.07))
 
 	# кольчужная голень
-	_add(knee, _capsule(0.066, 0.38, 12), kit.mail, Vector3(0.0, -0.185, 0.0))
+	_add(knee, _capsule(0.070, 0.38, 12), kit.mail, Vector3(0.0, -0.185, 0.0))
 	# стальная наголенка
 	_add(knee, _box(Vector3(0.093, 0.245, 0.03)), kit.plate, Vector3(0.0, -0.185, -0.062))
 	_add(knee, _box(Vector3(0.02, 0.23, 0.012)), kit.plate_dark, Vector3(0.0, -0.185, -0.079))
@@ -282,67 +286,70 @@ static func _build_leg(hips: Node3D, side: float, suffix: String, kit: Kit) -> D
 
 static func _build_torso(torso: Node3D, kit: Kit) -> void:
 	# стёганый поддоспешник у пояса
-	_add(torso, _cyl(0.182, 0.192, 0.15, 16), kit.cloth_dark, Vector3(0.0, 0.025, 0.0))
-	# кольчужный корпус
-	_add(torso, _capsule(0.195, 0.42, 16), kit.mail, Vector3(0.0, 0.21, 0.0))
-	_add(torso, _sphere(0.12, 16, 8), kit.mail, Vector3(0.0, 0.30, 0.10),
-			Vector3.ZERO, Vector3(1.45, 1.0, 0.7))
+	_add(torso, _cyl(0.178, 0.190, 0.16, 16), kit.cloth_dark, Vector3(0.0, 0.015, 0.0))
+	# кольчужный корпус — цилиндр, чтобы нагрудник читался отдельной пластиной
+	_add(torso, _cyl(0.186, 0.202, 0.405, 20), kit.mail, Vector3(0.0, 0.205, 0.0))
 
-	# нагрудник
-	_add(torso, _sphere(0.15, 20, 10), kit.plate, Vector3(0.0, 0.28, -0.115),
-			Vector3.ZERO, Vector3(1.28, 0.95, 0.58))
-	_add(torso, _box(Vector3(0.024, 0.235, 0.028)), kit.plate_dark,
-			Vector3(0.0, 0.285, -0.205), Vector3(0.03, 0.0, 0.0))
+	# нагрудник — широкий, но не «шар»: вытянут по груди и уплощён
+	_add(torso, _sphere(0.15, 22, 12), kit.plate, Vector3(0.0, 0.300, -0.148),
+			Vector3.ZERO, Vector3(1.16, 0.70, 0.48))
+	# ребро жёсткости
+	_add(torso, _box(Vector3(0.022, 0.175, 0.026)), kit.plate_dark,
+			Vector3(0.0, 0.305, -0.220), Vector3(0.03, 0.0, 0.0))
+	# верхняя кромка нагрудника
+	_add(torso, _box(Vector3(0.230, 0.024, 0.026)), kit.plate_dark,
+			Vector3(0.0, 0.402, -0.168), Vector3(0.16, 0.0, 0.0))
 	# ламели-пластины живота
-	for i in range(2):
-		var y: float = 0.115 - float(i) * 0.075
-		_add(torso, _box(Vector3(0.30 - float(i) * 0.02, 0.072, 0.055)), kit.plate_dark,
-				Vector3(0.0, y, -0.155), Vector3(0.10 + float(i) * 0.03, 0.0, 0.0))
+	for i in range(3):
+		var y: float = 0.165 - float(i) * 0.062
+		_add(torso, _box(Vector3(0.27 - float(i) * 0.015, 0.058, 0.045)), kit.plate_dark,
+				Vector3(0.0, y, -0.185 + float(i) * 0.006),
+				Vector3(0.12 + float(i) * 0.04, 0.0, 0.0))
 	# заклёпки нагрудника
-	for i in range(4):
-		var x: float = -0.135 + float(i) * 0.09
-		_add(torso, _sphere(0.009, 8, 6), kit.iron, Vector3(x, 0.385, -0.17))
-		_add(torso, _sphere(0.008, 8, 6), kit.iron, Vector3(x, 0.155, -0.19))
+	for i in range(2):
+		var x: float = -0.125 + float(i) * 0.25
+		_add(torso, _sphere(0.009, 8, 6), kit.iron, Vector3(x, 0.165, -0.230))
 
 	# спинная пластина
-	_add(torso, _sphere(0.145, 16, 8), kit.plate_dark, Vector3(0.0, 0.275, 0.095),
-			Vector3.ZERO, Vector3(1.18, 0.95, 0.48))
+	_add(torso, _sphere(0.145, 16, 8), kit.plate_dark, Vector3(0.0, 0.275, 0.120),
+			Vector3.ZERO, Vector3(1.15, 0.95, 0.42))
 
 	# воротник кольчуги
-	_add(torso, _cyl(0.10, 0.155, 0.115, 16), kit.mail_dark, Vector3(0.0, 0.405, 0.0))
-	_add(torso, _torus(0.095, 0.125, 20, 8), kit.mail, Vector3(0.0, 0.44, 0.0))
+	_add(torso, _cyl(0.098, 0.150, 0.110, 16), kit.mail_dark, Vector3(0.0, 0.400, 0.0))
+	_add(torso, _torus(0.090, 0.120, 20, 8), kit.mail, Vector3(0.0, 0.442, 0.0))
 
-	# плечевые ремни
+	# плечевые ремни (лежат на кольчуге у шеи)
 	for side in [-1.0, 1.0]:
-		_add(torso, _box(Vector3(0.052, 0.17, 0.026)), kit.leather,
-				Vector3(side * 0.135, 0.395, -0.152), Vector3(-0.16, 0.0, side * 0.06))
-		_add(torso, _box(Vector3(0.034, 0.03, 0.016)), kit.iron,
-				Vector3(side * 0.135, 0.315, -0.175))
+		_add(torso, _box(Vector3(0.046, 0.145, 0.024)), kit.leather,
+				Vector3(side * 0.140, 0.385, -0.132), Vector3(-0.12, 0.0, side * 0.10))
+		_add(torso, _box(Vector3(0.030, 0.026, 0.014)), kit.iron,
+				Vector3(side * 0.148, 0.318, -0.148))
 
-	# перевязь через грудь
-	_add(torso, _box(Vector3(0.058, 0.44, 0.022)), kit.leather,
-			Vector3(0.02, 0.215, -0.188), Vector3(0.0, 0.0, -0.52))
-	_add(torso, _box(Vector3(0.062, 0.04, 0.026)), kit.iron,
-			Vector3(0.115, 0.33, -0.20), Vector3(0.0, 0.0, -0.52))
-	_add(torso, _box(Vector3(0.03, 0.07, 0.02)), kit.leather_dark,
-			Vector3(0.06, 0.22, -0.205), Vector3(0.0, 0.0, -0.52))
+	# перевязь через грудь поверх нагрудника
+	_add(torso, _box(Vector3(0.056, 0.43, 0.020)), kit.leather,
+			Vector3(0.02, 0.215, -0.232), Vector3(0.0, 0.0, -0.52))
+	_add(torso, _box(Vector3(0.060, 0.038, 0.024)), kit.iron,
+			Vector3(0.112, 0.325, -0.238), Vector3(0.0, 0.0, -0.52))
+	_add(torso, _box(Vector3(0.028, 0.065, 0.018)), kit.leather_dark,
+			Vector3(0.055, 0.225, -0.243), Vector3(0.0, 0.0, -0.52))
 
-	# застёжки плаща на груди
+	# застёжки плаща на плечах
 	for side in [-1.0, 1.0]:
-		_add(torso, _torus(0.020, 0.032, 12, 6), kit.iron,
-				Vector3(side * 0.19, 0.395, -0.095), Vector3(PI * 0.5, 0.0, 0.0))
-		_add(torso, _sphere(0.011, 8, 6), kit.steel, Vector3(side * 0.19, 0.395, -0.095))
+		_add(torso, _torus(0.018, 0.030, 12, 6), kit.iron,
+				Vector3(side * 0.158, 0.402, -0.102), Vector3(PI * 0.5, 0.0, 0.0))
+		_add(torso, _sphere(0.010, 8, 6), kit.steel,
+				Vector3(side * 0.158, 0.402, -0.102))
 
 	# ножны на спине (пустые)
-	var scab: Node3D = _pivot(torso, "Scabbard", Vector3(0.045, 0.16, 0.205),
+	var scab: Node3D = _pivot(torso, "Scabbard", Vector3(0.045, 0.16, 0.240),
 			Vector3(0.10, 0.0, -0.50))
-	_add(scab, _box(Vector3(0.078, 0.80, 0.032)), kit.leather, Vector3.ZERO)
-	_add(scab, _box(Vector3(0.088, 0.095, 0.042)), kit.iron, Vector3(0.0, 0.36, 0.0))
-	_add(scab, _box(Vector3(0.062, 0.07, 0.036)), kit.iron, Vector3(0.0, -0.345, 0.0))
+	_add(scab, _box(Vector3(0.078, 0.80, 0.030)), kit.leather, Vector3.ZERO)
+	_add(scab, _box(Vector3(0.088, 0.095, 0.040)), kit.iron, Vector3(0.0, 0.36, 0.0))
+	_add(scab, _box(Vector3(0.062, 0.07, 0.034)), kit.iron, Vector3(0.0, -0.345, 0.0))
 	_add(scab, _cyl(0.028, 0.002, 0.07, 10), kit.iron, Vector3(0.0, -0.408, 0.0))
-	_add(scab, _box(Vector3(0.092, 0.035, 0.046)), kit.leather_dark, Vector3(0.0, 0.20, 0.0))
-	_add(scab, _box(Vector3(0.092, 0.035, 0.046)), kit.leather_dark, Vector3(0.0, -0.16, 0.0))
-	_add(scab, _box(Vector3(0.026, 0.13, 0.012)), kit.iron, Vector3(0.0, 0.30, -0.024),
+	_add(scab, _box(Vector3(0.092, 0.032, 0.042)), kit.leather_dark, Vector3(0.0, 0.20, 0.0))
+	_add(scab, _box(Vector3(0.092, 0.032, 0.042)), kit.leather_dark, Vector3(0.0, -0.16, 0.0))
+	_add(scab, _box(Vector3(0.024, 0.12, 0.010)), kit.iron, Vector3(0.0, 0.30, -0.022),
 			Vector3(0.0, 0.0, 0.06))
 
 # =========================================================================
@@ -350,54 +357,63 @@ static func _build_torso(torso: Node3D, kit: Kit) -> void:
 # =========================================================================
 
 static func _build_head(head: Node3D, kit: Kit) -> void:
-	# шея и кольчужный койф
-	_add(head, _cyl(0.068, 0.078, 0.13, 12), kit.mail_dark, Vector3(0.0, -0.055, 0.0))
-	_add(head, _cyl(0.142, 0.185, 0.155, 18), kit.mail, Vector3(0.0, 0.005, 0.005))
+	# шея
+	_add(head, _cyl(0.066, 0.076, 0.13, 12), kit.mail_dark, Vector3(0.0, -0.060, 0.0))
+	# кольчужный койф (уже лицевой маски, чтобы не лез в лицо)
+	_add(head, _cyl(0.132, 0.152, 0.135, 18), kit.mail, Vector3(0.0, -0.005, 0.004))
 	# кольчужная пелерина сзади
-	_add(head, _box(Vector3(0.21, 0.15, 0.075)), kit.mail_dark,
-			Vector3(0.0, -0.01, 0.135), Vector3(0.28, 0.0, 0.0))
+	_add(head, _box(Vector3(0.215, 0.16, 0.06)), kit.mail_dark,
+			Vector3(0.0, -0.020, 0.125), Vector3(0.26, 0.0, 0.0))
 
 	# кожаный подшлемник
-	_add(head, _cyl(0.15, 0.155, 0.062, 20), kit.leather, Vector3(0.0, 0.115, 0.0))
-	_add(head, _torus(0.135, 0.158, 22, 8), kit.leather_dark, Vector3(0.0, 0.082, 0.0))
+	_add(head, _cyl(0.141, 0.148, 0.062, 20), kit.leather, Vector3(0.0, 0.104, 0.0))
+	_add(head, _torus(0.128, 0.150, 22, 8), kit.leather_dark, Vector3(0.0, 0.073, 0.0))
 
 	# купол и тулья
-	_add(head, _cyl(0.132, 0.145, 0.17, 20), kit.plate, Vector3(0.0, 0.19, 0.0))
-	_add(head, _sphere(0.138, 22, 12), kit.plate, Vector3(0.0, 0.258, 0.0),
+	_add(head, _cyl(0.118, 0.137, 0.185, 20), kit.plate, Vector3(0.0, 0.185, 0.0))
+	_add(head, _sphere(0.126, 22, 12), kit.plate, Vector3(0.0, 0.262, 0.0),
 			Vector3.ZERO, Vector3(1.0, 0.62, 1.0))
-	_add(head, _torus(0.132, 0.152, 24, 7), kit.plate_dark, Vector3(0.0, 0.238, 0.0))
-	_add(head, _torus(0.138, 0.155, 24, 7), kit.plate_dark, Vector3(0.0, 0.115, 0.0))
-	_add(head, _cyl(0.02, 0.024, 0.03, 10), kit.iron, Vector3(0.0, 0.345, 0.0))
+	_add(head, _torus(0.120, 0.140, 24, 7), kit.plate_dark, Vector3(0.0, 0.240, 0.0))
+	_add(head, _torus(0.132, 0.144, 24, 7), kit.plate_dark, Vector3(0.0, 0.100, 0.0))
+	_add(head, _cyl(0.018, 0.022, 0.028, 10), kit.iron, Vector3(0.0, 0.342, 0.0))
 
+	# лицевая маска
+	_add(head, _box(Vector3(0.200, 0.180, 0.060)), kit.plate,
+			Vector3(0.0, 0.128, -0.122), Vector3(0.03, 0.0, 0.0))
 	# прорезь для глаз
-	_add(head, _box(Vector3(0.212, 0.020, 0.018)), kit.black, Vector3(0.0, 0.192, -0.141))
-	for side in [-1.0, 1.0]:
-		_add(head, _box(Vector3(0.012, 0.048, 0.016)), kit.black,
-				Vector3(side * 0.108, 0.183, -0.132), Vector3(0.0, side * 0.35, 0.0))
-
+	_add(head, _box(Vector3(0.186, 0.034, 0.018)), kit.black,
+			Vector3(0.0, 0.188, -0.159))
+	_add(head, _box(Vector3(0.198, 0.010, 0.020)), kit.plate_dark,
+			Vector3(0.0, 0.208, -0.160))
 	# наносник
-	_add(head, _box(Vector3(0.026, 0.155, 0.030)), kit.plate_dark, Vector3(0.0, 0.135, -0.152))
-	_add(head, _sphere(0.021, 10, 6), kit.plate_dark, Vector3(0.0, 0.058, -0.150),
-			Vector3.ZERO, Vector3(1.0, 0.8, 0.8))
-	# щёчные пластины
+	_add(head, _box(Vector3(0.028, 0.172, 0.032)), kit.plate,
+			Vector3(0.0, 0.118, -0.170))
+	_add(head, _sphere(0.020, 10, 6), kit.plate_dark, Vector3(0.0, 0.036, -0.163),
+			Vector3.ZERO, Vector3(1.0, 0.85, 0.85))
+	# бровка
+	_add(head, _box(Vector3(0.206, 0.030, 0.026)), kit.plate_dark,
+			Vector3(0.0, 0.212, -0.150), Vector3(0.12, 0.0, 0.0))
+	# заклёпки у бровки и дыхательные отверстия на маске
 	for side in [-1.0, 1.0]:
-		_add(head, _box(Vector3(0.052, 0.115, 0.022)), kit.plate_dark,
-				Vector3(side * 0.094, 0.115, -0.118), Vector3(0.0, side * 0.28, 0.0))
-		# дыры для дыхания
+		_add(head, _sphere(0.0060, 8, 6), kit.iron,
+				Vector3(side * 0.086, 0.225, -0.156))
 		for i in range(3):
-			_add(head, _cyl(0.0055, 0.0055, 0.008, 6), kit.black,
-					Vector3(side * (0.077 - float(i) * 0.012), 0.098 - float(i) * 0.014, -0.146),
+			_add(head, _cyl(0.0045, 0.0045, 0.007, 6), kit.black,
+					Vector3(side * (0.060 - float(i) * 0.010), 0.080 - float(i) * 0.012, -0.154),
 					Vector3(PI * 0.5, 0.0, 0.0))
+	# подбородочная пластина (перекрывает стык маски и койфа)
+	_add(head, _box(Vector3(0.160, 0.060, 0.050)), kit.plate_dark,
+			Vector3(0.0, 0.052, -0.132), Vector3(-0.05, 0.0, 0.0))
 
 	# заклёпки по обручу
 	for i in range(8):
 		var a: float = TAU * float(i) / 8.0
-		_add(head, _sphere(0.0075, 8, 6), kit.iron,
-				Vector3(sin(a) * 0.148, 0.238, -cos(a) * 0.148))
+		_add(head, _sphere(0.007, 8, 6), kit.iron,
+				Vector3(sin(a) * 0.141, 0.240, -cos(a) * 0.141))
 
 	# затылочная пластина
-	_add(head, _box(Vector3(0.20, 0.075, 0.10)), kit.plate_dark,
-			Vector3(0.0, 0.125, 0.115), Vector3(0.35, 0.0, 0.0))
+	_add(head, _box(Vector3(0.195, 0.070, 0.095)), kit.plate_dark,
+			Vector3(0.0, 0.115, 0.112), Vector3(0.32, 0.0, 0.0))
 
 # =========================================================================
 #  Плащ из трёх сегментов
@@ -405,33 +421,39 @@ static func _build_head(head: Node3D, kit: Kit) -> void:
 
 static func _build_cape(torso: Node3D, kit: Kit) -> Array[Node3D]:
 	var segments: Array[Node3D] = []
-	var widths: Array[float] = [0.52, 0.55, 0.51]
-	var lengths: Array[float] = [0.27, 0.28, 0.25]
-	var ragged: Array[float] = [0.0, 0.012, 0.045]
+	var widths: Array[float] = [0.44, 0.50, 0.48]
+	var lengths: Array[float] = [0.25, 0.25, 0.23]
+	var ragged: Array[float] = [0.014, 0.032, 0.055]
 	var parent: Node3D = torso
-	var y_offset: float = 0.375
+	var y_offset: float = 0.372
 	for i in range(3):
 		var seg: Node3D = _pivot(parent, "CapeSeg%d" % (i + 1),
-				Vector3(0.0, y_offset if i == 0 else -lengths[i - 1], 0.128 if i == 0 else 0.0),
-				Vector3(-0.10 if i == 0 else -0.035, 0.0, 0.0))
+				Vector3(0.0, y_offset if i == 0 else -lengths[i - 1], 0.176 if i == 0 else 0.0),
+				Vector3(-0.17 if i == 0 else -0.05, 0.0, 0.0))
 		var top_w: float = widths[i]
-		var bot_w: float = widths[i] + (0.03 if i < 2 else -0.02)
-		var panel: ArrayMesh = _cloth_mesh(top_w, bot_w, lengths[i], 8, 4, 0.055, 0.018, ragged[i])
-		var mi: MeshInstance3D = MeshInstance3D.new()
-		mi.mesh = panel
-		mi.material_override = kit.cloth if i != 1 else kit.cloth_dark
-		seg.add_child(mi)
-		# грубая кромка
-		_add(seg, _box(Vector3(top_w + 0.005, 0.022, 0.024)), kit.cloth_dark,
-				Vector3(0.0, -0.012, -0.012))
+		var bot_w: float = widths[i] + (0.08 if i < 2 else 0.02)
+		# две половины с небольшим расходом внизу — вместо плоского щита
+		for side in [-1.0, 1.0]:
+			var half: Node3D = Node3D.new()
+			half.name = "FoldL" if side < 0.0 else "FoldR"
+			half.position = Vector3(side * top_w * 0.245, 0.0, 0.0)
+			half.rotation = Vector3(0.0, side * 0.06, side * 0.07)
+			seg.add_child(half)
+			var panel: ArrayMesh = _cloth_mesh(top_w * 0.49, bot_w * 0.49, lengths[i],
+					6, 5, 0.075, 0.040, ragged[i], 0.034)
+			var mi: MeshInstance3D = MeshInstance3D.new()
+			mi.mesh = panel
+			mi.material_override = kit.cloth if i != 1 else kit.cloth_dark
+			half.add_child(mi)
+			_add(half, _box(Vector3(bot_w * 0.47, 0.016, 0.020)), kit.cloth_dark,
+					Vector3(0.0, -lengths[i] + 0.012, 0.0))
+		if i == 0:
+			# валик у ворота
+			_add(seg, _cyl(0.027, 0.027, 0.415, 10), kit.cloth_dark,
+					Vector3(0.0, -0.006, 0.010), Vector3(0.0, 0.0, PI * 0.5))
 		segments.append(seg)
 		parent = seg
 		y_offset = 0.0
-	# воротник плаща
-	_add(torso, _cyl(0.16, 0.24, 0.075, 18), kit.cloth, Vector3(0.0, 0.365, 0.105),
-			Vector3(-0.18, 0.0, 0.0))
-	_add(torso, _torus(0.18, 0.215, 20, 7), kit.cloth_dark, Vector3(0.0, 0.355, 0.118),
-			Vector3(PI * 0.5 - 0.18, 0.0, 0.0))
 	return segments
 
 # =========================================================================
@@ -444,14 +466,15 @@ static func _build_arm(torso: Node3D, side: float, is_right: bool, kit: Kit) -> 
 			Vector3(side * 0.225, 0.35, 0.0),
 			Vector3(0.12, 0.03, 0.10) if is_right else Vector3(0.55, -0.03, -0.20))
 
-	# наплечник (двигается с плечом)
-	_add(shoulder, _sphere(0.115, 18, 10), kit.plate, Vector3(side * 0.012, 0.025, 0.0),
-			Vector3(0.0, 0.0, side * 0.12), Vector3(1.14, 0.74, 1.05))
-	_add(shoulder, _box(Vector3(0.185, 0.042, 0.165)), kit.plate_dark,
-			Vector3(side * 0.02, -0.045, 0.0), Vector3(0.0, 0.0, side * 0.16))
-	_add(shoulder, _box(Vector3(0.175, 0.038, 0.15)), kit.plate_dark,
-			Vector3(side * 0.03, -0.088, 0.0), Vector3(0.0, 0.0, side * 0.22))
-	_add(shoulder, _sphere(0.009, 8, 6), kit.iron, Vector3(side * 0.07, 0.10, -0.05))
+	# наплечник: купол + две наклонные ламели
+	_add(shoulder, _sphere(0.106, 18, 10), kit.plate, Vector3(side * 0.006, 0.020, 0.0),
+			Vector3(0.0, 0.0, side * 0.10), Vector3(1.20, 0.72, 1.08))
+	_add(shoulder, _box(Vector3(0.195, 0.046, 0.170)), kit.plate_dark,
+			Vector3(side * 0.014, -0.052, 0.0), Vector3(0.0, 0.0, side * 0.26))
+	_add(shoulder, _box(Vector3(0.180, 0.040, 0.150)), kit.plate_dark,
+			Vector3(side * 0.032, -0.094, 0.0), Vector3(0.0, 0.0, side * 0.38))
+	_add(shoulder, _sphere(0.008, 8, 6), kit.iron, Vector3(side * 0.066, 0.080, -0.050))
+	_add(shoulder, _cyl(0.062, 0.062, 0.022, 14), kit.leather, Vector3(0.0, -0.118, 0.0))
 
 	# плечо
 	_add(shoulder, _capsule(0.058, 0.30, 12), kit.mail, Vector3(0.0, -0.15, 0.0))
@@ -459,7 +482,8 @@ static func _build_arm(torso: Node3D, side: float, is_right: bool, kit: Kit) -> 
 	_add(shoulder, _cyl(0.061, 0.061, 0.024, 14), kit.leather, Vector3(0.0, -0.205, 0.0))
 	_add(shoulder, _sphere(0.062, 12, 8), kit.mail_dark, Vector3(0.0, -0.275, 0.0))
 
-	var elbow: Node3D = _pivot(shoulder, "Elbow" + suffix, Vector3(0.0, -0.30, 0.0))
+	var elbow: Node3D = _pivot(shoulder, "Elbow" + suffix, Vector3(0.0, -0.30, 0.0),
+			Vector3(0.80 if is_right else 0.95, 0.0, 0.0))
 	# наруч / локоть
 	_add(elbow, _sphere(0.072, 14, 8), kit.plate, Vector3(0.0, 0.005, -0.008),
 			Vector3.ZERO, Vector3(1.0, 0.92, 1.05))
@@ -489,7 +513,7 @@ static func _build_arm(torso: Node3D, side: float, is_right: bool, kit: Kit) -> 
 
 static func _build_hand(wrist: Node3D, side: float, kit: Kit) -> void:
 	# ладонь
-	_add(wrist, _box(Vector3(0.072, 0.088, 0.046)), kit.leather_dark, Vector3(0.0, -0.036, 0.036))
+	_add(wrist, _box(Vector3(0.078, 0.092, 0.050)), kit.leather_dark, Vector3(0.0, -0.036, 0.036))
 	# накладка на тыльную сторону кисти
 	_add(wrist, _box(Vector3(0.014, 0.072, 0.05)), kit.plate_dark,
 			Vector3(side * 0.042, -0.032, 0.012))
@@ -498,7 +522,7 @@ static func _build_hand(wrist: Node3D, side: float, kit: Kit) -> void:
 	# пальцы, обхватывающие рукоять (рукоять проходит по локальной Y)
 	for i in range(4):
 		var y: float = -0.069 + float(i) * 0.0225
-		_add(wrist, _box(Vector3(0.056, 0.019, 0.036)), kit.plate_dark,
+		_add(wrist, _box(Vector3(0.060, 0.020, 0.038)), kit.plate_dark,
 				Vector3(0.0, y, -0.023), Vector3(-0.10, 0.0, 0.0))
 		_add(wrist, _box(Vector3(0.052, 0.006, 0.014)), kit.leather_dark,
 				Vector3(0.0, y - 0.009, -0.038))
@@ -516,7 +540,7 @@ static func _build_sword(wrist: Node3D, kit: Kit) -> Dictionary:
 	var pivot: Node3D = _pivot(wrist, "SwordPivot", Vector3(0.0, -0.035, 0.0))
 
 	# клинок с долом: геометрия генерируется кодом
-	var blade_mesh: ArrayMesh = _blade_mesh(0.80, 0.029, 0.0065)
+	var blade_mesh: ArrayMesh = _blade_mesh(0.755, 0.034, 0.0068)
 	var blade: MeshInstance3D = MeshInstance3D.new()
 	blade.mesh = blade_mesh
 	blade.material_override = kit.blade
@@ -525,11 +549,11 @@ static func _build_sword(wrist: Node3D, kit: Kit) -> Dictionary:
 	pivot.add_child(blade)
 
 	# крестовина
-	_add(pivot, _box(Vector3(0.215, 0.028, 0.036)), kit.steel, Vector3(0.0, -0.072, 0.0))
+	_add(pivot, _box(Vector3(0.226, 0.028, 0.036)), kit.steel, Vector3(0.0, -0.072, 0.0))
 	for side in [-1.0, 1.0]:
 		_add(pivot, _box(Vector3(0.045, 0.038, 0.042)), kit.steel,
-				Vector3(side * 0.113, -0.078, 0.0), Vector3(0.0, 0.0, side * 0.45))
-		_add(pivot, _sphere(0.014, 8, 6), kit.steel, Vector3(side * 0.125, -0.09, 0.0))
+				Vector3(side * 0.118, -0.078, 0.0), Vector3(0.0, 0.0, side * 0.45))
+		_add(pivot, _sphere(0.014, 8, 6), kit.steel, Vector3(side * 0.131, -0.09, 0.0))
 
 	# рукоять с обмоткой
 	_add(pivot, _cyl(0.0185, 0.0205, 0.205, 12), kit.leather, Vector3(0.0, 0.035, 0.0))
@@ -607,12 +631,13 @@ static func _build_torch(wrist: Node3D, kit: Kit) -> Dictionary:
 				Vector3(0.0, 0.30 + float(i) * 0.045, 0.0), Vector3(PI * 0.5, 0.0, 0.0))
 	_add(pivot, _cyl(0.028, 0.028, 0.03, 12), kit.iron, Vector3(0.0, 0.505, 0.0))
 	# просмоленная голова
-	_add(pivot, _cyl(0.044, 0.052, 0.10, 12), kit.cloth_dark, Vector3(0.0, 0.565, 0.0))
+	_add(pivot, _cyl(0.036, 0.048, 0.11, 12), kit.cloth_dark, Vector3(0.0, 0.560, 0.0))
 	for i in range(3):
-		_add(pivot, _box(Vector3(0.085, 0.022, 0.02)), kit.cloth_dark,
-				Vector3(0.0, 0.545 + float(i) * 0.022, 0.0),
-				Vector3(0.0, float(i) * 0.7, 0.25 * float(i - 1)))
-	_add(pivot, _cyl(0.03, 0.042, 0.035, 12), kit.iron, Vector3(0.0, 0.515, 0.0))
+		var ang: float = TAU * float(i) / 3.0
+		_add(pivot, _box(Vector3(0.058, 0.020, 0.012)), kit.cloth_dark,
+				Vector3(sin(ang) * 0.012, 0.545 + float(i) * 0.028, cos(ang) * 0.012),
+				Vector3(0.0, ang, 0.18))
+	_add(pivot, _cyl(0.028, 0.040, 0.032, 12), kit.iron, Vector3(0.0, 0.505, 0.0))
 
 	var flame: MeshInstance3D = MeshInstance3D.new()
 	var flame_mesh: SphereMesh = SphereMesh.new()
@@ -672,7 +697,8 @@ static func _build_torch(wrist: Node3D, kit: Kit) -> Dictionary:
 
 ## Полотнище плаща: изогнутая сетка, рваный низ, складки.
 static func _cloth_mesh(top_width: float, bottom_width: float, length: float,
-		cols: int, rows: int, curve: float, wrinkle: float, ragged: float) -> ArrayMesh:
+		cols: int, rows: int, curve: float, wrinkle: float, ragged: float,
+		top_drop: float = 0.0) -> ArrayMesh:
 	var grid: Array[PackedVector3Array] = []
 	for j in range(rows + 1):
 		var v: float = float(j) / float(rows)
@@ -684,6 +710,7 @@ static func _cloth_mesh(top_width: float, bottom_width: float, length: float,
 			var z: float = -curve * (u * 2.0) * (u * 2.0) \
 					+ sin(u * PI * 3.0 + v * 2.2) * wrinkle * v
 			var y: float = -v * length
+			y += (u * 2.0) * (u * 2.0) * top_drop * (1.0 - v)
 			if j == rows and ragged > 0.0:
 				y -= absf(sin(u * PI * 3.5 + 0.7)) * ragged
 			row.append(Vector3(x, y, z))
@@ -935,9 +962,9 @@ class StackAnimator extends Node:
 			},
 			{
 				"t": 0.50,
-				"sh_r": Vector3(0.86, 0.22, -0.04),
+				"sh_r": Vector3(0.55, 0.22, -0.04),
 				"el_r": Vector3(-0.58, 0.0, 0.0),
-				"wr_r": Vector3(-0.40, 0.0, 0.0),
+				"wr_r": Vector3(-0.60, 0.0, 0.0),
 				"sh_l": Vector3(-0.10, 0.0, 0.05),
 				"el_l": Vector3(0.10, 0.0, 0.0),
 				"wr_l": Vector3.ZERO,
@@ -948,9 +975,9 @@ class StackAnimator extends Node:
 			},
 			{
 				"t": 0.63,
-				"sh_r": Vector3(0.96, 0.26, -0.02),
-				"el_r": Vector3(-0.46, 0.0, 0.0),
-				"wr_r": Vector3(-0.26, 0.0, 0.0),
+				"sh_r": Vector3(0.63, 0.26, -0.02),
+				"el_r": Vector3(-0.52, 0.0, 0.0),
+				"wr_r": Vector3(-0.45, 0.0, 0.0),
 				"sh_l": Vector3(-0.06, 0.0, 0.03),
 				"el_l": Vector3(0.06, 0.0, 0.0),
 				"wr_l": Vector3.ZERO,
@@ -1073,7 +1100,7 @@ class StackAnimator extends Node:
 				_apply_attack(t, w)
 
 		# --- факел всегда держим вертикально (кисть компенсирует) ---
-		if _torch != null:
+		if _torch != null and _torch.is_inside_tree():
 			_torch.global_rotation = Vector3(-0.06, 0.0, 0.05)
 
 		# --- плащ ---

@@ -21,6 +21,7 @@ const MOUSE_SENSITIVITY := 0.0024
 const GRAVITY := 18.0
 const INVULN_TIME := 0.30
 const KnightModelScript := preload("res://scripts/knight_model.gd")
+const KnightV2Path := "res://scripts/knight_model_v2.gd"
 const CapeScript := preload("res://scripts/cape.gd")
 
 var max_health := 100.0
@@ -57,6 +58,8 @@ var torch_lit := false
 
 var _torch_time := 0.0
 var _sword_pivot: Node3D
+var _animator: Node
+var _use_v2 := false
 var _torch_flame: Node3D
 var _torch_light: OmniLight3D
 var _torch_particles: CPUParticles3D
@@ -72,7 +75,8 @@ const SWORD_HAND_POS := Vector3(0.30, 1.14, -0.16)
 
 func _ready() -> void:
 	_build_model()
-	_build_cape()
+	if not _use_v2:
+		_build_cape()
 	_build_lock_marker()
 	arm.add_excluded_object(get_rid())
 	arm.rotation.x = -0.14
@@ -105,7 +109,14 @@ func _build_lock_marker() -> void:
 	add_child(_lock_marker)
 
 func _build_model() -> void:
-	var parts := KnightModelScript.build(model)
+	var parts: Dictionary
+	if ResourceLoader.exists(KnightV2Path):
+		var script: Script = load(KnightV2Path)
+		parts = script.build(model)
+		_use_v2 = true
+		_animator = parts.get("animator")
+	else:
+		parts = KnightModelScript.build(model)
 	_sword_pivot = parts["sword_pivot"]
 	_torch_flame = parts["torch_flame"]
 	_torch_light = parts["torch_light"]
@@ -197,6 +208,10 @@ func _physics_process(delta: float) -> void:
 		_update_lock_camera(delta)
 
 	move_and_slide()
+
+	if _use_v2 and _animator and _animator.has_method("set_locomotion"):
+		var planar := Vector2(velocity.x, velocity.z).length()
+		_animator.call("set_locomotion", planar)
 
 	var regen := 12.0 if _roll_timer <= 0.0 and _attack_cd <= 0.0 else 4.0
 	stamina = minf(max_stamina, stamina + regen * delta)
@@ -324,13 +339,16 @@ func _try_attack() -> void:
 	stamina -= ATTACK_COST
 	stamina_changed.emit(stamina, max_stamina)
 	_swing()
-	await get_tree().create_timer(0.16).timeout
+	await get_tree().create_timer(0.42 if _use_v2 else 0.16).timeout
 	if not _dead:
 		_apply_hit()
 
 func _swing() -> void:
-	var pivot := _sword_pivot
+	if _use_v2 and _animator and _animator.has_method("play_attack"):
+		_animator.call("play_attack")
+		return
 
+	var pivot := _sword_pivot
 	var draw := create_tween().set_parallel(true)
 	draw.tween_property(pivot, "position", SWORD_HAND_POS, 0.09)
 	draw.tween_property(pivot, "rotation", Vector3.ZERO, 0.09)

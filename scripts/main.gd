@@ -17,44 +17,52 @@ const TREE_SHADER := """
 shader_type spatial;
 render_mode cull_disabled;
 
-uniform vec3 base_color : source_color = vec3(0.5, 0.5, 0.5);
-uniform float wind = 0.18;
-uniform float rigid = 0.0;
-uniform float rough = 1.0;
 uniform sampler2D bark_tex : source_color, filter_linear_mipmap, repeat_enable;
-uniform float use_bark = 0.0;
+uniform sampler2D leaf_tex : source_color, filter_linear_mipmap, repeat_disable;
+uniform float wind = 0.22;
 
 global uniform vec3 player_pos;
 
+varying float v_height;
+varying float v_leaf;
 varying vec3 v_world;
 
 void vertex() {
+	v_height = UV2.x;
+	v_leaf = UV2.y;
 	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	v_world = world;
+
 	float phase = world.x * 0.22 + world.z * 0.19;
-	float gust = 0.65 + 0.35 * sin(TIME * 0.33 + world.x * 0.02);
+	float gust = 0.62 + 0.38 * sin(TIME * 0.33 + world.x * 0.02);
 	float sway = (sin(TIME * 0.9 + phase) + 0.4 * sin(TIME * 2.3 + phase * 1.7)) * gust;
-	float amount = mix(UV.y * UV.y, 1.0, rigid);
-	vec2 offset = vec2(sway, sway * 0.55) * wind * amount;
+	float amount = v_height * v_height;
+	VERTEX.x += sway * wind * amount;
+	VERTEX.z += sway * wind * 0.55 * amount;
 
 	vec3 to_player = world - player_pos;
 	float d = length(to_player.xz);
 	float push = smoothstep(2.8, 0.6, d);
-	offset += normalize(to_player.xz + vec2(0.001)) * push * 0.22 * max(UV.y, 0.3);
-
-	VERTEX.x += offset.x;
-	VERTEX.z += offset.y;
+	vec2 dir = normalize(to_player.xz + vec2(0.001));
+	VERTEX.x += dir.x * push * 0.2 * v_height;
+	VERTEX.z += dir.y * push * 0.2 * v_height;
 }
 
 void fragment() {
-	float variation = 0.86 + 0.14 * sin(v_world.x * 0.7 + v_world.z * 0.6);
-	vec3 albedo = base_color * variation;
-	if (use_bark > 0.5) {
-		albedo *= texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.7;
+	vec3 albedo;
+	if (v_leaf > 0.5) {
+		vec4 c = texture(leaf_tex, UV);
+		if (c.a < 0.35) {
+			discard;
+		}
+		albedo = COLOR.rgb * c.rgb * 2.2;
+	} else {
+		albedo = COLOR.rgb * texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.5;
 	}
-	ALBEDO = albedo;
-	ROUGHNESS = rough;
-	BACKLIGHT = base_color * 0.35;
+	float variation = 0.88 + 0.12 * sin(v_world.x * 0.7 + v_world.z * 0.6);
+	ALBEDO = albedo * variation;
+	ROUGHNESS = 1.0;
+	BACKLIGHT = COLOR.rgb * 0.4;
 }
 """
 
@@ -85,13 +93,14 @@ var _amulet: Node3D
 var _amulet_taken := false
 var _door_open := false
 var _checkpoint := Vector3(2.8, 0.0, 5.4)
+const TreeLibScript := preload("res://scripts/tree_lib.gd")
+const SPECIES := ["birch", "oak", "ash", "cedar", "spruce"]
+
 var _tree_shader: Shader
-var _mat_birch_trunk: ShaderMaterial
-var _mat_birch_leaf: ShaderMaterial
-var _mat_spruce_trunk: ShaderMaterial
-var _mat_spruce_leaf: ShaderMaterial
-var _leaf_transforms: Array[Transform3D] = []
-var _leaf_material: ShaderMaterial
+var _mat_light: ShaderMaterial
+var _mat_dark: ShaderMaterial
+var _tree_variants: Array = []
+var _tree_instances: Array = []
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
 var _dropped_souls := 0
@@ -223,7 +232,7 @@ func _build_environment() -> void:
 	env.ambient_light_energy = 0.6
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.10, 0.11, 0.13)
-	env.fog_density = 0.021
+	env.fog_density = 0.027
 	env.fog_sky_affect = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.glow_enabled = true
@@ -272,32 +281,54 @@ func _create_tree_materials() -> void:
 	_tree_shader = Shader.new()
 	_tree_shader.code = TREE_SHADER
 
-	_mat_birch_trunk = _tree_material(Color(0.72, 0.72, 0.68), 0.0, 0.15)
-	_mat_birch_trunk.set_shader_parameter("use_bark", 1.0)
-	_mat_birch_trunk.set_shader_parameter("bark_tex", load("res://assets/textures/birch_bark.png"))
-	_mat_birch_leaf = _tree_material(Color(0.11, 0.18, 0.08), 1.0, 0.26)
-	_mat_spruce_trunk = _tree_material(Color(0.95, 0.92, 0.88), 0.0, 0.10)
-	_mat_spruce_trunk.set_shader_parameter("use_bark", 1.0)
-	_mat_spruce_trunk.set_shader_parameter("bark_tex", load("res://assets/textures/spruce_bark.png"))
-	_mat_spruce_leaf = _tree_material(Color(0.04, 0.085, 0.05), 1.0, 0.22)
+	var bark_light: Texture2D = null
+	var bark_dark: Texture2D = null
+	var leaf: Texture2D = null
+	if ResourceLoader.exists("res://assets/textures/birch_bark.png"):
+		bark_light = load("res://assets/textures/birch_bark.png")
+	if ResourceLoader.exists("res://assets/textures/spruce_bark.png"):
+		bark_dark = load("res://assets/textures/spruce_bark.png")
+	if ResourceLoader.exists("res://assets/textures/leaf_atlas.png"):
+		leaf = load("res://assets/textures/leaf_atlas.png")
 
-func _tree_material(color: Color, rigid: float, wind_power: float) -> ShaderMaterial:
+	_mat_light = _make_tree_material(bark_light, leaf)
+	_mat_dark = _make_tree_material(bark_dark, leaf)
+
+	for i in SPECIES.size():
+		for v in 2:
+			var mesh := TreeLibScript.build(SPECIES[i], 1000 + i * 17 + v * 5)
+			var material := _mat_dark if SPECIES[i] in ["cedar", "spruce"] else _mat_light
+			_tree_variants.append({"mesh": mesh, "species": SPECIES[i], "material": material})
+			_tree_instances.append([])
+
+func _make_tree_material(bark: Texture2D, leaf: Texture2D) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = _tree_shader
-	mat.set_shader_parameter("base_color", color)
-	mat.set_shader_parameter("rigid", rigid)
-	mat.set_shader_parameter("wind", wind_power)
+	if bark:
+		mat.set_shader_parameter("bark_tex", bark)
+	if leaf:
+		mat.set_shader_parameter("leaf_tex", leaf)
 	return mat
 
-func _build_forest() -> void:
-	var bark := _mat_spruce_trunk
-	var birch_bark := _mat_birch_trunk
-	var needles := _mat_spruce_leaf
-	var leaves := _mat_birch_leaf
+func _pick_species(weights: Dictionary) -> String:
+	var total := 0.0
+	for k in weights:
+		total += float(weights[k])
+	var r := _rng.randf() * total
+	for k in weights:
+		r -= float(weights[k])
+		if r <= 0.0:
+			return k
+	return "birch"
 
+func _species_index(species: String) -> int:
+	return SPECIES.find(species) if SPECIES.has(species) else 0
+
+func _build_forest() -> void:
+	var weights := {"birch": 0.50, "ash": 0.18, "oak": 0.14, "cedar": 0.10, "spruce": 0.08}
 	var placed := 0
 	var attempts := 0
-	while placed < TREE_COUNT and attempts < TREE_COUNT * 6:
+	while placed < TREE_COUNT and attempts < TREE_COUNT * 8:
 		attempts += 1
 		var angle := _rng.randf_range(0.0, TAU)
 		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
@@ -315,84 +346,93 @@ func _build_forest() -> void:
 		if terrain.slope_at(x, z) > 0.55:
 			continue
 
-		var pos := Vector3(x, h, z)
-		if _rng.randf() < 0.6:
-			_birch(pos, birch_bark, leaves)
-		else:
-			_spruce(pos, bark, needles)
+		var species := _pick_species(weights)
+		var variant := _species_index(species) * 2 + (0 if _rng.randf() < 0.5 else 1)
+		var scale := _rng.randf_range(0.85, 1.2)
+		var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(scale, scale, scale))
+		(_tree_instances[variant] as Array).append(Transform3D(basis, Vector3(x, h - 0.1, z)))
+
+		_add_tree_collision_at(Vector3(x, h, z), TreeLibScript.trunk_radius(species), TreeLibScript.height_of(species) * scale)
 		placed += 1
 
-	_build_leaves()
+	_finish_trees()
+	print("[trees] ", placed, " шт, пород: ", SPECIES.size())
 
-func _build_leaves() -> void:
-	if _leaf_transforms.is_empty():
-		return
+func _finish_trees() -> void:
+	for i in _tree_variants.size():
+		var transforms: Array = _tree_instances[i]
+		if transforms.is_empty():
+			continue
+		var variant: Dictionary = _tree_variants[i]
+		var multimesh := MultiMesh.new()
+		multimesh.transform_format = MultiMesh.TRANSFORM_3D
+		multimesh.mesh = variant["mesh"]
+		multimesh.instance_count = transforms.size()
+		for j in transforms.size():
+			multimesh.set_instance_transform(j, transforms[j])
 
-	var quad := QuadMesh.new()
-	quad.size = Vector2(1.3, 1.3)
+		var node := MultiMeshInstance3D.new()
+		node.multimesh = multimesh
+		node.material_override = variant["material"]
+		add_child(node)
 
-	var shader := Shader.new()
-	shader.code = """
-shader_type spatial;
-render_mode cull_disabled, depth_prepass_alpha;
+func _add_tree_collision_at(pos: Vector3, radius: float, height: float) -> void:
+	var body := StaticBody3D.new()
+	var shape := CollisionShape3D.new()
+	var cyl := CylinderShape3D.new()
+	cyl.radius = radius
+	cyl.height = height
+	shape.shape = cyl
+	shape.position = pos + Vector3(0.0, height * 0.5, 0.0)
+	body.add_child(shape)
+	add_child(body)
 
-uniform sampler2D leaf_tex : source_color, filter_linear_mipmap, repeat_disable;
-uniform vec3 tint : source_color = vec3(0.30, 0.42, 0.16);
-uniform float wind = 0.26;
+func _marker_birch(pos: Vector3) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	root.rotation.y = _rng.randf_range(0.0, TAU)
+	add_child(root)
 
-void vertex() {
-	vec3 world = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	float phase = world.x * 0.22 + world.z * 0.19;
-	float gust = 0.65 + 0.35 * sin(TIME * 0.33 + world.x * 0.02);
-	float sway = (sin(TIME * 0.9 + phase) + 0.4 * sin(TIME * 2.3 + phase * 1.7)) * gust;
-	VERTEX.x += sway * wind;
-	VERTEX.z += sway * wind * 0.55;
-}
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.mesh = TreeLibScript.build("birch", int(absf(pos.x) * 13.0 + absf(pos.z) * 7.0))
+	mesh_instance.material_override = _mat_light
+	root.add_child(mesh_instance)
 
-void fragment() {
-	vec4 c = texture(leaf_tex, UV);
-	if (c.a < 0.35) {
-		discard;
-	}
-	ALBEDO = tint * c.rgb * 1.8;
-	ROUGHNESS = 1.0;
-	BACKLIGHT = tint * 0.6;
-}
-"""
+	var wreath := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.26
+	torus.outer_radius = 0.38
+	torus.rings = 16
+	torus.ring_segments = 8
+	wreath.mesh = torus
+	var wreath_mat := StandardMaterial3D.new()
+	wreath_mat.albedo_color = Color(0.16, 0.20, 0.09)
+	wreath_mat.emission_enabled = true
+	wreath_mat.emission = Color(0.35, 0.10, 0.07)
+	wreath_mat.emission_energy_multiplier = 0.18
+	wreath.material_override = wreath_mat
+	wreath.position = Vector3(0.0, 1.75, 0.0)
+	wreath.rotation.x = PI * 0.5
+	wreath.scale = Vector3(0.85, 0.85, 0.85)
+	root.add_child(wreath)
 
-	_leaf_material = ShaderMaterial.new()
-	_leaf_material.shader = shader
-	if ResourceLoader.exists("res://assets/textures/leaf_atlas.png"):
-		_leaf_material.set_shader_parameter("leaf_tex", load("res://assets/textures/leaf_atlas.png"))
-	else:
-		_leaf_material.set_shader_parameter("leaf_tex", _leaf_texture())
+	var berry_mat := StandardMaterial3D.new()
+	berry_mat.albedo_color = Color(0.55, 0.06, 0.05)
+	berry_mat.emission_enabled = true
+	berry_mat.emission = Color(0.6, 0.05, 0.04)
+	berry_mat.emission_energy_multiplier = 1.2
+	for i in 5:
+		var berry := MeshInstance3D.new()
+		var bm := SphereMesh.new()
+		bm.radius = 0.045
+		bm.height = 0.09
+		berry.mesh = bm
+		berry.material_override = berry_mat
+		var a := TAU * float(i) / 5.0
+		berry.position = Vector3(cos(a) * 0.32, 1.75, sin(a) * 0.32)
+		root.add_child(berry)
 
-	var multimesh := MultiMesh.new()
-	multimesh.transform_format = MultiMesh.TRANSFORM_3D
-	multimesh.mesh = quad
-	multimesh.instance_count = _leaf_transforms.size()
-	for i in _leaf_transforms.size():
-		multimesh.set_instance_transform(i, _leaf_transforms[i])
-
-	var node := MultiMeshInstance3D.new()
-	node.multimesh = multimesh
-	node.material_override = _leaf_material
-	node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(node)
-	print("[leaves] clusters: ", _leaf_transforms.size())
-
-func _leaf_texture() -> ImageTexture:
-	var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
-	for y in 64:
-		for x in 64:
-			var uv := Vector2(float(x) / 63.0, float(y) / 63.0) * 2.0 - Vector2.ONE
-			var d := uv.length()
-			var a := 1.0 - smoothstep(0.45, 1.0, d)
-			a *= 0.55 + 0.45 * sin(uv.x * 9.0 + uv.y * 7.0)
-			a = clampf(a, 0.0, 1.0)
-			var shade := 0.75 + 0.25 * sin(uv.y * 5.0)
-			img.set_pixel(x, y, Color(shade, shade, shade, a))
-	return ImageTexture.create_from_image(img)
+	_add_tree_collision(root, 0.24, 7.0)
 
 func _near_path(x: float, z: float, radius: float) -> bool:
 	var step := 2
@@ -401,86 +441,6 @@ func _near_path(x: float, z: float, radius: float) -> bool:
 		if Vector2(p.x - x, p.z - z).length() < radius:
 			return true
 	return false
-
-func _birch(pos: Vector3, bark_mat: Material, leaf_mat: Material) -> void:
-	var yaw := _rng.randf_range(0.0, TAU)
-	var root := Node3D.new()
-	root.position = pos
-	root.rotation.y = yaw
-	add_child(root)
-
-	var h := _rng.randf_range(5.0, 8.0)
-	var trunk := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.07
-	cyl.bottom_radius = 0.16
-	cyl.height = h
-	trunk.mesh = cyl
-	trunk.position.y = h * 0.5
-	trunk.material_override = bark_mat
-	root.add_child(trunk)
-
-	var basis := Basis(Vector3.UP, yaw)
-	var levels: Array[float] = [0.52, 0.66, 0.8, 0.92]
-	for level in levels:
-		var branch_count: int = 2 if level < 0.8 else 1
-		for b in branch_count:
-			var angle := _rng.randf_range(0.0, TAU)
-			var branch_len := _rng.randf_range(1.1, 1.9)
-			var y := h * level
-			var dir := Vector3(cos(angle), _rng.randf_range(0.25, 0.6), sin(angle)).normalized()
-
-			var branch := MeshInstance3D.new()
-			var bm := CylinderMesh.new()
-			bm.top_radius = 0.025
-			bm.bottom_radius = 0.06
-			bm.height = branch_len
-			branch.mesh = bm
-			branch.material_override = bark_mat
-			var mid := dir * (branch_len * 0.5)
-			branch.position = Vector3(0.0, y, 0.0) + mid
-			branch.quaternion = Quaternion(Vector3.UP, dir)
-			root.add_child(branch)
-
-			var tip := Vector3(0.0, y, 0.0) + dir * branch_len
-			for c in 3:
-				var offset := Vector3(_rng.randf_range(-0.4, 0.4), _rng.randf_range(-0.25, 0.25), _rng.randf_range(-0.4, 0.4))
-				var world_tip := pos + basis * (tip + offset)
-				var rot := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)) * Basis(Vector3.RIGHT, _rng.randf_range(-0.5, 0.5))
-				var scale := _rng.randf_range(0.55, 1.0)
-				_leaf_transforms.append(Transform3D(rot.scaled(Vector3(scale, scale, scale)), world_tip))
-
-	_add_tree_collision(root, 0.3, h)
-
-func _spruce(pos: Vector3, bark_mat: Material, needle_mat: Material) -> void:
-	var root := Node3D.new()
-	root.position = pos
-	root.rotation.y = _rng.randf_range(0.0, TAU)
-	add_child(root)
-
-	var h := _rng.randf_range(6.0, 10.0)
-	var trunk := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.08
-	cyl.bottom_radius = 0.2
-	cyl.height = h
-	trunk.mesh = cyl
-	trunk.position.y = h * 0.5
-	trunk.material_override = bark_mat
-	root.add_child(trunk)
-
-	for tier in 3:
-		var cone := MeshInstance3D.new()
-		var cone_mesh := CylinderMesh.new()
-		cone_mesh.top_radius = 0.0
-		cone_mesh.bottom_radius = 2.2 - float(tier) * 0.55
-		cone_mesh.height = 3.0
-		cone.mesh = cone_mesh
-		cone.position.y = h * 0.55 + float(tier) * 1.5
-		cone.material_override = needle_mat
-		root.add_child(cone)
-
-	_add_tree_collision(root, 0.34, h)
 
 func _add_tree_collision(parent: Node3D, radius: float, height: float) -> void:
 	var body := StaticBody3D.new()
@@ -605,70 +565,6 @@ func _build_path() -> void:
 			if Vector2(pos.x - HUT_POS.x, pos.z - HUT_POS.z).length() < 9.0:
 				continue
 			_marker_birch(pos)
-
-func _marker_birch(pos: Vector3) -> void:
-	var root := Node3D.new()
-	root.position = pos
-	root.rotation.y = _rng.randf_range(0.0, TAU)
-	add_child(root)
-
-	var bark := _mat_birch_trunk
-
-	var h := _rng.randf_range(4.4, 5.2)
-	var trunk := MeshInstance3D.new()
-	var cyl := CylinderMesh.new()
-	cyl.top_radius = 0.07
-	cyl.bottom_radius = 0.14
-	cyl.height = h
-	trunk.mesh = cyl
-	trunk.position.y = h * 0.5
-	trunk.material_override = bark
-	root.add_child(trunk)
-
-	var crown := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 1.15
-	sphere.height = 2.3
-	crown.mesh = sphere
-	crown.position.y = h + 0.35
-	crown.material_override = _mat_birch_leaf
-	root.add_child(crown)
-
-	var wreath := MeshInstance3D.new()
-	var torus := TorusMesh.new()
-	torus.inner_radius = 0.26
-	torus.outer_radius = 0.38
-	torus.rings = 16
-	torus.ring_segments = 8
-	wreath.mesh = torus
-	var wreath_mat := StandardMaterial3D.new()
-	wreath_mat.albedo_color = Color(0.16, 0.20, 0.09)
-	wreath_mat.emission_enabled = true
-	wreath_mat.emission = Color(0.35, 0.10, 0.07)
-	wreath_mat.emission_energy_multiplier = 0.18
-	wreath.material_override = wreath_mat
-	wreath.position = Vector3(0.0, 1.75, 0.0)
-	wreath.rotation.x = PI * 0.5
-	wreath.scale = Vector3(0.85, 0.85, 0.85)
-	root.add_child(wreath)
-
-	var berry_mat := StandardMaterial3D.new()
-	berry_mat.albedo_color = Color(0.55, 0.06, 0.05)
-	berry_mat.emission_enabled = true
-	berry_mat.emission = Color(0.6, 0.05, 0.04)
-	berry_mat.emission_energy_multiplier = 1.2
-	for i in 5:
-		var berry := MeshInstance3D.new()
-		var bm := SphereMesh.new()
-		bm.radius = 0.045
-		bm.height = 0.09
-		berry.mesh = bm
-		berry.material_override = berry_mat
-		var a := TAU * float(i) / 5.0
-		berry.position = Vector3(cos(a) * 0.32, 1.75, sin(a) * 0.32)
-		root.add_child(berry)
-
-	_add_tree_collision(root, 0.22, h)
 
 func _build_hut() -> void:
 	var pos := Vector3(HUT_POS.x, terrain.height_at(HUT_POS.x, HUT_POS.z), HUT_POS.z)
