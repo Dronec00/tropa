@@ -65,6 +65,7 @@ var _parry_timer := 0.0
 var _combo_index := 0
 var _combo_window := 0.0
 var _current_damage := 34.0
+var _one_handed := false
 var _torch_flame: Node3D
 var _torch_light: OmniLight3D
 var _torch_particles: CPUParticles3D
@@ -153,6 +154,9 @@ func toggle_torch() -> void:
 
 func _set_torch(on: bool) -> void:
 	torch_lit = on
+	_one_handed = on
+	if _use_v2 and _animator and _animator.has_method("set_two_handed"):
+		_animator.call("set_two_handed", not on)
 	_torch_flame.visible = on
 	_torch_particles.emitting = on
 	_torch_light.visible = on
@@ -353,7 +357,8 @@ func _try_attack() -> void:
 		return
 	_combo_index = ((_combo_index % 3) + 1) if _combo_window > 0.0 else 1
 	_combo_window = 0.8
-	_current_damage = ATTACK_DAMAGE * (1.35 if _combo_index == 3 else 1.0) + damage_bonus
+	var hand_mult := 0.72 if torch_lit else 1.0
+	_current_damage = (ATTACK_DAMAGE * (1.35 if _combo_index == 3 else 1.0) + damage_bonus) * hand_mult
 	_attack_cd = ATTACK_COOLDOWN
 	stamina -= ATTACK_COST
 	stamina_changed.emit(stamina, max_stamina)

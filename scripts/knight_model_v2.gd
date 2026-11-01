@@ -868,6 +868,7 @@ class StackAnimator extends Node:
 	var _ik_ready: bool = false
 	var _ankle_offset: float = 0.10
 	var _block: bool = false
+	var _two_handed: bool = true
 
 	func setup(rig: Dictionary) -> void:
 		_hips = rig.get("hips") as Node3D
@@ -928,10 +929,13 @@ class StackAnimator extends Node:
 		_attacking = true
 		_attack_time = 0.0
 		_mirror = variant == 2
-		_frames = _frames_thrust if variant == 1 else _frames_chop
+		_frames = _frames_chop
 
 	func set_block(active: bool) -> void:
 		_block = active
+
+	func set_two_handed(active: bool) -> void:
+		_two_handed = active
 
 	func _foot_hit(pos: Vector3) -> Dictionary:
 		if _hips == null:
@@ -1284,6 +1288,13 @@ class StackAnimator extends Node:
 					(ATTACK_LENGTH - _attack_time) / 0.10), 0.0, 1.0)
 			if w > 0.001:
 				_apply_attack(t, w)
+
+		# --- двуручный хват: левая рука на рукояти ---
+		if _two_handed and not _block and not _attacking:
+			_shoulder_l.rotation = _shoulder_l.rotation.lerp(
+				_rv("sh_l") + Vector3(-0.62, 0.42, 0.30), 0.18)
+			_elbow_l.rotation = _elbow_l.rotation.lerp(
+				_rv("el_l") + Vector3(-1.30, 0.0, 0.0), 0.18)
 
 		# --- стойка блока ---
 		if _block and not _attacking:

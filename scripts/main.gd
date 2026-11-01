@@ -8,7 +8,7 @@ const GrassScript := preload("res://scripts/grass.gd")
 const WindScript := preload("res://scripts/wind.gd")
 const HutScript := preload("res://scripts/hut.gd")
 
-const TREE_COUNT := 300
+const TREE_COUNT := 380
 const WORLD_LIMIT := 92.0
 const WORLD_EDGE := 82.0
 const HUT_POS := Vector3(-34.0, 0.0, -52.0)
@@ -236,7 +236,7 @@ func _build_environment() -> void:
 	env.ambient_light_energy = 0.6
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.10, 0.11, 0.13)
-	env.fog_density = 0.027
+	env.fog_density = 0.034
 	env.fog_sky_affect = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
 	env.glow_enabled = true
@@ -277,7 +277,7 @@ func _build_terrain() -> void:
 	var grass = GrassScript.new()
 	grass.name = "Grass"
 	add_child(grass)
-	grass.populate(terrain, 32000, 44.0)
+	grass.populate(terrain, 42000, 46.0)
 
 # --- лес ---
 
@@ -400,7 +400,7 @@ func _build_undergrowth() -> void:
 	var bush_meshes: Array = [TreeLibScript.build("bush", 501), TreeLibScript.build("bush", 733)]
 	var bush_lists: Array = [[], []]
 	var attempts := 0
-	while bush_lists[0].size() + bush_lists[1].size() < 260 and attempts < 6000:
+	while bush_lists[0].size() + bush_lists[1].size() < 420 and attempts < 9000:
 		attempts += 1
 		var angle := _rng.randf_range(0.0, TAU)
 		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
@@ -475,7 +475,7 @@ func _build_rocks() -> void:
 			_add_rock(transforms, p.x + k * _rng.randf_range(2.0, 3.6), p.z)
 
 	# просто по лесу
-	for i in 70:
+	for i in 150:
 		var angle := _rng.randf_range(0.0, TAU)
 		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
 		_add_rock(transforms, cos(angle) * dist, sin(angle) * dist)

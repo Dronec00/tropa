@@ -192,8 +192,8 @@ static func _deciduous(b: Builder, rng: RandomNumberGenerator, trunks: int) -> v
 			var dir := Vector3(cos(a), rng.randf_range(-0.15, 0.25), sin(a)).normalized()
 			var tip := base + dir * branch_len
 			b.tube(base, tip, 0.05, 0.013, 4, BARK_BIRCH)
-			for c in 8:
-				var along := rng.randf_range(0.2, 1.1)
+			for c in 10:
+				var along := rng.randf_range(0.15, 1.15)
 				var cp := base + dir * branch_len * along \
 					+ Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(-0.35, 0.45), rng.randf_range(-0.6, 0.6))
 				b.card(cp, rng.randf_range(1.1, 1.7), rng.randf() * TAU, rng.randf_range(-0.5, 0.5), LEAF_BIRCH)

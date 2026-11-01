@@ -162,7 +162,7 @@ func _gen_leaf_atlas() -> void:
 	var size := 256
 	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
 
-	for i in 74:
+	for i in 96:
 		var cx := _rng.randf_range(0.15, 0.85) * size
 		var cy := _rng.randf_range(0.15, 0.85) * size
 		var len := _rng.randf_range(11.0, 21.0)
