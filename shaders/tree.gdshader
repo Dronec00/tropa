@@ -42,8 +42,7 @@ void fragment() {
 		vec4 c = texture(leaf_tex, UV);
 		albedo = COLOR.rgb * c.rgb * 2.2;
 		ALPHA = c.a;
-		ALPHA_SCISSOR_THRESHOLD = 0.22;
-		ALPHA_ANTIALIASING_EDGE = 0.18;
+		ALPHA_SCISSOR_THRESHOLD = 0.30;
 	} else {
 		ALPHA = 1.0;
 		albedo = COLOR.rgb * texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.1;
