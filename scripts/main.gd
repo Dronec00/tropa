@@ -238,6 +238,16 @@ func _build_environment() -> void:
 	env.adjustment_contrast = 1.18
 	env.adjustment_brightness = 0.96
 
+	# SDFGI: мягкий отражённый свет. Энергию держим низкой, иначе ночь пересвечивает.
+	env.sdfgi_enabled = true
+	env.sdfgi_cascades = 2
+	env.sdfgi_min_cell_size = 0.15
+	env.sdfgi_energy = 0.22
+	env.sdfgi_use_occlusion = true
+	env.sdfgi_read_sky_light = false
+	env.sdfgi_bounce_feedback = 0.6
+	env.sdfgi_y_scale = Environment.SDFGI_Y_SCALE_50_PERCENT
+
 	_env = env
 	var world_env := WorldEnvironment.new()
 	world_env.environment = env
