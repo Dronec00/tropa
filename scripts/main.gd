@@ -324,11 +324,22 @@ func _pick_species(weights: Dictionary) -> String:
 func _species_index(species: String) -> int:
 	return SPECIES.find(species) if SPECIES.has(species) else 0
 
+func _habitat_weights(h: float, stream_d: float) -> Dictionary:
+	if h < 2.6 or stream_d < 9.0:
+		return {"birch": 0.62, "ash": 0.22, "oak": 0.10, "cedar": 0.03, "spruce": 0.03}
+	if h > 6.0:
+		return {"birch": 0.20, "ash": 0.13, "oak": 0.15, "cedar": 0.26, "spruce": 0.26}
+	return {"birch": 0.44, "ash": 0.18, "oak": 0.16, "cedar": 0.12, "spruce": 0.10}
+
 func _build_forest() -> void:
-	var weights := {"birch": 0.50, "ash": 0.18, "oak": 0.14, "cedar": 0.10, "spruce": 0.08}
+	var density := FastNoiseLite.new()
+	density.seed = 77
+	density.frequency = 0.02
+	density.fractal_octaves = 3
+
 	var placed := 0
 	var attempts := 0
-	while placed < TREE_COUNT and attempts < TREE_COUNT * 8:
+	while placed < TREE_COUNT and attempts < TREE_COUNT * 14:
 		attempts += 1
 		var angle := _rng.randf_range(0.0, TAU)
 		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
@@ -340,13 +351,20 @@ func _build_forest() -> void:
 			continue
 		if _near_path(x, z, 4.5):
 			continue
+		if terrain.is_water(x, z):
+			continue
+		var stream_d: float = terrain.stream_distance(x, z)
+		if stream_d < 3.0:
+			continue
+		if density.get_noise_2d(x, z) * 0.5 + 0.5 < 0.42:
+			continue
 		var h: float = terrain.height_at(x, z)
 		if h < TerrainScript.WATER_LEVEL + 1.2:
 			continue
 		if terrain.slope_at(x, z) > 0.55:
 			continue
 
-		var species := _pick_species(weights)
+		var species := _pick_species(_habitat_weights(h, stream_d))
 		var variant := _species_index(species) * 2 + (0 if _rng.randf() < 0.5 else 1)
 		var scale := _rng.randf_range(0.85, 1.2)
 		var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(scale, scale, scale))

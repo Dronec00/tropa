@@ -11,6 +11,17 @@ const STEP := 1.0
 const GRID := 201
 
 const WATER_LEVEL := -1.7
+
+var STREAMS := [
+	PackedVector2Array([
+		Vector2(-30, -70), Vector2(-18, -48), Vector2(-4, -28),
+		Vector2(10, -12), Vector2(24, -2), Vector2(33, 3),
+	]),
+	PackedVector2Array([
+		Vector2(-55, -8), Vector2(-38, -2), Vector2(-20, 8),
+		Vector2(-2, 18), Vector2(16, 28), Vector2(31, 37), Vector2(38, 41),
+	]),
+]
 const RIVER_BED := -4.2
 
 const WATER_SHADER := """
@@ -55,6 +66,7 @@ func _ready() -> void:
 	_generate_heights()
 	_build_mesh()
 	_build_water()
+	_build_streams()
 
 # --- высоты ---
 
@@ -73,6 +85,11 @@ func _raw_height(x: float, z: float) -> float:
 	# поляна у костра — ровная
 	var dist := Vector2(x, z).length()
 	h = lerpf(h, 0.0, 1.0 - smoothstep(7.0, 15.0, dist))
+
+	# ручьи: неглубокие промоины
+	var sd := stream_distance(x, z)
+	if sd < 5.0:
+		h -= (1.0 - smoothstep(1.1, 4.5, sd)) * 1.3
 
 	# русло реки
 	var influence := river_influence(x, z)
@@ -104,6 +121,18 @@ func height_at(x: float, z: float) -> float:
 	var h01 := _heights[(j + 1) * GRID + i]
 	var h11 := _heights[(j + 1) * GRID + i + 1]
 	return lerpf(lerpf(h00, h10, tx), lerpf(h01, h11, tx), tz)
+
+func stream_distance(x: float, z: float) -> float:
+	var p := Vector2(x, z)
+	var best := 999.0
+	for stream in STREAMS:
+		for i in stream.size() - 1:
+			var a: Vector2 = stream[i]
+			var b: Vector2 = stream[i + 1]
+			var ab := b - a
+			var t := clampf((p - a).dot(ab) / maxf(ab.length_squared(), 0.0001), 0.0, 1.0)
+			best = minf(best, p.distance_to(a + ab * t))
+	return best
 
 func is_water(x: float, z: float) -> bool:
 	if absf(x - river_center(z)) > 16.0:
@@ -258,6 +287,82 @@ func _build_water() -> void:
 	water.material_override = material
 	water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(water)
+
+func _build_streams() -> void:
+	var shader := Shader.new()
+	shader.code = WATER_SHADER
+	var material := ShaderMaterial.new()
+	material.shader = shader
+	material.set_shader_parameter("ripple", _make_ripple_texture())
+	material.set_shader_parameter("shallow_color", Color(0.17, 0.23, 0.23, 1.0))
+	material.set_shader_parameter("deep_color", Color(0.03, 0.07, 0.08, 1.0))
+	material.set_shader_parameter("flow", 0.09)
+
+	for stream in STREAMS:
+		var samples := _resample(stream, 1.6)
+		if samples.size() < 2:
+			continue
+		var verts := PackedVector3Array()
+		var uvs := PackedVector2Array()
+		var indices := PackedInt32Array()
+		var half := 1.25
+
+		for i in samples.size():
+			var p: Vector2 = samples[i]
+			var prev: Vector2 = samples[maxi(i - 1, 0)]
+			var next: Vector2 = samples[mini(i + 1, samples.size() - 1)]
+			var dir := (next - prev).normalized()
+			var side := Vector2(-dir.y, dir.x)
+			var y := height_at(p.x, p.y) + 0.5
+			verts.append(Vector3(p.x + side.x * half, y, p.y + side.y * half))
+			verts.append(Vector3(p.x - side.x * half, y, p.y - side.y * half))
+			uvs.append(Vector2(0.0, float(i) * 0.3))
+			uvs.append(Vector2(1.0, float(i) * 0.3))
+
+			if i > 0:
+				var a := (i - 1) * 2
+				var b := a + 1
+				var c := i * 2
+				var d := c + 1
+				indices.append(a)
+				indices.append(c)
+				indices.append(b)
+				indices.append(b)
+				indices.append(c)
+				indices.append(d)
+
+		if indices.is_empty():
+			continue
+		var arrays := []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = verts
+		arrays[Mesh.ARRAY_TEX_UV] = uvs
+		arrays[Mesh.ARRAY_INDEX] = indices
+
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+
+		var water := MeshInstance3D.new()
+		water.mesh = mesh
+		water.material_override = material
+		water.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(water)
+
+func _resample(points: PackedVector2Array, step: float) -> Array[Vector2]:
+	var result: Array[Vector2] = []
+	if points.size() < 2:
+		return result
+	var acc := 0.0
+	result.append(points[0])
+	for i in points.size() - 1:
+		var a := points[i]
+		var b := points[i + 1]
+		var seg := a.distance_to(b)
+		var t := step
+		while t < seg:
+			result.append(a.lerp(b, t / seg))
+			t += step
+	return result
 
 func _make_ripple_texture() -> NoiseTexture2D:
 	var noise := FastNoiseLite.new()
