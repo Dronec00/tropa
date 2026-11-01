@@ -262,7 +262,7 @@ func _build_terrain() -> void:
 	var grass = GrassScript.new()
 	grass.name = "Grass"
 	add_child(grass)
-	grass.populate(terrain, 52000, 40.0)
+	grass.populate(terrain, 120000, 46.0)
 
 # --- лес ---
 

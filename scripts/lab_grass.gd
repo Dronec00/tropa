@@ -84,7 +84,7 @@ func _build_ground() -> void:
 func _build_grass() -> void:
 	var grass := GrassField.new()
 	add_child(grass)
-	grass.populate(FlatGround.new(), 60000, 46.0)
+	grass.populate(FlatGround.new(), 100000, 46.0)
 
 func _build_camera() -> void:
 	_cam = Camera3D.new()
