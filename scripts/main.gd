@@ -1158,10 +1158,10 @@ func _build_stream_fog() -> void:
 				var ground: float = terrain.height_at(p.x, p.y)
 				var volume := FogVolume.new()
 				volume.shape = RenderingServer.FOG_VOLUME_SHAPE_BOX
-				volume.extents = Vector3(11.0, 4.5, 11.0)
+				volume.extents = Vector3(8.0, 3.5, 8.0)
 				var vm := mat.duplicate() as ShaderMaterial
 				vm.set_shader_parameter("base_height", ground)
-				vm.set_shader_parameter("density", 0.13)
+				vm.set_shader_parameter("density", 0.07)
 				volume.material = vm
 				volume.position = Vector3(p.x, ground + 3.6, p.y)
 				add_child(volume)
