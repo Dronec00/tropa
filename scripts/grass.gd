@@ -1,18 +1,20 @@
 class_name GrassField
 extends MultiMeshInstance3D
 
-## Трава на MultiMesh: один меш-лепесток, тысячи инстансов, ветер в шейдере.
+## Трава из пучков: три скрещённые плоскости с текстурой пучка.
+## Инстансы разбиты на чанки, дальние отсекаются по расстоянию.
 
 const TerrainScript := preload("res://scripts/terrain.gd")
+const GrassShader := preload("res://shaders/grass.gdshader")
+const TuftPath := "res://assets/textures/grass_tuft.png"
 
-const GRASS_SHADER := preload("res://shaders/grass.gdshader")
+func populate(terrain: Node3D, amount: int = 40000, radius: float = 42.0) -> void:
+	var tuft_mesh := _make_tuft_mesh()
 
-func populate(terrain: Node3D, amount: int = 12000, radius: float = 55.0) -> void:
-	var blade := _make_blade_mesh()
-
-	var shader: Shader = GRASS_SHADER
 	var material := ShaderMaterial.new()
-	material.shader = shader
+	material.shader = GrassShader
+	if ResourceLoader.exists(TuftPath):
+		material.set_shader_parameter("tuft", load(TuftPath))
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 1907
@@ -37,21 +39,21 @@ func populate(terrain: Node3D, amount: int = 12000, radius: float = 55.0) -> voi
 
 		var basis := Basis(Vector3.UP, rng.randf() * TAU)
 		basis = basis.scaled(Vector3(
-			rng.randf_range(0.6, 1.0),
-			rng.randf_range(0.16, 0.38),
-			rng.randf_range(0.6, 1.0)
+			rng.randf_range(0.75, 1.25),
+			rng.randf_range(0.30, 0.62),
+			rng.randf_range(0.75, 1.25)
 		))
 		var key := Vector2i(int(floor(x / chunk_size)), int(floor(z / chunk_size)))
 		if not chunks.has(key):
 			chunks[key] = []
-		(chunks[key] as Array).append(Transform3D(basis, Vector3(x, h - 0.05, z)))
+		(chunks[key] as Array).append(Transform3D(basis, Vector3(x, h - 0.03, z)))
 		placed += 1
 
 	for key in chunks:
 		var transforms: Array = chunks[key]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.mesh = blade
+		mm.mesh = tuft_mesh
 		mm.instance_count = transforms.size()
 		for i in transforms.size():
 			mm.set_instance_transform(i, transforms[i])
@@ -64,37 +66,38 @@ func populate(terrain: Node3D, amount: int = 12000, radius: float = 55.0) -> voi
 		add_child(node)
 
 	multimesh = null
-	print("[grass] blades: ", placed, " chunks: ", chunks.size())
+	print("[grass] tufts: ", placed, " chunks: ", chunks.size())
 
-func _make_blade_mesh() -> ArrayMesh:
+func _make_tuft_mesh() -> ArrayMesh:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
 
-	var half_w := 0.028
-	var tip_w := 0.004
+	var half_w := 0.55
 
-	# два скрещённых лепестка
-	for axis in 2:
+	for k in 3:
+		var a := PI * float(k) / 3.0
+		var dir := Vector3(cos(a), 0.0, sin(a))
 		var base := verts.size()
-		for side in [-1.0, 1.0]:
-			verts.append(Vector3(side * half_w, 0.0, 0.0) if axis == 0 else Vector3(0.0, 0.0, side * half_w))
-		for side in [-1.0, 1.0]:
-			verts.append(Vector3(side * tip_w, 1.0, 0.0) if axis == 0 else Vector3(0.0, 1.0, side * tip_w))
 
-		for k in 4:
-			normals.append(Vector3.BACK if axis == 0 else Vector3.RIGHT)
+		verts.append(dir * -half_w)
+		verts.append(dir * half_w)
+		verts.append(dir * half_w + Vector3(0.0, 1.0, 0.0))
+		verts.append(dir * -half_w + Vector3(0.0, 1.0, 0.0))
+
+		for i in 4:
+			normals.append(Vector3.UP)
 
 		uvs.append(Vector2(0.0, 0.0))
 		uvs.append(Vector2(1.0, 0.0))
-		uvs.append(Vector2(0.0, 1.0))
 		uvs.append(Vector2(1.0, 1.0))
+		uvs.append(Vector2(0.0, 1.0))
 
 		indices.append(base)
+		indices.append(base + 1)
 		indices.append(base + 2)
-		indices.append(base + 1)
-		indices.append(base + 1)
+		indices.append(base)
 		indices.append(base + 2)
 		indices.append(base + 3)
 

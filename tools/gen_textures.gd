@@ -17,6 +17,7 @@ func _initialize() -> void:
 	_gen_bark("birch", Color(0.80, 0.80, 0.76), Color(0.16, 0.15, 0.14), 0.35, true)
 	_gen_bark("spruce", Color(0.20, 0.15, 0.11), Color(0.05, 0.04, 0.03), 0.65, false)
 	_gen_leaf_atlas()
+	_gen_grass_tuft()
 	print("[tex] готово")
 	quit()
 
@@ -203,3 +204,45 @@ func _gen_leaf_atlas() -> void:
 						img.set_pixel(px, py, Color(tint.r * shade, tint.g * shade, tint.b * shade, alpha))
 
 	img.save_png(OUT + "leaf_atlas.png")
+
+# --- пучок травы: несколько изогнутых стеблей с альфой ---
+
+func _gen_grass_tuft() -> void:
+	var size := 256
+	var img := Image.create(size, size, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+
+	for blade in 12:
+		var base_x := _rng.randf_range(0.10, 0.90) * size
+		var tall := _rng.randf_range(0.55, 1.0)
+		var bend := _rng.randf_range(-0.4, 0.4)
+		var width := _rng.randf_range(4.0, 8.0)
+		var tip_green := _rng.randf_range(0.30, 0.50)
+		var dark := _rng.randf_range(0.10, 0.20)
+
+		var steps := 140
+		for i in steps:
+			var t := float(i) / float(steps)
+			var y := float(size) - t * float(size) * tall
+			var x := base_x + bend * float(size) * 0.32 * t * t
+			var r := width * (1.0 - t * 0.9) * 0.5
+			if r < 0.6:
+				r = 0.6
+			var shade := lerpf(dark, tip_green, t)
+			var col := Color(shade * 0.55, shade, shade * 0.33, 1.0)
+
+			for dy in range(int(-r), int(r) + 1):
+				for dx in range(int(-r), int(r) + 1):
+					var d := sqrt(float(dx * dx + dy * dy))
+					if d > r + 0.5:
+						continue
+					var px := int(x) + dx
+					var py := int(y) + dy
+					if px < 0 or py < 1 or px >= size or py >= size:
+						continue
+					var a := clampf(r - d + 0.5, 0.0, 1.0)
+					var prev := img.get_pixel(px, py)
+					if a > prev.a:
+						img.set_pixel(px, py, Color(col.r, col.g, col.b, a))
+
+	img.save_png(OUT + "grass_tuft.png")
