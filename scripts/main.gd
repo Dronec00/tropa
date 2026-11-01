@@ -232,15 +232,15 @@ func _build_environment() -> void:
 	env.ssr_fade_in = 0.15
 	env.ssr_fade_out = 2.0
 	env.glow_enabled = true
-	env.glow_intensity = 0.95
+	env.glow_intensity = 0.60
 	env.glow_bloom = 0.12
-	env.glow_hdr_threshold = 1.45
+	env.glow_hdr_threshold = 1.15
 	env.glow_hdr_scale = 2.0
-	env.glow_strength = 1.15
+	env.glow_strength = 1.0
 	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
-	env.set("glow_levels/3", 0.6)
-	env.set("glow_levels/4", 1.0)
-	env.set("glow_levels/5", 0.85)
+	env.set("glow_levels/3", 0.4)
+	env.set("glow_levels/4", 0.7)
+	env.set("glow_levels/5", 0.5)
 	env.volumetric_fog_enabled = true
 	env.volumetric_fog_density = 0.014
 	env.volumetric_fog_albedo = Color(0.52, 0.60, 0.74)

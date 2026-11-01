@@ -228,8 +228,8 @@ func _build_camera() -> void:
 	if _kind() == "hut" or _kind() == "bonfire":
 		_cam = Camera3D.new()
 		_cam.fov = 62.0
-		_cam.position = Vector3(0.0, 3.2, 6.5)
-		_pitch = -0.22
+		_cam.position = Vector3(0.0, 1.5, 3.0)
+		_pitch = -0.30
 		_yaw = 0.0
 		_cam.rotation = Vector3(_pitch, _yaw, 0.0)
 		add_child(_cam)
