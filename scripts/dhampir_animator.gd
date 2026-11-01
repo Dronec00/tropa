@@ -36,6 +36,7 @@ var _blink_t := 3.0
 var _blink := 0.0
 
 var _rest: Dictionary = {}
+var _cape_rot: Array[Vector3] = []
 var _keys: Array[String] = [
 	"hips", "torso", "head",
 	"shoulder_r", "elbow_r", "wrist_r",
@@ -51,6 +52,20 @@ func setup(rig: Dictionary) -> void:
 		var node: Node3D = _rig.get(key) as Node3D
 		if node != null:
 			_rest[key] = node.rotation
+	# плащ и волосы: фиксируем позу покоя ОДИН раз. Раньше база бралась из
+	# текущего кадра — угол накапливался, и плащ улетал через голову.
+	var segs: Array = _rig.get("cape", [])
+	for i in range(segs.size()):
+		var seg: Node3D = segs[i] as Node3D
+		_rest["cape_%d" % i] = seg.rotation
+		_cape_rot.append(seg.rotation)
+	var hairs: Array = _rig.get("hair", [])
+	for i in range(hairs.size()):
+		var hair: Node3D = hairs[i] as Node3D
+		_rest["hair_%d" % i] = hair.rotation
+	var hat: Node3D = _rig.get("hat") as Node3D
+	if hat != null:
+		_rest["hat"] = hat.rotation
 	set_process(true)
 
 func set_locomotion(speed: float) -> void:
@@ -98,7 +113,7 @@ func _process(delta: float) -> void:
 
 	_update_blink(delta)
 	_update_sword()
-	_apply_pose()
+	_apply_pose(delta)
 
 func _update_blink(delta: float) -> void:
 	_blink_t -= delta
@@ -147,7 +162,7 @@ func _update_sword() -> void:
 #  Позы
 # =========================================================================
 
-func _apply_pose() -> void:
+func _apply_pose(delta: float) -> void:
 	var p: Dictionary = _base_pose()
 	_add_idle(p)
 	_add_gait(p)
@@ -155,7 +170,7 @@ func _apply_pose() -> void:
 		_block_pose(p)
 	if _attacking:
 		_attack_pose(p)
-	_apply(p)
+	_apply(p, delta)
 
 func _base_pose() -> Dictionary:
 	return {
@@ -304,7 +319,7 @@ func _ease(x: float) -> float:
 
 # =========================================================================
 
-func _apply(p: Dictionary) -> void:
+func _apply(p: Dictionary, delta: float) -> void:
 	var hips: Node3D = _rig.get("hips") as Node3D
 	if hips != null:
 		hips.position.y = _rig.get("hips_y", 1.0) + float(p["hips_y"])
@@ -334,30 +349,51 @@ func _apply(p: Dictionary) -> void:
 	_set_rot("knee_l", "kn_lx", null, null, p)
 	_set_rot("ankle_l", "an_lx", null, null, p)
 
-	# плащ: отстаёт от движения
+	# --- плащ: пружина, ветер и шлейф от движения ---
+	# x < 0 — плащ уходит назад (за спину), x > 0 — вперёд, на тело.
 	var trail: float = clampf(_speed / 6.0, 0.0, 1.0)
-	var gust: float = sin(_t * 1.15) * 0.025 + sin(_t * 2.3 + 1.7) * 0.012
+	var wind_local: Vector3 = Vector3.RIGHT
+	var hips_node: Node3D = _rig.get("hips") as Node3D
+	var model: Node3D = hips_node.get_parent() as Node3D if hips_node != null else null
+	if model != null and Wind.strength > 0.01:
+		wind_local = model.global_transform.basis.inverse() * Wind.direction
+	var wind_amp: float = 0.020 * clampf(Wind.strength, 0.0, 2.0)
 	var segs: Array = _rig.get("cape", [])
 	for i in range(segs.size()):
-		var seg: Node3D = segs[i]
-		var base: Vector3 = _rest.get("cape_%d" % i, seg.rotation)
-		var amp: float = 0.10 + trail * 0.22 + float(i) * 0.05
-		seg.rotation.x = base.x - trail * (0.16 + 0.10 * float(i)) + gust * amp
-		seg.rotation.z = base.z + sin(_t * 0.9 + float(i)) * 0.02 * (1.0 + trail)
+		var seg: Node3D = segs[i] as Node3D
+		var base: Vector3 = _rest.get("cape_%d" % i, Vector3.ZERO)
+		var lag: float = 1.0 - exp(-delta * (3.6 - float(i) * 0.45))
+		var flutter: float = sin(_t * 3.4 + float(i) * 1.1) * (0.008 + 0.010 * trail)
+		var target_x: float = base.x - trail * (0.24 + 0.15 * float(i))
+		target_x += sin(_t * 1.05 + float(i) * 0.8) * wind_amp * (1.0 - trail * 0.45)
+		target_x += flutter
+		var target_z: float = base.z + sin(_t * 0.72 + float(i) * 0.65) * wind_amp * 0.9
+		target_z += wind_local.x * wind_amp * 1.8 * (1.0 + trail * 0.7)
+		target_x = clampf(target_x, -1.12, 0.10)
+		target_z = clampf(target_z, -0.20, 0.20)
+		_cape_rot[i] = _cape_rot[i].lerp(Vector3(target_x, base.y, target_z), lag)
+		seg.rotation = _cape_rot[i]
 
-	# волосы: лёгкое отставание
+	# --- волосы: мягко отстают, но не накапливают угол ---
 	var hairs: Array = _rig.get("hair", [])
 	for i in range(hairs.size()):
-		var hair: Node3D = hairs[i]
-		var base_h: Vector3 = _rest.get("hair_%d" % i, hair.rotation)
-		var h_amp: float = 0.05 + trail * 0.18
-		hair.rotation.x = base_h.x - trail * 0.12 + sin(_t * 1.6 + float(i) * 0.8) * h_amp
-		hair.rotation.z = base_h.z + sin(_t * 0.8 + float(i)) * 0.018
+		var hair: Node3D = hairs[i] as Node3D
+		var base_h: Vector3 = _rest.get("hair_%d" % i, Vector3.ZERO)
+		var h_amp: float = 0.018 + trail * 0.035
+		hair.rotation = Vector3(
+				base_h.x - trail * 0.10 + sin(_t * 1.55 + float(i) * 0.8) * h_amp
+						+ wind_local.z * wind_amp * 0.6,
+				base_h.y,
+				base_h.z + sin(_t * 0.82 + float(i)) * 0.014
+						+ wind_local.x * wind_amp * 1.2)
 
-	# шляпа: чуть отстаёт на бегу
+	# --- шляпа: чуть отстаёт на бегу, база больше не теряется ---
 	var hat: Node3D = _rig.get("hat") as Node3D
 	if hat != null:
-		hat.rotation.x = sin(_t * 1.1) * 0.008 - trail * 0.05
+		var base_hat: Vector3 = _rest.get("hat", Vector3.ZERO)
+		hat.rotation = Vector3(
+				base_hat.x + sin(_t * 1.1) * 0.006 - trail * 0.035,
+				base_hat.y, base_hat.z)
 
 func _set_rot(key: String, rx: String, ry, rz, p: Dictionary) -> void:
 	var node: Node3D = _rig.get(key) as Node3D
