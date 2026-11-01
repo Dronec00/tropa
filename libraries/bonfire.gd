@@ -108,23 +108,28 @@ static func _add_logs(root: Node3D) -> void:
 	char_mat.albedo_color = Color(0.05, 0.045, 0.04)
 	char_mat.roughness = 1.0
 
-	# шалаш: 5 брёвен
-	for i in 5:
-		var a := TAU * float(i) / 5.0 + 0.25
-		var length := 1.15 + float(i % 3) * 0.12
-		var tilt := deg_to_rad(58.0 + float(i % 3) * 4.0)
-		var node := _make_log(bark_mat, cut_mat, char_mat, length, 0.065 + float(i % 2) * 0.012)
-		node.position = Vector3(cos(a) * 0.34, length * 0.5 * cos(tilt) + 0.02, sin(a) * 0.34)
-		node.rotation = Vector3(0.0, -a + PI * 0.5, tilt)
+	# шалаш: 6 брёвен, вершинами в центр
+	for i in 6:
+		var a := TAU * float(i) / 6.0 + 0.25
+		var length := 0.72 + float(i % 3) * 0.08
+		var radius := 0.065 + float(i % 2) * 0.012
+		var node := _make_log(bark_mat, cut_mat, char_mat, length, radius)
+		var base := Vector3(cos(a) * 0.52, 0.012, sin(a) * 0.52)
+		var top := Vector3(cos(a) * 0.12, length * 0.78, sin(a) * 0.12)
+		var dir := (top - base).normalized()
+		var basis := Basis(Quaternion(Vector3.UP, dir))
+		node.transform = Transform3D(basis, base + dir * (length * 0.5))
 		root.add_child(node)
 
-	# 4 бревна плашмя, крест-накрест
+	# 4 бревна плашмя: комлями наружу, торцами к огню
 	for i in 4:
 		var a := 0.4 + float(i) * 1.55
-		var length := 0.95 + float(i % 2) * 0.2
-		var node := _make_log(bark_mat, cut_mat, char_mat, length, 0.055)
-		node.position = Vector3(cos(a) * 0.22, 0.075, sin(a) * 0.22)
-		node.rotation = Vector3(0.0, a + 0.3, PI * 0.5)
+		var length := 0.62 + float(i % 2) * 0.14
+		var node := _make_log(bark_mat, cut_mat, char_mat, length, 0.058)
+		var dir := Vector3(-cos(a), 0.12, -sin(a)).normalized()
+		var base := Vector3(cos(a) * 0.62, 0.05 + float(i) * 0.025, sin(a) * 0.62)
+		var basis := Basis(Quaternion(Vector3.UP, dir))
+		node.transform = Transform3D(basis, base + dir * (length * 0.5))
 		root.add_child(node)
 
 static func _make_log(bark_mat: Material, cut_mat: Material, char_mat: Material, length: float, radius: float) -> Node3D:
@@ -139,7 +144,7 @@ static func _make_log(bark_mat: Material, cut_mat: Material, char_mat: Material,
 		cyl.top_radius = radius * lerpf(1.0, 0.78, t + 0.34)
 		cyl.bottom_radius = radius * lerpf(1.0, 0.78, t)
 		cyl.height = seg_len * 1.02
-		cyl.radial_segments = 9
+		cyl.radial_segments = 14
 		body.mesh = cyl
 		body.material_override = bark_mat
 		body.position.y = -length * 0.5 + seg_len * (float(s) + 0.5)
@@ -152,7 +157,7 @@ static func _make_log(bark_mat: Material, cut_mat: Material, char_mat: Material,
 	burnt_mesh.top_radius = radius * 0.9
 	burnt_mesh.bottom_radius = radius * 1.02
 	burnt_mesh.height = length * 0.34
-	burnt_mesh.radial_segments = 9
+	burnt_mesh.radial_segments = 14
 	burnt.mesh = burnt_mesh
 	burnt.material_override = char_mat
 	burnt.position.y = -length * 0.5 + length * 0.17
@@ -164,7 +169,7 @@ static func _make_log(bark_mat: Material, cut_mat: Material, char_mat: Material,
 	cap_mesh.top_radius = radius * 0.78
 	cap_mesh.bottom_radius = radius * 0.78
 	cap_mesh.height = 0.018
-	cap_mesh.radial_segments = 9
+	cap_mesh.radial_segments = 14
 	cap.mesh = cap_mesh
 	cap.material_override = cut_mat
 	cap.position.y = length * 0.5
@@ -211,11 +216,11 @@ static func _add_flames(root: Node3D) -> Node3D:
 	var flame_tex: Texture2D = load("res://assets/textures/flame_sprite.png")
 
 	# языки пламени
-	var core := _make_fire(flame_tex, 46, 0.42, Vector2(0.13, 0.28), 0.22, 0.48, 8.0, Color(1.0, 0.88, 0.55, 0.95))
+	var core := _make_fire(flame_tex, 42, 0.45, Vector2(0.15, 0.34), 0.22, 0.48, 8.0, Color(1.0, 0.88, 0.55, 0.95))
 	core.position.y = 0.30
 	holder.add_child(core)
 
-	var outer := _make_fire(flame_tex, 34, 0.7, Vector2(0.21, 0.46), 0.2, 0.42, 12.0, Color(1.0, 0.55, 0.18, 0.6))
+	var outer := _make_fire(flame_tex, 30, 0.7, Vector2(0.24, 0.52), 0.2, 0.42, 12.0, Color(1.0, 0.55, 0.18, 0.6))
 	outer.position.y = 0.34
 	holder.add_child(outer)
 
@@ -319,7 +324,6 @@ static func _fire_material(soft: Texture2D, smoke: bool) -> StandardMaterial3D:
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.alpha_scissor_threshold = 0.15 if not smoke else 0.0
 	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD if not smoke else BaseMaterial3D.BLEND_MODE_MIX
 	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 	mat.albedo_texture = soft

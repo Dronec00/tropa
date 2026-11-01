@@ -69,8 +69,8 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0) -> voi
 		node.material_override = material
 		node.position = origin
 		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		node.visibility_range_end = minf(radius + 18.0, 42.0)
-		node.visibility_range_end_margin = 5.0
+		node.visibility_range_end = minf(radius + 18.0, 48.0)
+		node.visibility_range_end_margin = 12.0
 		add_child(node)
 
 	multimesh = null

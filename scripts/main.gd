@@ -865,8 +865,7 @@ func _finish_trees() -> void:
 			node.mesh = merged_mesh
 			node.material_override = _mat_light if g == 0 else _mat_dark
 			node.position = origin
-			node.visibility_range_end = 52.0
-			node.visibility_range_end_margin = 5.0
+			node.visibility_range_end = 0.0
 			add_child(node)
 			merged += 1
 	print("[trees] merged nodes: ", merged, " за ", Time.get_ticks_msec() - t0, " мс")

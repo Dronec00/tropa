@@ -56,8 +56,8 @@ static func make_stone(entry: Dictionary) -> ArrayMesh:
 	noise.frequency = 1.1
 	noise.fractal_octaves = 3
 
-	var rings := 10
-	var segs := 14
+	var rings := 14
+	var segs := 20
 	var radius: float = entry["radius"]
 	var squash: float = entry["squash"]
 	var verts := PackedVector3Array()
