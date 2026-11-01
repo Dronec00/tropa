@@ -1,0 +1,10 @@
+# Godot 4
+.godot/
+*.translation
+export_presets.cfg
+
+# macOS
+.DS_Store
+
+# сборки
+build/
