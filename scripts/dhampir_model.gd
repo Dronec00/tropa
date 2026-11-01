@@ -22,6 +22,15 @@ const TORSO_Y := 0.10
 const HEAD_Y := 0.46
 const HEIGHT := 1.93
 
+# Пропорции (S1): половинные ширины и длины сегментов, метры.
+const SHOULDER_X := 0.196
+const SHOULDER_Y := 0.360
+const UPPER_ARM := 0.300
+const FOREARM := 0.290
+const HIP_X := 0.112
+const THIGH_LEN := 0.455
+const SHIN_LEN := 0.415
+
 const AnimatorScript := preload("res://scripts/dhampir_animator.gd")
 
 # =========================================================================
@@ -335,18 +344,25 @@ static func _skull_buckle(parent: Node3D, pos: Vector3, scale: float, kit: Kit) 
 # =========================================================================
 
 static func _build_leg(hips: Node3D, side: float, suffix: String, kit: Kit) -> Dictionary:
-	var thigh: Node3D = _pivot(hips, "Thigh" + suffix, Vector3(side * 0.112, -0.025, 0.0))
-	_add(thigh, _capsule(0.074, 0.455, 14), kit.cloth_dark, Vector3(0.0, -0.215, 0.0))
-	_add(thigh, _capsule(0.070, 0.36, 12), kit.cloth, Vector3(0.0, -0.26, 0.0))
-	_add(thigh, _cyl(0.075, 0.075, 0.032, 16), kit.leather, Vector3(0.0, -0.115, 0.0))
-	_add(thigh, _cyl(0.071, 0.071, 0.028, 16), kit.leather, Vector3(0.0, -0.360, 0.0))
-	_add(thigh, _box(Vector3(0.014, 0.024, 0.010)), kit.silver, Vector3(0.0, -0.115, -0.076))
+	var thigh: Node3D = _pivot(hips, "Thigh" + suffix, Vector3(side * HIP_X, -0.025, 0.0))
+	# бедро сужается от таза к колену, сверху и снизу — суставные сферы
+	_add(thigh, _cyl(0.080, 0.058, 0.440, 18), kit.cloth_dark, Vector3(0.0, -0.220, 0.0))
+	_add(thigh, _sphere(0.081, 16, 10), kit.cloth_dark, Vector3(0.0, -0.010, 0.0),
+			Vector3.ZERO, Vector3(1.0, 0.86, 0.96))
+	_add(thigh, _sphere(0.059, 14, 8), kit.cloth, Vector3(0.0, -0.430, 0.0),
+			Vector3.ZERO, Vector3(0.98, 0.92, 0.98))
+	_add(thigh, _cyl(0.070, 0.070, 0.030, 16), kit.leather, Vector3(0.0, -0.115, 0.0))
+	_add(thigh, _cyl(0.061, 0.061, 0.026, 16), kit.leather, Vector3(0.0, -0.355, 0.0))
+	_add(thigh, _box(Vector3(0.014, 0.024, 0.010)), kit.silver, Vector3(0.0, -0.115, -0.071))
+	# набедренная пластина
+	_add(thigh, _sphere(0.050, 12, 8), kit.leather, Vector3(0.0, -0.190, -0.058),
+			Vector3.ZERO, Vector3(0.82, 1.25, 0.36))
 
-	var knee: Node3D = _pivot(thigh, "Knee" + suffix, Vector3(0.0, -0.455, 0.0))
-	_add(knee, _sphere(0.068, 14, 10), kit.cloth_dark, Vector3(0.0, 0.0, -0.006),
+	var knee: Node3D = _pivot(thigh, "Knee" + suffix, Vector3(0.0, -THIGH_LEN, 0.0))
+	_add(knee, _sphere(0.060, 14, 10), kit.cloth_dark, Vector3(0.0, 0.0, -0.006),
 			Vector3.ZERO, Vector3(0.98, 0.95, 1.0))
 	# наколенник с острым верхом
-	_add(knee, _sphere(0.059, 14, 8), kit.leather, Vector3(0.0, 0.005, -0.052),
+	_add(knee, _sphere(0.056, 14, 8), kit.leather, Vector3(0.0, 0.005, -0.048),
 			Vector3.ZERO, Vector3(1.08, 0.92, 0.52))
 	_add(knee, _cone(0.035, 0.028, 0.070, 6), kit.leather_dark,
 			Vector3(0.0, 0.062, -0.052), Vector3(0.22, 0.0, 0.0))
@@ -355,15 +371,17 @@ static func _build_leg(hips: Node3D, side: float, suffix: String, kit: Kit) -> D
 	_add(knee, _sphere(0.008, 8, 6), kit.silver, Vector3(0.0, 0.038, -0.070))
 
 	# голень
-	_add(knee, _capsule(0.060, 0.415, 12), kit.cloth_dark, Vector3(0.0, -0.205, 0.0))
-	# голенище сапога
-	_add(knee, _cyl(0.074, 0.088, 0.330, 16), kit.leather, Vector3(0.0, -0.245, 0.0))
-	_add(knee, _cyl(0.090, 0.091, 0.048, 16), kit.leather, Vector3(0.0, -0.100, 0.0))
+	_add(knee, _cyl(0.058, 0.044, 0.400, 14), kit.cloth_dark, Vector3(0.0, -0.205, 0.0))
+	# голенище: шире в икре, уже к щиколотке
+	_add(knee, _cyl(0.090, 0.064, 0.330, 18), kit.leather, Vector3(0.0, -0.245, 0.0))
+	_add(knee, _sphere(0.074, 14, 10), kit.leather, Vector3(0.0, -0.205, 0.030),
+			Vector3.ZERO, Vector3(0.92, 1.20, 0.70))
+	_add(knee, _cyl(0.092, 0.093, 0.048, 16), kit.leather, Vector3(0.0, -0.100, 0.0))
 	_add(knee, _torus(0.078, 0.092, 18, 6), kit.leather_dark, Vector3(0.0, -0.092, 0.0))
 	# задний шов
 	_add(knee, _box(Vector3(0.010, 0.33, 0.012)), kit.leather_dark, Vector3(0.0, -0.245, 0.086))
 
-	var ankle: Node3D = _pivot(knee, "Ankle" + suffix, Vector3(0.0, -0.415, 0.0))
+	var ankle: Node3D = _pivot(knee, "Ankle" + suffix, Vector3(0.0, -SHIN_LEN, 0.0))
 	# ступня: короче, с подъёмом и скруглённым носком, без «лыжи»
 	_add(ankle, _box(Vector3(0.094, 0.080, 0.200)), kit.leather, Vector3(0.0, -0.052, -0.040))
 	_add(ankle, _sphere(0.052, 14, 10), kit.leather, Vector3(0.0, -0.066, -0.148),
@@ -395,9 +413,9 @@ static func _build_leg(hips: Node3D, side: float, suffix: String, kit: Kit) -> D
 
 static func _build_torso(torso: Node3D, kit: Kit) -> void:
 	# стан
-	_add(torso, _cyl(0.128, 0.152, 0.20, 18), kit.cloth_dark, Vector3(0.0, 0.075, 0.0))
-	_add(torso, _sphere(0.149, 20, 12), kit.cloth, Vector3(0.0, 0.265, 0.0),
-			Vector3.ZERO, Vector3(1.12, 1.10, 0.78))
+	_add(torso, _cyl(0.122, 0.148, 0.20, 18), kit.cloth_dark, Vector3(0.0, 0.075, 0.0))
+	_add(torso, _sphere(0.146, 20, 12), kit.cloth, Vector3(0.0, 0.265, 0.0),
+			Vector3.ZERO, Vector3(1.06, 1.10, 0.74))
 	_add(torso, _sphere(0.118, 16, 10), kit.cloth, Vector3(0.0, 0.135, 0.0),
 			Vector3.ZERO, Vector3(1.02, 0.72, 0.80))
 
@@ -429,7 +447,7 @@ static func _build_torso(torso: Node3D, kit: Kit) -> void:
 
 	# плечевое коромысло под плащом
 	for side in [-1.0, 1.0]:
-		_add(torso, _sphere(0.072, 14, 8), kit.cloth,
+		_add(torso, _sphere(0.062, 14, 8), kit.cloth,
 				Vector3(side * 0.150, 0.360, 0.0), Vector3.ZERO, Vector3(0.95, 0.68, 0.95))
 
 	# перевязь через грудь
@@ -1025,33 +1043,38 @@ static func _build_hat(head: Node3D, kit: Kit) -> Node3D:
 static func _build_arm(torso: Node3D, side: float, is_right: bool, kit: Kit) -> Dictionary:
 	var suffix: String = "R" if is_right else "L"
 	var shoulder: Node3D = _pivot(torso, "Shoulder" + suffix,
-			Vector3(side * 0.196, 0.360, 0.0),
+			Vector3(side * SHOULDER_X, SHOULDER_Y, 0.0),
 			Vector3(0.04, 0.0, side * 0.07))
 
-	_add(shoulder, _capsule(0.049, 0.315, 12), kit.cloth, Vector3(0.0, -0.150, 0.0))
-	_add(shoulder, _cyl(0.053, 0.055, 0.070, 14), kit.cloth_dark, Vector3(0.0, -0.105, 0.0))
-	_add(shoulder, _cyl(0.051, 0.051, 0.020, 14), kit.leather, Vector3(0.0, -0.245, 0.0))
-	_add(shoulder, _sphere(0.054, 12, 8), kit.cloth_dark, Vector3(0.0, -0.295, 0.0))
+	# дельта и плечо
+	_add(shoulder, _sphere(0.056, 14, 10), kit.cloth, Vector3(0.0, 0.005, 0.0),
+			Vector3.ZERO, Vector3(1.0, 0.90, 1.0))
+	_add(shoulder, _cyl(0.052, 0.040, UPPER_ARM, 16), kit.cloth, Vector3(0.0, -UPPER_ARM * 0.5, 0.0))
+	_add(shoulder, _cyl(0.051, 0.049, 0.070, 14), kit.cloth_dark, Vector3(0.0, -0.105, 0.0))
+	_add(shoulder, _cyl(0.043, 0.043, 0.020, 14), kit.leather, Vector3(0.0, -0.245, 0.0))
+	_add(shoulder, _sphere(0.043, 12, 8), kit.cloth_dark, Vector3(0.0, -0.292, 0.0))
 
-	var elbow: Node3D = _pivot(shoulder, "Elbow" + suffix, Vector3(0.0, -0.300, 0.0),
-			Vector3(0.30, 0.0, 0.0))
+	var elbow: Node3D = _pivot(shoulder, "Elbow" + suffix, Vector3(0.0, -UPPER_ARM, 0.0),
+			Vector3(0.25, 0.0, 0.0))
 	# локоть и наруч
-	_add(elbow, _sphere(0.053, 14, 8), kit.leather, Vector3(0.0, 0.005, -0.004),
+	_add(elbow, _sphere(0.048, 14, 8), kit.leather, Vector3(0.0, 0.005, -0.004),
 			Vector3.ZERO, Vector3(1.0, 0.92, 1.02))
 	_add(elbow, _sphere(0.030, 10, 6), kit.leather_dark,
 			Vector3(0.0, 0.012, -0.046), Vector3.ZERO, Vector3(1.0, 0.9, 0.5))
-	_add(elbow, _capsule(0.042, 0.290, 12), kit.cloth, Vector3(0.0, -0.150, 0.0))
+	_add(elbow, _cyl(0.044, 0.032, FOREARM, 16), kit.cloth, Vector3(0.0, -FOREARM * 0.5, 0.0))
+	_add(elbow, _sphere(0.034, 12, 8), kit.cloth, Vector3(0.0, -0.276, 0.0),
+			Vector3.ZERO, Vector3(0.98, 0.92, 0.98))
 	# широкий наруч с золотой кромкой
-	_add(elbow, _cyl(0.048, 0.058, 0.190, 16), kit.leather, Vector3(0.0, -0.155, 0.0))
-	_add(elbow, _cyl(0.060, 0.060, 0.014, 16), kit.gold_dark, Vector3(0.0, -0.062, 0.0))
-	_add(elbow, _cyl(0.049, 0.049, 0.014, 16), kit.gold_dark, Vector3(0.0, -0.248, 0.0))
-	_add(elbow, _box(Vector3(0.016, 0.150, 0.014)), kit.gold_dark,
-			Vector3(side * 0.048, -0.160, 0.0))
-	_add(elbow, _sphere(0.007, 8, 6), kit.gold, Vector3(side * 0.053, -0.100, 0.0))
-	_add(elbow, _sphere(0.007, 8, 6), kit.gold, Vector3(side * 0.053, -0.215, 0.0))
+	_add(elbow, _cyl(0.050, 0.038, 0.190, 16), kit.leather, Vector3(0.0, -0.155, 0.0))
+	_add(elbow, _cyl(0.052, 0.052, 0.014, 16), kit.gold_dark, Vector3(0.0, -0.062, 0.0))
+	_add(elbow, _cyl(0.040, 0.040, 0.014, 16), kit.gold_dark, Vector3(0.0, -0.248, 0.0))
+	_add(elbow, _box(Vector3(0.015, 0.150, 0.014)), kit.gold_dark,
+			Vector3(side * 0.041, -0.160, 0.0))
+	_add(elbow, _sphere(0.006, 8, 6), kit.gold, Vector3(side * 0.046, -0.100, 0.0))
+	_add(elbow, _sphere(0.006, 8, 6), kit.gold, Vector3(side * 0.046, -0.215, 0.0))
 
-	var wrist: Node3D = _pivot(elbow, "Wrist" + suffix, Vector3(0.0, -0.290, 0.0))
-	_add(wrist, _cyl(0.043, 0.040, 0.055, 14), kit.leather_dark, Vector3(0.0, -0.010, 0.0))
+	var wrist: Node3D = _pivot(elbow, "Wrist" + suffix, Vector3(0.0, -FOREARM, 0.0))
+	_add(wrist, _cyl(0.036, 0.033, 0.055, 14), kit.leather_dark, Vector3(0.0, -0.010, 0.0))
 	_build_hand(wrist, side, kit)
 
 	var grip: Node3D = _pivot(wrist, "Grip", Vector3(0.0, -0.055, -0.004),

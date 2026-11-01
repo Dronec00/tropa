@@ -55,6 +55,12 @@ var _fill: OmniLight3D
 var _rim: OmniLight3D
 var _face: OmniLight3D
 
+var _ground: MeshInstance3D
+var _ring: MeshInstance3D
+var _silhouette := false
+var _sil_mat: StandardMaterial3D
+var _saved_mats: Dictionary = {}
+
 var _args: Dictionary = {}
 var _shot_done := false
 
@@ -81,6 +87,8 @@ func _ready() -> void:
 		_target = float(_args["target"])
 	if _args.has("pose"):
 		_apply_pose(String(_args["pose"]))
+	if _args.has("silhouette"):
+		_toggle_silhouette()
 	_update_camera()
 	if _args.has("shot"):
 		_capture.call_deferred()
@@ -135,7 +143,7 @@ func _parse_args() -> void:
 		var a: String = argv[i]
 		if a.begins_with("--"):
 			var key: String = a.substr(2)
-			if key == "clean" or key == "turntable" or key == "dump" or key == "cape-test":
+			if key == "clean" or key == "turntable" or key == "dump" or key == "cape-test" or key == "silhouette":
 				_args[key] = true
 			elif i + 1 < argv.size():
 				_args[key] = argv[i + 1]
@@ -210,6 +218,7 @@ func _setup_world() -> void:
 	gm.roughness = 0.88
 	gm.metallic = 0.05
 	ground.material_override = gm
+	_ground = ground
 	add_child(ground)
 
 	var ring: MeshInstance3D = MeshInstance3D.new()
@@ -225,6 +234,7 @@ func _setup_world() -> void:
 	rm.metallic = 0.85
 	rm.roughness = 0.38
 	ring.material_override = rm
+	_ring = ring
 	add_child(ring)
 
 	_camera = Camera3D.new()
@@ -264,7 +274,7 @@ func _setup_ui() -> void:
 	_hint.add_theme_color_override("font_color", Color(0.68, 0.67, 0.62, 0.85))
 	_hint.text = ("ЛКМ — вращать · колесо — зум · ПКМ — сдвинуть\n"
 			+ "1 стойка · 2 шаг · 3 бег · 4-6 удары · 7 блок · 8 меч · 0 сброс\n"
-			+ "C ракурс · L свет · T автоповорот · W сетка · H шляпа · F12 скрин · E .glb")
+			+ "C ракурс · L свет · T автоповорот · W сетка · B силуэт · H шляпа · F12 скрин · E .glb")
 	_ui.add_child(_hint)
 
 	_stats = Label.new()
@@ -378,6 +388,37 @@ func _goto_shot(index: int) -> void:
 	_shot_index = clampi(index, 0, SHOTS.size() - 1)
 	_apply_shot()
 	_update_stats()
+
+## Силуэт-тест S1-06: всё чёрным, фон светлый, земля скрыта.
+func _toggle_silhouette() -> void:
+	_silhouette = not _silhouette
+	if _silhouette:
+		_sil_mat = StandardMaterial3D.new()
+		_sil_mat.albedo_color = Color(0.015, 0.015, 0.018)
+		_sil_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_sil_mat.cull_mode = BaseMaterial3D.CULL_BACK
+		_saved_mats.clear()
+		_paint_black(_model)
+		_ground.visible = false
+		_ring.visible = false
+		_env.background_color = Color(0.84, 0.84, 0.84)
+		_env.ambient_light_energy = 0.0
+	else:
+		for node in _saved_mats.keys():
+			if is_instance_valid(node):
+				(node as MeshInstance3D).material_override = _saved_mats[node]
+		_saved_mats.clear()
+		_ground.visible = true
+		_ring.visible = true
+		_apply_light()
+
+func _paint_black(node: Node) -> void:
+	if node is MeshInstance3D:
+		var mi: MeshInstance3D = node as MeshInstance3D
+		_saved_mats[mi] = mi.material_override
+		mi.material_override = _sil_mat
+	for child in node.get_children():
+		_paint_black(child)
 
 func _reset_pose() -> void:
 	_walk = 0.0
@@ -503,6 +544,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_W:
 				var vp: Viewport = get_viewport()
 				vp.debug_draw = Viewport.DEBUG_DRAW_WIREFRAME if vp.debug_draw == Viewport.DEBUG_DRAW_DISABLED else Viewport.DEBUG_DRAW_DISABLED
+			KEY_B:
+				_toggle_silhouette()
 			KEY_H:
 				_hat_off = not _hat_off
 				var hat: Node3D = _find_hat()
