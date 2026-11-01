@@ -10,6 +10,8 @@ var base_range := 15.0
 var _t := 0.0
 
 func _process(delta: float) -> void:
+	if OS.get_environment("TROPA_NO_FLICKER") == "1":
+		return
 	_t += delta
 	var n := sin(_t * 8.3) * 0.5 + sin(_t * 13.7) * 0.3 + sin(_t * 2.7) * 0.2
 	if light != null:

@@ -98,8 +98,9 @@ func _ready() -> void:
 	if OS.get_environment("TROPA_TOD") != "":
 		_tod = OS.get_environment("TROPA_TOD")
 	TimeOfDayScript.apply(_tod, _env, _sun, _sky_mat)
-	var post := PostFXScript.new()
-	add_child(post)
+	if OS.get_environment("TROPA_NO_POST") != "1":
+		var post := PostFXScript.new()
+		add_child(post)
 	var perf := PerfOverlay.new()
 	add_child(perf)
 	var pause = PauseScript.new()
@@ -218,16 +219,16 @@ func _build_environment() -> void:
 	env.background_mode = Environment.BG_SKY
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color(0.19, 0.26, 0.40)
+	env.ambient_light_color = Color(0.24, 0.31, 0.44)
 	env.ambient_light_energy = 0.6
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.05, 0.07, 0.11)
-	env.fog_density = 0.038
+	env.fog_density = 0.032
 	env.fog_height = 1.2
 	env.fog_height_density = 0.16
 	env.fog_sky_affect = 0.25
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 0.92
+	env.tonemap_exposure = 0.98
 	env.ssao_enabled = true
 	env.ssao_intensity = 1.1
 	env.ssao_radius = 1.4
@@ -685,7 +686,7 @@ func _make_puddle_material(scale: float, soft: float) -> ShaderMaterial:
 	mat.set_shader_parameter("edge_softness", soft)
 	return mat
 
-func _puddle_patch(cx: float, cz: float, radius: float, segs: int = 20) -> ArrayMesh:
+func _puddle_patch(cx: float, cz: float, radius: float, segs: int = 20, elongation: float = 1.0, yaw: float = 0.0) -> ArrayMesh:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
@@ -698,12 +699,15 @@ func _puddle_patch(cx: float, cz: float, radius: float, segs: int = 20) -> Array
 
 	for i in segs:
 		var a := TAU * float(i) / float(segs)
-		var px := cx + cos(a) * radius
-		var pz := cz + sin(a) * radius
+		var wobble := 0.86 + 0.10 * sin(a * 3.1 + 1.7) + 0.07 * sin(a * 5.7 + 0.4) + 0.04 * sin(a * 8.3 + 2.9)
+		var local := Vector2(cos(a) * radius * wobble * elongation, sin(a) * radius * wobble)
+		local = local.rotated(yaw)
+		var px := cx + local.x
+		var pz := cz + local.y
 		var py: float = terrain.height_at(px, pz) + 0.02
 		verts.append(Vector3(px, py, pz))
 		normals.append(Vector3.UP)
-		uvs.append(Vector2(0.5 + cos(a) * 0.5, 0.5 + sin(a) * 0.5))
+		uvs.append(Vector2(0.5 + local.x / maxf(radius * 2.0, 0.1), 0.5 + local.y / maxf(radius * 2.0, 0.1)))
 
 	for i in segs:
 		var a := 1 + i
@@ -733,9 +737,9 @@ func _build_puddles() -> void:
 
 	var made := 0
 	var attempts := 0
-	while made < 60 and attempts < 1200:
+	while made < 14 and attempts < 900:
 		attempts += 1
-		var use_path := _rng.randf() < 0.6 and _path_points.size() > 4
+		var use_path := _rng.randf() < 0.75 and _path_points.size() > 4
 		var x := 0.0
 		var z := 0.0
 		if use_path:
@@ -755,11 +759,13 @@ func _build_puddles() -> void:
 		if terrain.slope_at(x, z) > 0.30:
 			continue
 
-		var is_water := _rng.randf() < 0.6
-		var radius := _rng.randf_range(0.6, 1.9)
+		var is_water := _rng.randf() < 0.72
+		var radius := _rng.randf_range(0.8, 2.1)
+		var elongation := _rng.randf_range(1.25, 2.0)
+		var yaw := _rng.randf_range(0.0, TAU)
 		var node := MeshInstance3D.new()
 		if is_water:
-			node.mesh = _puddle_patch(x, z, radius)
+			node.mesh = _puddle_patch(x, z, radius, 24, elongation, yaw)
 			node.material_override = water_mat
 		else:
 			var disc := CylinderMesh.new()
@@ -774,8 +780,8 @@ func _build_puddles() -> void:
 		if is_water:
 			node.position = Vector3.ZERO
 		made += 1
-		if made == 1:
-			print("[puddle] first at ", x, ", ", z)
+		if made <= 3:
+			print("[puddle] ", made, " at ", x, ", ", z)
 
 	print("[puddles] ", made)
 
@@ -1122,7 +1128,7 @@ func _update_underwater() -> void:
 	else:
 		_env.fog_density = 0.052
 		_env.fog_light_color = Color(0.035, 0.04, 0.055)
-		_env.ambient_light_energy = 0.24
+		_env.ambient_light_energy = 0.34
 	hud.set_underwater(under)
 
 func _update_encounters(delta: float) -> void:
