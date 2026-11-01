@@ -107,6 +107,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		var motion := event as InputEventMouseMotion
 		_yaw -= motion.relative.x * 0.0025
 		_pitch = clampf(_pitch - motion.relative.y * 0.0025, -1.4, 1.0)
+	elif event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_cam.position += -_cam.global_transform.basis.z * 1.2
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_cam.position -= -_cam.global_transform.basis.z * 1.2
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		get_tree().change_scene_to_file("res://scenes/menu.tscn")

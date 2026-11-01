@@ -17,6 +17,7 @@ const OBJECTS := [
 	{"name": "Папоротник", "kind": "fern"},
 	{"name": "Камыш", "kind": "reed"},
 	{"name": "Валун", "kind": "rock"},
+	{"name": "Валун со мхом", "kind": "moss_rock"},
 	{"name": "Лужа", "kind": "puddle"},
 	{"name": "Изба", "kind": "hut"},
 ]

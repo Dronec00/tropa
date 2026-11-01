@@ -275,7 +275,15 @@ func _create_tree_materials() -> void:
 		leaf = load("res://assets/textures/leaf_atlas.png")
 
 	_mat_light = _make_tree_material(bark_light, leaf)
+	if ResourceLoader.exists("res://assets/textures/photo/moss_color.jpg"):
+		var moss_tex2 = load("res://assets/textures/photo/moss_color.jpg")
+		_mat_light.set_shader_parameter("moss_tex", moss_tex2)
+		_mat_light.set_shader_parameter("trunk_moss", 0.55)
 	_mat_dark = _make_tree_material(bark_dark, leaf)
+	if ResourceLoader.exists("res://assets/textures/photo/moss_color.jpg"):
+		var moss_tex = load("res://assets/textures/photo/moss_color.jpg")
+		_mat_dark.set_shader_parameter("moss_tex", moss_tex)
+		_mat_dark.set_shader_parameter("trunk_moss", 0.8)
 	if ResourceLoader.exists("res://assets/textures/photo/bark_normal.jpg"):
 		_mat_dark.set_shader_parameter("bark_normal", load("res://assets/textures/photo/bark_normal.jpg"))
 		_mat_dark.set_shader_parameter("use_normal", 1.0)
@@ -613,6 +621,18 @@ func _add_rock(list: Array, x: float, z: float) -> void:
 	else:
 		_rock_dry.append(Transform3D(basis, Vector3(x, h + 0.02, z)))
 
+func _make_moss_material(amount: float) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/moss_rock.gdshader")
+	if ResourceLoader.exists("res://assets/textures/photo/ground_color.jpg"):
+		mat.set_shader_parameter("stone_albedo", load("res://assets/textures/photo/ground_color.jpg"))
+		mat.set_shader_parameter("stone_normal", load("res://assets/textures/photo/ground_normal.jpg"))
+	if ResourceLoader.exists("res://assets/textures/photo/moss_color.jpg"):
+		mat.set_shader_parameter("moss_albedo", load("res://assets/textures/photo/moss_color.jpg"))
+		mat.set_shader_parameter("moss_normal", load("res://assets/textures/photo/moss_normal.jpg"))
+	mat.set_shader_parameter("moss_amount", amount)
+	return mat
+
 func _make_puddle_material(scale: float, soft: float) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/puddle.gdshader")
@@ -763,24 +783,11 @@ func _build_rocks() -> void:
 	rock.radial_segments = 10
 	rock.rings = 6
 
-	var stone := StandardMaterial3D.new()
-	stone.albedo_color = Color(0.42, 0.46, 0.38)
-	stone.roughness = 1.0
-	if ResourceLoader.exists("res://assets/textures/photo/moss_color.jpg"):
-		stone.albedo_texture = load("res://assets/textures/photo/moss_color.jpg")
-		stone.normal_enabled = true
-		stone.normal_texture = load("res://assets/textures/photo/moss_normal.jpg")
-		stone.uv1_scale = Vector3(2.0, 2.0, 1.0)
+	var stone := _make_moss_material(0.95)
 
-	var stone_wet := StandardMaterial3D.new()
-	stone_wet.albedo_color = Color(0.16, 0.17, 0.16)
-	stone_wet.roughness = 0.28
-	stone_wet.metallic = 0.15
-	if ResourceLoader.exists("res://assets/textures/photo/moss_color.jpg"):
-		stone_wet.albedo_texture = load("res://assets/textures/photo/moss_color.jpg")
-		stone_wet.normal_enabled = true
-		stone_wet.normal_texture = load("res://assets/textures/photo/moss_normal.jpg")
-		stone_wet.uv1_scale = Vector3(2.0, 2.0, 1.0)
+	var stone_wet := _make_moss_material(0.45)
+	stone_wet.set_shader_parameter("stone_tint", Color(0.20, 0.22, 0.21))
+	stone_wet.set_shader_parameter("moss_tint", Color(0.20, 0.28, 0.14))
 
 	_spawn_multimesh(rock, stone, _rock_dry)
 	_spawn_multimesh(rock, stone_wet, _rock_wet)

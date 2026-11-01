@@ -5,6 +5,8 @@ uniform sampler2D bark_tex : source_color, filter_linear_mipmap, repeat_enable;
 uniform sampler2D leaf_tex : source_color, filter_linear_mipmap, repeat_disable;
 uniform sampler2D bark_normal : hint_normal, filter_linear_mipmap, repeat_enable;
 uniform float use_normal = 0.0;
+uniform sampler2D moss_tex : source_color, repeat_enable;
+uniform float trunk_moss = 0.0;
 uniform float wind = 0.22;
 
 global uniform vec3 player_pos;
@@ -45,6 +47,12 @@ void fragment() {
 	} else {
 		ALPHA = 1.0;
 		albedo = COLOR.rgb * texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.1;
+		if (trunk_moss > 0.0) {
+			float mh = 1.0 - smoothstep(0.0, 0.22, v_height);
+			float mn = texture(moss_tex, UV * vec2(2.0, 2.0) + vec2(v_world.x * 0.05, 0.0)).g;
+			float mask = mh * smoothstep(0.35, 0.75, mn + mh * 0.45) * trunk_moss;
+			albedo = mix(albedo, texture(moss_tex, UV * 2.4).rgb * vec3(0.55, 0.75, 0.42) * 1.6, mask);
+		}
 		if (use_normal > 0.5) {
 			NORMAL_MAP = texture(bark_normal, UV * vec2(1.0, 3.0)).rgb;
 			NORMAL_MAP_DEPTH = 1.0;

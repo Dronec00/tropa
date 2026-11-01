@@ -95,6 +95,18 @@ func _stone_material() -> StandardMaterial3D:
 		stone.uv1_scale = Vector3(1.6, 1.6, 1.0)
 	return stone
 
+func _moss_material(amount: float) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/moss_rock.gdshader")
+	if ResourceLoader.exists("res://assets/textures/photo/ground_color.jpg"):
+		mat.set_shader_parameter("stone_albedo", load("res://assets/textures/photo/ground_color.jpg"))
+		mat.set_shader_parameter("stone_normal", load("res://assets/textures/photo/ground_normal.jpg"))
+	if ResourceLoader.exists("res://assets/textures/photo/moss_color.jpg"):
+		mat.set_shader_parameter("moss_albedo", load("res://assets/textures/photo/moss_color.jpg"))
+		mat.set_shader_parameter("moss_normal", load("res://assets/textures/photo/moss_normal.jpg"))
+	mat.set_shader_parameter("moss_amount", amount)
+	return mat
+
 func _puddle_material(rough: float) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://shaders/puddle.gdshader")
@@ -124,8 +136,8 @@ func _spawn_objects() -> void:
 		HutScript.build(self, Vector3(0.0, 0.0, 0.0), 0.0)
 		return
 
-	if kind == "rock":
-		var stone := _stone_material()
+	if kind == "moss_rock" or kind == "rock":
+		var stone: Material = _moss_material(0.95) if kind == "moss_rock" else _stone_material()
 		for e in entries:
 			var node := MeshInstance3D.new()
 			node.mesh = LibScript.make_stone(e)
@@ -207,13 +219,16 @@ func _patch(cx: float, cz: float, radius: float) -> ArrayMesh:
 	return mesh
 
 func _build_camera() -> void:
+	var row_half := _span * 0.5
+	var cam_z := row_half * 2.4
+	var cam_y := row_half * 1.2 + 2.0
 	_cam = Camera3D.new()
-	_cam.fov = 60.0
-	_cam.position = Vector3(0.0, 12.0, _span * 1.35)
+	_cam.fov = 55.0
+	_cam.position = Vector3(0.0, cam_y, cam_z)
+	_pitch = -0.45
+	_yaw = 0.0
+	_cam.rotation = Vector3(_pitch, _yaw, 0.0)
 	add_child(_cam)
-	_cam.look_at(Vector3(0.0, 4.5, 0.0))
-	_pitch = _cam.rotation.x
-	_yaw = _cam.rotation.y
 
 func _build_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -230,6 +245,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		var motion := event as InputEventMouseMotion
 		_yaw -= motion.relative.x * 0.0025
 		_pitch = clampf(_pitch - motion.relative.y * 0.0025, -1.4, 1.0)
+	elif event is InputEventMouseButton:
+		var mb := event as InputEventMouseButton
+		if mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_cam.position += -_cam.global_transform.basis.z * 1.4
+		elif mb.pressed and mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_cam.position -= -_cam.global_transform.basis.z * 1.4
 	elif event.is_action_pressed("ui_cancel"):
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 		get_tree().change_scene_to_file("res://scenes/menu.tscn")
