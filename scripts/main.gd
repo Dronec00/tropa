@@ -79,6 +79,11 @@ var _tod := "night"
 var _rain: CPUParticles3D
 var _rain_on := false
 var _wet := 0.0
+var _breath: CPUParticles3D
+var _breath_timer := 2.0
+var _flash := 0.0
+var _flash_timer := 12.0
+var _ambient_base := 0.5
 var _terrain_mat: Material
 var _tod_fog := 0.035
 const TREE_CHUNK := 80.0
@@ -121,6 +126,8 @@ func _ready() -> void:
 		var post := PostFXScript.new()
 		add_child(post)
 	_build_rain()
+	_build_breath()
+	_build_fireflies()
 	var perf := PerfOverlay.new()
 	add_child(perf)
 	var pause = PauseScript.new()
@@ -132,6 +139,7 @@ func _ready() -> void:
 func _apply_time_of_day() -> void:
 	TimeOfDayScript.apply(_tod, _env, _sun, _sky_mat)
 	_tod_fog = _env.fog_density
+	_ambient_base = _env.ambient_light_energy
 	var preset: Dictionary = TimeOfDayScript.PRESETS.get(_tod, TimeOfDayScript.PRESETS["night"])
 	var mdir: Vector3 = preset["moon_dir"]
 	var mint: float = preset["moon"]
@@ -182,11 +190,108 @@ func _build_rain() -> void:
 		_rain.emitting = true
 		_wet = 1.0
 
+func _build_breath() -> void:
+	if player == null:
+		return
+	_breath = CPUParticles3D.new()
+	_breath.amount = 8
+	_breath.lifetime = 1.4
+	_breath.one_shot = true
+	_breath.explosiveness = 0.85
+	_breath.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+	_breath.emission_sphere_radius = 0.05
+	_breath.direction = Vector3(0.0, 0.1, -1.0)
+	_breath.spread = 12.0
+	_breath.gravity = Vector3(0.0, 0.35, 0.0)
+	_breath.initial_velocity_min = 0.25
+	_breath.initial_velocity_max = 0.55
+	_breath.scale_amount_min = 0.4
+	_breath.scale_amount_max = 1.0
+	_breath.color = Color(0.75, 0.80, 0.85, 0.22)
+	var quad := QuadMesh.new()
+	quad.size = Vector2(0.12, 0.12)
+	_breath.mesh = quad
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.vertex_color_use_as_albedo = true
+	mat.albedo_texture = _soft_radial()
+	_breath.material_override = mat
+	_breath.position = Vector3(0.0, 1.72, -0.10)
+	_breath.emitting = false
+	player.add_child(_breath)
+
+func _build_fireflies() -> void:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.albedo_color = Color(1.6, 1.9, 0.7, 1.0)
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	mat.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
+	mat.vertex_color_use_as_albedo = true
+	mat.albedo_texture = _soft_radial()
+
+	var made := 0
+	for stream in terrain.stream_points():
+		var pts: PackedVector2Array = stream
+		var i := 1
+		while i < pts.size() - 1:
+			var p: Vector2 = pts[i]
+			var y: float = terrain.height_at(p.x, p.y) + 1.0
+			var flies := CPUParticles3D.new()
+			flies.amount = 10
+			flies.lifetime = 7.0
+			flies.preprocess = 3.0
+			flies.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE
+			flies.emission_sphere_radius = 3.0
+			flies.direction = Vector3(0.0, 0.2, 0.0)
+			flies.spread = 180.0
+			flies.gravity = Vector3(0.0, 0.06, 0.0)
+			flies.initial_velocity_min = 0.05
+			flies.initial_velocity_max = 0.25
+			flies.scale_amount_min = 0.5
+			flies.scale_amount_max = 1.2
+			flies.color = Color(1.5, 1.8, 0.6, 0.9)
+			var q := QuadMesh.new()
+			q.size = Vector2(0.05, 0.05)
+			flies.mesh = q
+			flies.material_override = mat
+			flies.position = Vector3(p.x, y, p.y)
+			add_child(flies)
+			made += 1
+			i += 2
+	print("[fireflies] ", made)
+
 func _toggle_rain() -> void:
 	_rain_on = not _rain_on
 	if _rain != null:
 		_rain.emitting = _rain_on
 	hud.show_notice("Дождь" if _rain_on else "Дождь стих", 2.0)
+
+func _update_breath(delta: float) -> void:
+	if _breath == null or player == null:
+		return
+	_breath_timer -= delta
+	if _breath_timer <= 0.0:
+		_breath_timer = 3.2 + _rng.randf_range(-0.4, 0.6)
+		_breath.restart()
+		_breath.emitting = true
+
+func _update_lightning(delta: float) -> void:
+	if not _rain_on:
+		_flash = move_toward(_flash, 0.0, delta * 3.0)
+	else:
+		_flash_timer -= delta
+		if _flash_timer <= 0.0:
+			_flash = 1.0
+			_flash_timer = _rng.randf_range(9.0, 22.0)
+		_flash = move_toward(_flash, 0.0, delta * 3.2)
+
+	if _env != null:
+		_env.ambient_light_energy = _ambient_base + _flash * 3.2
+		if _sky_mat != null:
+			_sky_mat.set_shader_parameter("star_brightness", (TimeOfDayScript.PRESETS[_tod]["stars"] as float) + _flash * 2.0)
 
 func _update_rain(delta: float) -> void:
 	var target := 1.0 if _rain_on else 0.0
@@ -222,6 +327,8 @@ func _process(delta: float) -> void:
 	_update_encounters(delta)
 	_update_underwater()
 	_update_rain(delta)
+	_update_breath(delta)
+	_update_lightning(delta)
 	_time_wreath += delta
 	for w in _wreaths:
 		var node: Node3D = w["node"]
