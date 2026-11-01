@@ -102,6 +102,7 @@ func _ready() -> void:
 	_build_bog()
 	_build_path_strips()
 	_build_bridges()
+	_build_stream_fog()
 	_build_puddles()
 	_build_rocks()
 	_spawn_player()
@@ -899,6 +900,33 @@ func _build_bridge(center: Vector3, dir: Vector3) -> void:
 	body.add_child(shape)
 	body.position = Vector3(0.0, -0.05, 0.0)
 	root.add_child(body)
+
+func _build_stream_fog() -> void:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://shaders/stream_fog.gdshader")
+
+	var made := 0
+	for stream in terrain.stream_points():
+		var pts: PackedVector2Array = stream
+		for i in pts.size() - 1:
+			var a: Vector2 = pts[i]
+			var b: Vector2 = pts[i + 1]
+			var steps := maxi(1, int(a.distance_to(b) / 12.0))
+			for k in steps:
+				var t := (float(k) + 0.5) / float(steps)
+				var p := a.lerp(b, t)
+				var ground: float = terrain.height_at(p.x, p.y)
+				var volume := FogVolume.new()
+				volume.shape = RenderingServer.FOG_VOLUME_SHAPE_BOX
+				volume.extents = Vector3(11.0, 4.5, 11.0)
+				var vm := mat.duplicate() as ShaderMaterial
+				vm.set_shader_parameter("base_height", ground)
+				vm.set_shader_parameter("density", 0.22)
+				volume.material = vm
+				volume.position = Vector3(p.x, ground + 3.6, p.y)
+				add_child(volume)
+				made += 1
+	print("[stream fog] ", made)
 
 func _build_puddles() -> void:
 	var water_mat := _make_puddle_material(7.0, 0.34)
