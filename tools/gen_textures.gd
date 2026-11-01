@@ -18,6 +18,7 @@ func _initialize() -> void:
 	_gen_bark("spruce", Color(0.20, 0.15, 0.11), Color(0.05, 0.04, 0.03), 0.65, false)
 	_gen_leaf_atlas()
 	_gen_grass_tuft()
+	_gen_flame_sprite()
 	print("[tex] готово")
 	quit()
 
@@ -253,3 +254,57 @@ func _gen_grass_tuft() -> void:
 					img.set_pixel(px, py, Color(rgb.r, rgb.g, rgb.b, na))
 
 	img.save_png(OUT + "grass_tuft.png")
+
+# --- спрайт пламени: несколько языков с горячим ядром ---
+
+func _gen_flame_sprite() -> void:
+	var w := 128
+	var h := 256
+	var img := Image.create(w, h, false, Image.FORMAT_RGBA8)
+	img.fill(Color(0, 0, 0, 0))
+
+	var tongues := [
+		{"x": 0.5, "width": 0.20, "height": 0.95},
+		{"x": 0.34, "width": 0.15, "height": 0.72},
+		{"x": 0.66, "width": 0.15, "height": 0.78},
+		{"x": 0.22, "width": 0.10, "height": 0.50},
+		{"x": 0.78, "width": 0.10, "height": 0.56},
+		{"x": 0.5, "width": 0.10, "height": 0.62},
+	]
+
+	for t in tongues:
+		var cx := float(t["x"]) * float(w)
+		var tw := float(t["width"]) * float(w)
+		var th := float(t["height"]) * float(h)
+
+		for y in h:
+			var v := float(h - y) / th
+			if v < 0.0 or v > 1.0:
+				continue
+			var taper := pow(1.0 - v, 0.55)
+			var rx := tw * (0.35 + 0.65 * taper)
+			var cur_cx := cx + sin(v * 3.6) * tw * 0.18
+			for x in range(int(cur_cx - rx) - 1, int(cur_cx + rx) + 2):
+				if x < 0 or x >= w:
+					continue
+				var d := absf(float(x) - cur_cx) / maxf(rx, 0.6)
+				if d > 1.0:
+					continue
+				var a := pow(1.0 - d, 1.5) * pow(1.0 - v, 0.7)
+				if a <= 0.01:
+					continue
+
+				# цвет: белое ядро внизу, оранжевый, тёмно-красный вверху
+				var col: Color
+				if v < 0.25:
+					col = Color(1.0, 0.95, 0.72)
+				elif v < 0.55:
+					col = Color(1.0, 0.72, 0.28).lerp(Color(1.0, 0.45, 0.10), (v - 0.25) / 0.30)
+				else:
+					col = Color(1.0, 0.45, 0.10).lerp(Color(0.55, 0.10, 0.02), (v - 0.55) / 0.45)
+
+				var prev := img.get_pixel(x, y)
+				if a > prev.a:
+					img.set_pixel(x, y, Color(col.r, col.g, col.b, a))
+
+	img.save_png(OUT + "flame_sprite.png")
