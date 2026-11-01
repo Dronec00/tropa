@@ -6,9 +6,12 @@ const HudScript := preload("res://scripts/hud.gd")
 const TerrainScript := preload("res://scripts/terrain.gd")
 const GrassScript := preload("res://scripts/grass.gd")
 const WindScript := preload("res://scripts/wind.gd")
+const HutScript := preload("res://scripts/hut.gd")
 
 const TREE_COUNT := 240
 const WORLD_LIMIT := 92.0
+const WORLD_EDGE := 82.0
+const HUT_POS := Vector3(-34.0, 0.0, -52.0)
 
 var player
 var hud
@@ -19,7 +22,17 @@ var _rng := RandomNumberGenerator.new()
 var _time := 0.0
 var _fire_light: OmniLight3D
 var _enemies: Array = []
-var _spawn_points: Array = []
+var _encounters := [
+	{"at": 14.0, "kind": "wolf"},
+	{"at": 27.0, "kind": "cultist"},
+	{"at": 39.0, "kind": "wolf"},
+	{"at": 51.0, "kind": "leshy"},
+	{"at": 63.0, "kind": "wailer"},
+]
+var _encounter_index := 0
+var _encounter_enemy = null
+var _path_points: Array[Vector3] = []
+var _edge_cooldown := 0.0
 var _soul_orb: Node3D
 var _orb_base_y := 0.0
 var _dropped_souls := 0
@@ -31,10 +44,12 @@ func _ready() -> void:
 	_rng.seed = 20261101
 	_build_environment()
 	_build_terrain()
+	_build_path()
+	_build_hut()
+	_build_boundary()
 	_build_forest()
 	_build_bonfire()
 	_spawn_player()
-	_spawn_enemies()
 	_build_hud()
 	hud.show_notice("Костёр гаснет. Лес ждёт.", 4.0)
 
@@ -52,6 +67,9 @@ func _process(delta: float) -> void:
 
 	if player == null or player.is_dead():
 		return
+
+	_clamp_to_world(delta)
+	_update_encounters(delta)
 
 	for enemy in _enemies:
 		if is_instance_valid(enemy):
@@ -137,6 +155,16 @@ func _build_environment() -> void:
 	env.fog_density = 0.021
 	env.fog_sky_affect = 0.45
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.glow_enabled = true
+	env.glow_intensity = 0.42
+	env.glow_bloom = 0.08
+	env.glow_hdr_threshold = 0.9
+	env.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+	env.volumetric_fog_enabled = true
+	env.volumetric_fog_density = 0.006
+	env.volumetric_fog_albedo = Color(0.35, 0.39, 0.44)
+	env.volumetric_fog_length = 48.0
+	env.volumetric_fog_ambient_inject = 0.2
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 0.92
 	env.adjustment_contrast = 1.06
@@ -165,7 +193,7 @@ func _build_terrain() -> void:
 	var grass = GrassScript.new()
 	grass.name = "Grass"
 	add_child(grass)
-	grass.populate(terrain, 22000, 44.0)
+	grass.populate(terrain, 32000, 44.0)
 
 # --- лес ---
 
@@ -192,6 +220,10 @@ func _build_forest() -> void:
 		var z := sin(angle) * dist
 		if Vector2(x, z).length() < 13.0:
 			continue
+		if Vector2(x - HUT_POS.x, z - HUT_POS.z).length() < 16.0:
+			continue
+		if _near_path(x, z, 4.5):
+			continue
 		var h: float = terrain.height_at(x, z)
 		if h < TerrainScript.WATER_LEVEL + 1.2:
 			continue
@@ -204,6 +236,14 @@ func _build_forest() -> void:
 		else:
 			_spruce(pos, bark, needles)
 		placed += 1
+
+func _near_path(x: float, z: float, radius: float) -> bool:
+	var step := 2
+	for i in range(0, _path_points.size(), step):
+		var p := _path_points[i]
+		if Vector2(p.x - x, p.z - z).length() < radius:
+			return true
+	return false
 
 func _birch(pos: Vector3, bark_mat: Material, leaf_mat: Material) -> void:
 	var root := Node3D.new()
@@ -361,6 +401,177 @@ func _build_bonfire() -> void:
 	_fire_light.shadow_enabled = true
 	root.add_child(_fire_light)
 
+# --- тропа, изба, тьма по краю ---
+
+func _build_path() -> void:
+	var start := Vector3.ZERO
+	var control := Vector3(-6.0, 0.0, -26.0)
+	var end := Vector3(HUT_POS.x, 0.0, HUT_POS.z)
+	var count := 46
+	for i in count + 1:
+		var t := float(i) / float(count)
+		var p := start * (1.0 - t) * (1.0 - t) + control * 2.0 * (1.0 - t) * t + end * t * t
+		p.y = terrain.height_at(p.x, p.z)
+		_path_points.append(p)
+
+	for i in range(4, _path_points.size() - 3, 3):
+		var p := _path_points[i]
+		var dir := _path_points[i + 1] - _path_points[i - 1]
+		dir.y = 0.0
+		dir = dir.normalized()
+		var side := Vector3(-dir.z, 0.0, dir.x)
+		for s in [-1.0, 1.0]:
+			var pos: Vector3 = p + side * (2.3 * s)
+			pos.y = terrain.height_at(pos.x, pos.z)
+			if Vector2(pos.x - HUT_POS.x, pos.z - HUT_POS.z).length() < 9.0:
+				continue
+			_marker_birch(pos)
+
+func _marker_birch(pos: Vector3) -> void:
+	var root := Node3D.new()
+	root.position = pos
+	root.rotation.y = _rng.randf_range(0.0, TAU)
+	add_child(root)
+
+	var bark := StandardMaterial3D.new()
+	bark.albedo_color = Color(0.66, 0.66, 0.62)
+
+	var h := _rng.randf_range(4.4, 5.2)
+	var trunk := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = 0.07
+	cyl.bottom_radius = 0.14
+	cyl.height = h
+	trunk.mesh = cyl
+	trunk.position.y = h * 0.5
+	trunk.material_override = bark
+	root.add_child(trunk)
+
+	var crown := MeshInstance3D.new()
+	var sphere := SphereMesh.new()
+	sphere.radius = 1.15
+	sphere.height = 2.3
+	crown.mesh = sphere
+	crown.position.y = h + 0.35
+	var leaf := StandardMaterial3D.new()
+	leaf.albedo_color = Color(0.10, 0.17, 0.08)
+	crown.material_override = leaf
+	root.add_child(crown)
+
+	var wreath := MeshInstance3D.new()
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.26
+	torus.outer_radius = 0.38
+	torus.rings = 16
+	torus.ring_segments = 8
+	wreath.mesh = torus
+	var wreath_mat := StandardMaterial3D.new()
+	wreath_mat.albedo_color = Color(0.12, 0.24, 0.09)
+	wreath_mat.emission_enabled = true
+	wreath_mat.emission = Color(0.55, 0.12, 0.08)
+	wreath_mat.emission_energy_multiplier = 0.8
+	wreath.material_override = wreath_mat
+	wreath.position = Vector3(0.0, 1.75, 0.0)
+	wreath.rotation.x = PI * 0.5
+	root.add_child(wreath)
+
+	var berry_mat := StandardMaterial3D.new()
+	berry_mat.albedo_color = Color(0.55, 0.06, 0.05)
+	berry_mat.emission_enabled = true
+	berry_mat.emission = Color(0.6, 0.05, 0.04)
+	berry_mat.emission_energy_multiplier = 1.2
+	for i in 5:
+		var berry := MeshInstance3D.new()
+		var bm := SphereMesh.new()
+		bm.radius = 0.045
+		bm.height = 0.09
+		berry.mesh = bm
+		berry.material_override = berry_mat
+		var a := TAU * float(i) / 5.0
+		berry.position = Vector3(cos(a) * 0.32, 1.75, sin(a) * 0.32)
+		root.add_child(berry)
+
+	_add_tree_collision(root, 0.22, h)
+
+func _build_hut() -> void:
+	var pos := Vector3(HUT_POS.x, terrain.height_at(HUT_POS.x, HUT_POS.z), HUT_POS.z)
+	HutScript.build(self, pos, deg_to_rad(35.0))
+
+func _build_boundary() -> void:
+	var mesh := CylinderMesh.new()
+	mesh.top_radius = WORLD_EDGE
+	mesh.bottom_radius = WORLD_EDGE
+	mesh.height = 60.0
+	mesh.radial_segments = 64
+	mesh.rings = 1
+
+	var shader := Shader.new()
+	shader.code = """
+shader_type spatial;
+render_mode unshaded, cull_front, depth_draw_never, shadows_disabled;
+
+void fragment() {
+	float v = clamp(UV.y, 0.0, 1.0);
+	ALBEDO = vec3(0.0);
+	ALPHA = (1.0 - smoothstep(0.35, 0.95, v)) * 0.985;
+}
+"""
+
+	var material := ShaderMaterial.new()
+	material.shader = shader
+
+	var wall := MeshInstance3D.new()
+	wall.mesh = mesh
+	wall.material_override = material
+	wall.position.y = 20.0
+	wall.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(wall)
+
+func _path_point_at(dist: float) -> Vector3:
+	var acc := 0.0
+	for i in _path_points.size() - 1:
+		var seg := _path_points[i].distance_to(_path_points[i + 1])
+		if acc + seg >= dist:
+			var t := (dist - acc) / seg
+			return _path_points[i].lerp(_path_points[i + 1], t)
+		acc += seg
+	return _path_points[_path_points.size() - 1]
+
+func _update_encounters(delta: float) -> void:
+	if _encounter_index >= _encounters.size():
+		return
+	var travelled := Vector2(player.global_position.x, player.global_position.z).length()
+	if _encounter_enemy != null and is_instance_valid(_encounter_enemy) and _encounter_enemy.is_alive():
+		var previous: float = 0.0
+		if _encounter_index > 0:
+			previous = float(_encounters[_encounter_index - 1]["at"])
+		if travelled < previous + 20.0:
+			return
+	var entry = _encounters[_encounter_index]
+	if travelled < entry["at"]:
+		return
+	var point := _path_point_at(entry["at"] + 9.0)
+	_encounter_enemy = _spawn_enemy(Vector2(point.x, point.z), entry["kind"])
+	_encounter_index += 1
+	var names := {
+		"wolf": "волк", "cultist": "послушник", "leshy": "леший",
+		"wailer": "плакальщица", "kikimora": "кикимора",
+	}
+	hud.show_notice("Из тьмы выходит %s" % names.get(entry["kind"], entry["kind"]), 2.6)
+
+func _clamp_to_world(delta: float) -> void:
+	_edge_cooldown = maxf(0.0, _edge_cooldown - delta)
+	var flat := Vector2(player.global_position.x, player.global_position.z)
+	if flat.length() <= WORLD_EDGE - 3.0:
+		return
+	var dir := flat.normalized()
+	player.global_position.x = dir.x * (WORLD_EDGE - 3.0)
+	player.global_position.z = dir.y * (WORLD_EDGE - 3.0)
+	player.apply_impulse(-Vector3(dir.x, 0.0, dir.y) * 5.0)
+	if _edge_cooldown <= 0.0:
+		_edge_cooldown = 3.0
+		hud.show_notice("Тьма сгущается. Дальше не пройти.", 2.0)
+
 # --- спавн ---
 
 func _spawn_player() -> void:
@@ -372,24 +583,7 @@ func _spawn_player() -> void:
 	player.notice.connect(_on_notice)
 	player.died.connect(_on_player_died)
 
-func _spawn_enemies() -> void:
-	_spawn_points = [
-		{"pos": Vector2(15.0, -13.0), "kind": "wolf"},
-		{"pos": Vector2(-18.0, 24.0), "kind": "wolf"},
-		{"pos": Vector2(-24.0, -20.0), "kind": "leshy"},
-		{"pos": Vector2(9.0, -34.0), "kind": "leshy"},
-		{"pos": Vector2(20.0, 18.0), "kind": "kikimora"},
-		{"pos": Vector2(18.0, -4.0), "kind": "cultist"},
-		{"pos": Vector2(-30.0, 6.0), "kind": "cultist"},
-		{"pos": Vector2(2.0, -26.0), "kind": "cultist"},
-		{"pos": Vector2(-38.0, -10.0), "kind": "cultist"},
-		{"pos": Vector2(-10.0, 32.0), "kind": "wailer"},
-		{"pos": Vector2(22.0, -30.0), "kind": "wailer"},
-	]
-	for entry in _spawn_points:
-		_spawn_enemy(entry["pos"], entry["kind"])
-
-func _spawn_enemy(point: Vector2, kind: String = "wolf") -> void:
+func _spawn_enemy(point: Vector2, kind: String = "wolf"):
 	var enemy = EnemyScene.instantiate()
 	enemy.setup(kind)
 	add_child(enemy)
@@ -398,13 +592,15 @@ func _spawn_enemy(point: Vector2, kind: String = "wolf") -> void:
 	enemy.target = player
 	enemy.died.connect(_on_enemy_died)
 	_enemies.append(enemy)
+	return enemy
 
 func _respawn_enemies() -> void:
 	for enemy in _enemies:
 		if is_instance_valid(enemy):
 			enemy.queue_free()
 	_enemies.clear()
-	_spawn_enemies()
+	_encounter_index = 0
+	_encounter_enemy = null
 
 func _build_hud() -> void:
 	hud = HudScript.new()
@@ -493,3 +689,4 @@ static func _soft_particle_texture() -> GradientTexture2D:
 	tex.width = 64
 	tex.height = 64
 	return tex
+

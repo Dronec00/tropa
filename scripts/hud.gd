@@ -34,6 +34,23 @@ func _ready() -> void:
 	_hurt.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_root.add_child(_hurt)
 
+	var vignette := ColorRect.new()
+	vignette.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vignette_shader := Shader.new()
+	vignette_shader.code = """
+shader_type canvas_item;
+void fragment() {
+	vec2 uv = SCREEN_UV;
+	float d = distance(uv, vec2(0.5, 0.5));
+	COLOR = vec4(0.0, 0.0, 0.0, smoothstep(0.42, 0.95, d) * 0.8);
+}
+"""
+	var vignette_mat := ShaderMaterial.new()
+	vignette_mat.shader = vignette_shader
+	vignette.material = vignette_mat
+	_root.add_child(vignette)
+
 	_hp = _make_bar(Vector2(36, 634), Vector2(320, 16), Color(0.52, 0.10, 0.10))
 	_sp = _make_bar(Vector2(36, 658), Vector2(320, 9), Color(0.36, 0.52, 0.26))
 
