@@ -35,6 +35,7 @@ var _world: WorldEnvironment
 var _orbit := 0.42
 var _pitch := 0.14
 var _dist := 3.40
+var _dist_target := 3.40
 var _target := 1.02
 var _pan := Vector3.ZERO
 var _dragging := false
@@ -83,6 +84,7 @@ func _ready() -> void:
 		_pitch = float(_args["pitch"])
 	if _args.has("dist"):
 		_dist = float(_args["dist"])
+		_dist_target = _dist
 	if _args.has("target"):
 		_target = float(_args["target"])
 	if _args.has("pose"):
@@ -98,6 +100,25 @@ func _ready() -> void:
 		_cape_test.call_deferred()
 	if _args.has("ui-shot"):
 		_capture_ui.call_deferred()
+	if _args.has("zoom-test"):
+		_zoom_test.call_deferred()
+
+## Проверка жестов тачпада без железа: щипок и прокрутка.
+func _zoom_test() -> void:
+	await get_tree().process_frame
+	var mg: InputEventMagnifyGesture = InputEventMagnifyGesture.new()
+	mg.factor = 1.25
+	_unhandled_input(mg)
+	print("[zoom] pinch target=", _dist_target)
+	await get_tree().create_timer(0.4).timeout
+	print("[zoom] pinch dist=", _dist)
+	var pg: InputEventPanGesture = InputEventPanGesture.new()
+	pg.delta = Vector2(0.0, -2.0)
+	_unhandled_input(pg)
+	print("[zoom] pan target=", _dist_target)
+	await get_tree().create_timer(0.4).timeout
+	print("[zoom] pan dist=", _dist)
+	get_tree().quit()
 
 func _capture_ui() -> void:
 	await get_tree().process_frame
@@ -143,7 +164,7 @@ func _parse_args() -> void:
 		var a: String = argv[i]
 		if a.begins_with("--"):
 			var key: String = a.substr(2)
-			if key == "clean" or key == "turntable" or key == "dump" or key == "cape-test" or key == "silhouette":
+			if key == "clean" or key == "turntable" or key == "dump" or key == "cape-test" or key == "silhouette" or key == "zoom-test":
 				_args[key] = true
 			elif i + 1 < argv.size():
 				_args[key] = argv[i + 1]
@@ -272,7 +293,7 @@ func _setup_ui() -> void:
 	_hint.size = Vector2(900, 80)
 	_hint.add_theme_font_size_override("font_size", 13)
 	_hint.add_theme_color_override("font_color", Color(0.68, 0.67, 0.62, 0.85))
-	_hint.text = ("ЛКМ — вращать · колесо — зум · ПКМ — сдвинуть\n"
+	_hint.text = ("ЛКМ — вращать · колесо/щипок — зум · ПКМ — сдвинуть\n"
 			+ "1 стойка · 2 шаг · 3 бег · 4-6 удары · 7 блок · 8 меч · 0 сброс\n"
 			+ "C ракурс · L свет · T автоповорот · W сетка · B силуэт · H шляпа · F12 скрин · E .glb")
 	_ui.add_child(_hint)
@@ -379,6 +400,7 @@ func _apply_shot() -> void:
 	_shot_index = _shot_index % SHOTS.size()
 	var s: Dictionary = SHOTS[_shot_index]
 	_dist = float(s["dist"])
+	_dist_target = _dist
 	_pitch = float(s["pitch"])
 	_target = float(s["target"])
 	_orbit = float(s.get("angle", _orbit))
@@ -462,6 +484,10 @@ func _apply_pose(name: String) -> void:
 		"reset":
 			_reset_pose()
 
+## Зум колесом/тачпадом: цель сглаживается в _process.
+func _zoom_add(amount: float) -> void:
+	_dist_target = clampf(_dist_target + amount, 0.55, 9.0)
+
 func _set_locomotion(speed: float) -> void:
 	if _animator != null and _animator.has_method("set_locomotion"):
 		_animator.call("set_locomotion", speed)
@@ -471,6 +497,8 @@ func _set_locomotion(speed: float) -> void:
 func _process(delta: float) -> void:
 	if _auto:
 		_orbit += delta * 0.45
+	# плавный зум: колесо/щипок задают цель, камера догоняет
+	_dist = lerpf(_dist, _dist_target, 1.0 - exp(-delta * 16.0))
 	_update_camera()
 	if _args.has("turntable"):
 		_model.rotate_y(delta * 0.35)
@@ -492,9 +520,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		elif mb.button_index == MOUSE_BUTTON_RIGHT:
 			_panning = mb.pressed
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_UP and mb.pressed:
-			_dist = maxf(0.55, _dist - 0.22)
+			_zoom_add(-0.22)
 		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN and mb.pressed:
-			_dist = minf(9.0, _dist + 0.22)
+			_zoom_add(0.22)
+	elif event is InputEventMagnifyGesture:
+		# щипок двумя пальцами на тачпаде
+		var mg: InputEventMagnifyGesture = event as InputEventMagnifyGesture
+		_dist_target = clampf(_dist_target / maxf(0.02, mg.factor), 0.55, 9.0)
+	elif event is InputEventPanGesture:
+		# жест прокрутки тачпада (если драйвер отдаёт его вместо колеса)
+		var pg: InputEventPanGesture = event as InputEventPanGesture
+		_dist_target = clampf(_dist_target * (1.0 + pg.delta.y * 0.06), 0.55, 9.0)
 	elif event is InputEventMouseMotion:
 		var mm: InputEventMouseMotion = event as InputEventMouseMotion
 		if _dragging:
@@ -555,6 +591,7 @@ func _unhandled_input(event: InputEvent) -> void:
 				_orbit = 0.42
 				_pitch = 0.14
 				_dist = 3.40
+				_dist_target = 3.40
 				_target = 1.02
 				_pan = Vector3.ZERO
 			KEY_F12:
