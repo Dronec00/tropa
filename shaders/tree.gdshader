@@ -43,7 +43,7 @@ void fragment() {
 		}
 		albedo = COLOR.rgb * c.rgb * 2.2;
 	} else {
-		albedo = COLOR.rgb * texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.5;
+		albedo = COLOR.rgb * texture(bark_tex, UV * vec2(1.0, 3.0)).rgb * 1.1;
 		if (use_normal > 0.5) {
 			NORMAL_MAP = texture(bark_normal, UV * vec2(1.0, 3.0)).rgb;
 			NORMAL_MAP_DEPTH = 1.0;
@@ -52,5 +52,5 @@ void fragment() {
 	float variation = 0.88 + 0.12 * sin(v_world.x * 0.7 + v_world.z * 0.6);
 	ALBEDO = albedo * variation;
 	ROUGHNESS = 1.0;
-	BACKLIGHT = COLOR.rgb * 0.4;
+	BACKLIGHT = COLOR.rgb * (v_leaf > 0.5 ? 0.35 : 0.0);
 }

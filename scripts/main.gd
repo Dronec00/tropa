@@ -178,12 +178,8 @@ func _add_mouse(action: StringName, button: MouseButton) -> void:
 # --- атмосфера ---
 
 func _build_environment() -> void:
-	var sky_mat := ProceduralSkyMaterial.new()
-	sky_mat.sky_top_color = Color(0.035, 0.045, 0.06)
-	sky_mat.sky_horizon_color = Color(0.16, 0.17, 0.19)
-	sky_mat.ground_bottom_color = Color(0.02, 0.022, 0.025)
-	sky_mat.ground_horizon_color = Color(0.10, 0.11, 0.13)
-	sky_mat.sky_energy_multiplier = 0.65
+	var sky_mat := ShaderMaterial.new()
+	sky_mat.shader = load("res://shaders/sky.gdshader")
 
 	var sky := Sky.new()
 	sky.sky_material = sky_mat
@@ -197,9 +193,9 @@ func _build_environment() -> void:
 	env.fog_enabled = true
 	env.fog_light_color = Color(0.10, 0.11, 0.13)
 	env.fog_density = 0.052
-	env.fog_sky_affect = 0.45
+	env.fog_sky_affect = 0.25
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
-	env.tonemap_exposure = 1.0
+	env.tonemap_exposure = 0.92
 	env.ssao_enabled = true
 	env.ssao_intensity = 1.1
 	env.ssao_radius = 1.4
