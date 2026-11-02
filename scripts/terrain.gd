@@ -5,25 +5,44 @@ extends Node3D
 ## Высоты считаются один раз в массив, меш и коллизия строятся из него же,
 ## поэтому визуал и физика всегда совпадают.
 
-const SIZE := 340.0
-const HALF := 170.0
-const STEP := 1.0
-const GRID := 341
+const SIZE := 600.0
+const HALF := 300.0
+const STEP := 1.5
+const GRID := 401
 
 const WATER_LEVEL := -1.7
-const EDGE_RIVER_IN := 143.0
-const EDGE_RIVER_OUT := 165.0
-const EDGE_HILL_TOP := 178.0
+const EDGE_RIVER_IN := 260.0
+const EDGE_RIVER_OUT := 282.0
+const EDGE_HILL_TOP := 296.0
 
 var ground_material: Material
 var STREAMS := [
+	# северный: пересекает тропы к главной избе и к северо-восточной
 	PackedVector2Array([
-		Vector2(-44, -102), Vector2(-26, -70), Vector2(-6, -41),
-		Vector2(15, -17), Vector2(35, -3), Vector2(48, 4),
+		Vector2(-190, -90), Vector2(-160, -70), Vector2(-125, -55),
+		Vector2(-90, -52), Vector2(-55, -50), Vector2(-25, -52),
+		Vector2(0, -58), Vector2(28, -48), Vector2(56, -31),
+		Vector2(85, -15), Vector2(120, 0), Vector2(155, 10),
+		Vector2(190, 15), Vector2(220, 10),
 	]),
+	# южный: пересекает южную тропу и южную петлю
 	PackedVector2Array([
-		Vector2(-80, -12), Vector2(-55, -3), Vector2(-29, 12),
-		Vector2(-3, 26), Vector2(23, 41), Vector2(45, 54), Vector2(55, 59),
+		Vector2(-180, 30), Vector2(-140, 45), Vector2(-100, 60),
+		Vector2(-70, 68), Vector2(-37, 76), Vector2(-5, 95),
+		Vector2(25, 118), Vector2(50, 140), Vector2(80, 166),
+		Vector2(110, 190), Vector2(140, 205),
+	]),
+	# восточный: течёт с севера на юг мимо северо-восточной избы
+	PackedVector2Array([
+		Vector2(130, -190), Vector2(120, -150), Vector2(110, -110),
+		Vector2(100, -68), Vector2(105, -20), Vector2(112, 50),
+		Vector2(120, 90), Vector2(130, 120),
+	]),
+	# западный: короткий приток, пересекает тропу к главной избе
+	PackedVector2Array([
+		Vector2(-200, -40), Vector2(-170, -60), Vector2(-140, -75),
+		Vector2(-110, -88), Vector2(-100, -95), Vector2(-75, -110),
+		Vector2(-55, -130),
 	]),
 ]
 const RIVER_BED := -4.2
@@ -32,8 +51,14 @@ const WATER_SHADER := preload("res://shaders/water.gdshader")
 
 var _heights := PackedFloat32Array()
 var _noise := FastNoiseLite.new()
+var _hills := FastNoiseLite.new()
 var _detail := FastNoiseLite.new()
 var _mesh: ArrayMesh
+var _camp_height := 0.0
+var _pad_flats: Array[Vector3] = []
+
+## Площадки под избы: (x, z). Задаются до add_child, рельеф выравнивается.
+var pads: Array[Vector2] = []
 
 func _ready() -> void:
 	_noise.seed = 4815
@@ -41,10 +66,21 @@ func _ready() -> void:
 	_noise.fractal_octaves = 4
 	_noise.fractal_gain = 0.5
 
+	# широкие пологие холмы — карта большая, нужен крупный рельеф
+	_hills.seed = 2701
+	_hills.frequency = 0.0035
+	_hills.fractal_octaves = 3
+	_hills.fractal_gain = 0.45
+
 	_detail.seed = 991
 	_detail.frequency = 0.09
 	_detail.fractal_octaves = 2
 
+	# поляну у костра сажаем на естественную высоту, а не в яму
+	_camp_height = raw_height(0.0, 0.0, false, false)
+	# высоту площадок считаем до того, как начнём их выравнивать
+	for p in pads:
+		_pad_flats.append(Vector3(p.x, p.y, raw_height(p.x, p.y, false, false)))
 	_generate_heights()
 	_build_mesh()
 	pass
@@ -60,14 +96,23 @@ func river_influence(_x: float, _z: float) -> float:
 	# Большая река убрана: остались только ручьи и кольцевая река по краю мира.
 	return 0.0
 
-func _raw_height(x: float, z: float) -> float:
+func raw_height(x: float, z: float, flatten_camp := true, flatten_pads := true) -> float:
 	var h := 2.5 + _noise.get_noise_2d(x, z) * 9.0
+	h += _hills.get_noise_2d(x, z) * 6.0
 	h += _detail.get_noise_2d(x, z) * 0.5
 	h = maxf(h, 0.3)
 
 	# поляна у костра — ровная
 	var dist := Vector2(x, z).length()
-	h = lerpf(h, 0.0, 1.0 - smoothstep(7.0, 15.0, dist))
+	if flatten_camp:
+		h = lerpf(h, _camp_height, 1.0 - smoothstep(7.0, 15.0, dist))
+
+	# площадки под избы: ровный пятак, чтобы сруб не висел на склоне
+	if flatten_pads:
+		for pad in _pad_flats:
+			var pd := Vector2(x - pad.x, z - pad.y).length()
+			if pd < 22.0:
+				h = lerpf(h, pad.z, 1.0 - smoothstep(7.0, 22.0, pd))
 
 	# ручьи: неглубокие промоины
 	var sd := stream_distance(x, z)
@@ -109,7 +154,7 @@ func _generate_heights() -> void:
 		var z := -HALF + float(j) * STEP
 		for i in GRID:
 			var x := -HALF + float(i) * STEP
-			_heights[j * GRID + i] = _raw_height(x, z)
+			_heights[j * GRID + i] = raw_height(x, z)
 
 func height_at(x: float, z: float) -> float:
 	if _heights.is_empty():
@@ -145,7 +190,12 @@ func is_water(x: float, z: float) -> bool:
 	var r := Vector2(x, z).length()
 	if r > EDGE_RIVER_IN - 1.0 and r < EDGE_RIVER_OUT:
 		return true
-	if stream_distance(x, z) > 5.0:
+	var sd := stream_distance(x, z)
+	# ручьи текут по склонам выше WATER_LEVEL, поэтому воду ищем по руслу,
+	# а не по абсолютной высоте
+	if sd < 2.1:
+		return true
+	if sd > 5.0:
 		return false
 	return height_at(x, z) < WATER_LEVEL
 

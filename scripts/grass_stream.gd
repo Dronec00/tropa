@@ -5,6 +5,7 @@ extends Node3D
 ## Плотность внутри чанка задаётся числом пучков, детерминированно по координатам.
 
 const CHUNK := 12.0
+const NEAR_CELL := 8.0
 
 var terrain
 var paths: Array = []
@@ -20,6 +21,8 @@ var _mesh: ArrayMesh
 var _material: ShaderMaterial
 var _last_pos := Vector3(INF, 0, 0)
 var _pending: Array = []
+var _path_hash := {}
+var _bush_hash := {}
 
 func setup(terrain_ref, paths_data: Array, bush_data: Array, puddle_data: Array, density: int) -> void:
 	terrain = terrain_ref
@@ -32,6 +35,39 @@ func setup(terrain_ref, paths_data: Array, bush_data: Array, puddle_data: Array,
 	_material = ShaderMaterial.new()
 	_material.shader = load("res://shaders/grass.gdshader")
 	_material.set_shader_parameter("tuft", load("res://assets/textures/grass_tuft.png"))
+	_build_near_indexes()
+
+func _build_near_indexes() -> void:
+	# Индекс по клеткам 8 м: пучок травы ищет тропы и кусты только рядом,
+	# а не перебирает тысячи точек на каждый из 800 пучков в чанке.
+	_path_hash.clear()
+	_bush_hash.clear()
+	for path in paths:
+		for p in path["points"]:
+			_hash_add(_path_hash, p.x, p.z, Vector2(p.x, p.z))
+	for b in bushes:
+		_hash_add(_bush_hash, b.x, b.z, Vector2(b.x, b.z))
+
+func _hash_add(target: Dictionary, x: float, z: float, value: Vector2) -> void:
+	var key := Vector2i(int(floor(x / NEAR_CELL)), int(floor(z / NEAR_CELL)))
+	if not target.has(key):
+		target[key] = []
+	(target[key] as Array).append(value)
+
+func _nearest_in_hash(target: Dictionary, x: float, z: float) -> float:
+	var best := 9999.0
+	var cx := int(floor(x / NEAR_CELL))
+	var cz := int(floor(z / NEAR_CELL))
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var bucket = target.get(Vector2i(cx + dx, cz + dz))
+			if bucket == null:
+				continue
+			for p in bucket:
+				var d: float = Vector2(p.x - x, p.y - z).length()
+				if d < best:
+					best = d
+	return best
 
 func _process(_delta: float) -> void:
 	if player == null or terrain == null:
@@ -88,12 +124,18 @@ func _build_chunk(key: Vector2i) -> void:
 	var origin := Vector3(float(key.x) * CHUNK, 0.0, float(key.y) * CHUNK)
 	var transforms: Array = []
 	var colors: Array = []
+	# чанк целиком вдали от ручьёв — не гоняем stream_distance на каждый пучок
+	var near_stream: bool = terrain.stream_distance(
+		origin.x + CHUNK * 0.5, origin.z + CHUNK * 0.5
+	) < CHUNK + 3.0
 
 	for i in per_chunk:
 		var x := origin.x + rng.randf() * CHUNK
 		var z := origin.z + rng.randf() * CHUNK
 		var h: float = terrain.height_at(x, z)
 		if h < Terrain.WATER_LEVEL + 0.45:
+			continue
+		if near_stream and terrain.stream_distance(x, z) < 2.1:
 			continue
 		if terrain.slope_at(x, z) > 0.75:
 			continue
@@ -152,13 +194,9 @@ func _build_chunk(key: Vector2i) -> void:
 	cells[key] = node
 
 func _near_path(x: float, z: float, radius_check: float) -> bool:
-	for path in paths:
-		var pts: Array = path["points"]
-		for i in range(0, pts.size(), 5):
-			var p: Vector3 = pts[i]
-			if Vector2(p.x - x, p.z - z).length() < radius_check:
-				return true
-	return false
+	if _path_hash.is_empty():
+		return false
+	return _nearest_in_hash(_path_hash, x, z) < radius_check
 
 func _in_puddle(x: float, z: float) -> bool:
 	for pd in puddles:
@@ -168,7 +206,6 @@ func _in_puddle(x: float, z: float) -> bool:
 	return false
 
 func _near_bush(x: float, z: float, r: float) -> bool:
-	for b in bushes:
-		if Vector2(b.x - x, b.z - z).length() < r:
-			return true
-	return false
+	if _bush_hash.is_empty():
+		return false
+	return _nearest_in_hash(_bush_hash, x, z) < r

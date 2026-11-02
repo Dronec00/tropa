@@ -16,14 +16,14 @@ const QualityScript := preload("res://libraries/quality.gd")
 const PerfOverlay := preload("res://scripts/perf_overlay.gd")
 const PostFXScript := preload("res://scripts/post_fx.gd")
 
-const TREE_COUNT := 2600
-const WORLD_LIMIT := 152.0
-const WORLD_EDGE := 140.0
-const HUT_POS := Vector3(-58.0, 0.0, -88.0)
+const TREE_COUNT := 5200
+const WORLD_LIMIT := 258.0
+const WORLD_EDGE := 256.0
 const HUTS := [
-	{"pos": Vector3(-58.0, 0.0, -88.0), "main": true},
-	{"pos": Vector3(56.0, 0.0, -34.0), "main": false},
-	{"pos": Vector3(-22.0, 0.0, 92.0), "main": false},
+	{"pos": Vector3(-150.0, 0.0, -150.0), "main": true},
+	{"pos": Vector3(150.0, 0.0, -120.0), "main": false},
+	{"pos": Vector3(-70.0, 0.0, 205.0), "main": false},
+	{"pos": Vector3(210.0, 0.0, 60.0), "main": false},
 ]
 
 const TREE_SHADER := preload("res://shaders/tree.gdshader")
@@ -49,6 +49,8 @@ var _encounter_index := 0
 var _encounter_enemy = null
 var _path_points: Array[Vector3] = []
 var _paths: Array = []
+var _path_hash: Dictionary = {}
+const PATH_HASH_CELL := 8.0
 var _bush_points: Array = []
 var _puddle_plan: Array = []
 var _puddle_mats: Array = []
@@ -574,7 +576,6 @@ func _build_environment() -> void:
 	_sun = moon
 	QualityScript.apply(env, moon)
 	moon.shadow_enabled = OS.get_environment("TROPA_NO_SHADOWS") != "1"
-	moon.directional_shadow_max_distance = 55.0
 	moon.shadow_blur = 1.4
 	moon.directional_shadow_max_distance = 80.0
 	moon.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_AND_SKY
@@ -585,6 +586,9 @@ func _build_environment() -> void:
 func _build_terrain() -> void:
 	terrain = TerrainScript.new()
 	terrain.name = "Terrain"
+	for hut in HUTS:
+		var hp: Vector3 = hut["pos"]
+		terrain.pads.append(Vector2(hp.x, hp.z))
 	add_child(terrain)
 
 	# трава строится позже: ей нужны тропы, кусты и план луж
@@ -597,7 +601,7 @@ func _build_grass() -> void:
 	_grass_stream = GrassStreamScript.new()
 	_grass_stream.name = "GrassStream"
 	add_child(_grass_stream)
-	var density := 1600
+	var density := 1450
 	if QualityScript.level == "low":
 		density = 1100
 	elif QualityScript.level == "high":
@@ -703,7 +707,7 @@ func _build_forest() -> void:
 		var z := sin(angle) * dist
 		if Vector2(x, z).length() < 13.0:
 			continue
-		if Vector2(x - HUT_POS.x, z - HUT_POS.z).length() < 16.0:
+		if _near_hut(x, z, 14.0):
 			continue
 		if _near_path(x, z, 4.5):
 			continue
@@ -743,7 +747,7 @@ func _build_forest() -> void:
 	print("[trees on path] ", on_path)
 	print("[trees] ", placed, " шт, пород: ", SPECIES.size())
 
-func _spawn_multimesh(mesh: Mesh, material: Material, transforms: Array) -> void:
+func _spawn_multimesh(mesh: Mesh, material: Material, transforms: Array, cast_shadow := true) -> void:
 	if transforms.is_empty():
 		return
 	var multimesh := MultiMesh.new()
@@ -755,19 +759,24 @@ func _spawn_multimesh(mesh: Mesh, material: Material, transforms: Array) -> void
 	var node := MultiMeshInstance3D.new()
 	node.multimesh = multimesh
 	node.material_override = material
+	if not cast_shadow:
+		node.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(node)
 
 func _build_undergrowth() -> void:
+	_bush_points.clear()
 	var bush_meshes: Array = [TreeLibScript.build("bush", 501), TreeLibScript.build("bush", 733)]
 	var bush_lists: Array = [[], []]
 	var attempts := 0
-	while bush_lists[0].size() + bush_lists[1].size() < 420 and attempts < 9000:
+	while bush_lists[0].size() + bush_lists[1].size() < 900 and attempts < 22000:
 		attempts += 1
 		var angle := _rng.randf_range(0.0, TAU)
 		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
 		var x := cos(angle) * dist
 		var z := sin(angle) * dist
 		if Vector2(x, z).length() < 8.0:
+			continue
+		if _near_hut(x, z, 7.0):
 			continue
 		if terrain.is_water(x, z):
 			continue
@@ -782,21 +791,25 @@ func _build_undergrowth() -> void:
 		var s := _rng.randf_range(0.8, 1.5)
 		var basis := Basis(Vector3.UP, _rng.randf_range(0.0, TAU)).scaled(Vector3(s, s, s))
 		(bush_lists[idx] as Array).append(Transform3D(basis, Vector3(x, h, z)))
+		_bush_points.append(Vector3(x, h, z))
 
 	for i in 2:
-		_spawn_multimesh(bush_meshes[i], _mat_dark, bush_lists[i])
+		# куст низкий: тень от него почти не читается, а инстансов много
+		_spawn_multimesh(bush_meshes[i], _mat_dark, bush_lists[i], false)
 	print("[bushes] ", bush_lists[0].size() + bush_lists[1].size())
 
 func _build_ferns() -> void:
 	var meshes: Array = [TreeLibScript.build("fern", 301), TreeLibScript.build("fern", 907)]
 	var lists: Array = [[], []]
 	var attempts := 0
-	while lists[0].size() + lists[1].size() < 1200 and attempts < 16000:
+	while lists[0].size() + lists[1].size() < 2600 and attempts < 34000:
 		attempts += 1
 		var angle := _rng.randf_range(0.0, TAU)
 		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
 		var x := cos(angle) * dist
 		var z := sin(angle) * dist
+		if _near_hut(x, z, 5.0):
+			continue
 		if terrain.is_water(x, z) or _near_path(x, z, 1.2):
 			continue
 		var h: float = terrain.height_at(x, z)
@@ -810,7 +823,8 @@ func _build_ferns() -> void:
 		(lists[idx] as Array).append(Transform3D(basis, Vector3(x, h, z)))
 
 	for i in 2:
-		_spawn_multimesh(meshes[i], _mat_fern, lists[i])
+		# папоротник почти не даёт читаемой тени, а тень стоит кадра
+		_spawn_multimesh(meshes[i], _mat_fern, lists[i], false)
 	print("[ferns] ", lists[0].size() + lists[1].size())
 
 func _build_bog() -> void:
@@ -1200,10 +1214,10 @@ func _plan_puddles() -> void:
 	# лужи в низинах
 	var made := 0
 	var attempts := 0
-	while made < 12 and attempts < 500:
+	while made < 24 and attempts < 1200:
 		attempts += 1
 		var angle := _rng.randf_range(0.0, TAU)
-		var dist: float = sqrt(_rng.randf()) * 55.0
+		var dist: float = sqrt(_rng.randf()) * 130.0
 		var x: float = cos(angle) * dist
 		var z: float = sin(angle) * dist
 		var h: float = terrain.height_at(x, z)
@@ -1308,7 +1322,7 @@ func _build_rocks() -> void:
 				_add_rock(transforms, p.x + k * _rng.randf_range(2.0, 3.6), p.z)
 
 	# просто по лесу
-	for i in 150:
+	for i in 450:
 		var angle := _rng.randf_range(0.0, TAU)
 		var dist := sqrt(_rng.randf()) * WORLD_LIMIT
 		_add_rock(transforms, cos(angle) * dist, sin(angle) * dist)
@@ -1464,24 +1478,48 @@ func _marker_birch(pos: Vector3, index: int = 0) -> void:
 
 	_add_tree_collision(root, 0.24, 7.0)
 
-func _near_path_distance(x: float, z: float) -> float:
-	var best := 9999.0
+func _build_path_hash() -> void:
+	# Троп много и они длинные: без пространственного индекса перебор всех
+	# точек на каждое дерево/куст замедляет сборку мира в разы.
+	_path_hash.clear()
 	for path in _paths:
-		var pts: Array = path["points"]
-		for i in range(0, pts.size(), 3):
-			var p: Vector3 = pts[i]
-			best = minf(best, Vector2(p.x - x, p.z - z).length())
+		for p in path["points"]:
+			var key := Vector2i(
+				int(floor(p.x / PATH_HASH_CELL)),
+				int(floor(p.z / PATH_HASH_CELL))
+			)
+			if not _path_hash.has(key):
+				_path_hash[key] = []
+			(_path_hash[key] as Array).append(Vector2(p.x, p.z))
+
+func _near_path_distance(x: float, z: float) -> float:
+	if _path_hash.is_empty():
+		return 9999.0
+	var best := 9999.0
+	var cx := int(floor(x / PATH_HASH_CELL))
+	var cz := int(floor(z / PATH_HASH_CELL))
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			var bucket = _path_hash.get(Vector2i(cx + dx, cz + dz))
+			if bucket == null:
+				continue
+			for p in bucket:
+				var d: float = Vector2(p.x - x, p.y - z).length()
+				if d < best:
+					best = d
 	return best
 
 func _near_path(x: float, z: float, radius: float) -> bool:
-	if _near_path_distance(x, z) < radius:
-		return true
-	for path in _paths:
-		for i in range(0, (path["points"] as Array).size(), 6):
-			var p: Vector3 = path["points"][i]
-			if absf(p.x - x) < radius and absf(p.z - z) < radius:
-				return true
-	return _near_path_legacy(x, z, radius)
+	if _path_hash.is_empty():
+		return _near_path_legacy(x, z, radius)
+	return _near_path_distance(x, z) < radius
+
+func _near_hut(x: float, z: float, radius: float) -> bool:
+	for hut in HUTS:
+		var hp: Vector3 = hut["pos"]
+		if Vector2(x - hp.x, z - hp.z).length() < radius:
+			return true
+	return false
 
 func _near_path_legacy(x: float, z: float, radius: float) -> bool:
 	var step := 2
@@ -1544,10 +1582,15 @@ func _build_bonfire() -> void:
 # --- тропа, изба, тьма по краю ---
 
 func _build_path() -> void:
+	# Четыре тропы от лагеря к избам и две петли между избами:
+	# карта большая, по прямой до края мира идти далеко.
 	_paths = [
-		{"from": Vector3(0.0, 0.0, 0.0), "control": Vector3(-14.0, 0.0, -46.0), "to": HUTS[0]["pos"], "count": 78},
-		{"from": Vector3(2.0, 0.0, 4.0), "control": Vector3(26.0, 0.0, -26.0), "to": HUTS[1]["pos"], "count": 60},
-		{"from": Vector3(-3.0, 0.0, 2.0), "control": Vector3(-32.0, 0.0, 42.0), "to": HUTS[2]["pos"], "count": 60},
+		{"from": Vector3(0.0, 0.0, 0.0), "control": Vector3(-80.0, 0.0, -70.0), "to": HUTS[0]["pos"]},
+		{"from": Vector3(2.0, 0.0, 4.0), "control": Vector3(80.0, 0.0, -40.0), "to": HUTS[1]["pos"]},
+		{"from": Vector3(-3.0, 0.0, 2.0), "control": Vector3(-60.0, 0.0, 110.0), "to": HUTS[2]["pos"]},
+		{"from": Vector3(0.0, 0.0, 0.0), "control": Vector3(120.0, 0.0, 70.0), "to": HUTS[3]["pos"]},
+		{"from": HUTS[0]["pos"], "control": Vector3(-10.0, 0.0, -230.0), "to": HUTS[1]["pos"]},
+		{"from": HUTS[2]["pos"], "control": Vector3(90.0, 0.0, 200.0), "to": HUTS[3]["pos"]},
 	]
 
 	for path in _paths:
@@ -1555,7 +1598,7 @@ func _build_path() -> void:
 		var a: Vector3 = path["from"]
 		var control: Vector3 = path["control"]
 		var b: Vector3 = path["to"]
-		var count: int = path["count"]
+		var count: int = maxi(48, int((a.distance_to(control) + control.distance_to(b)) * 0.62))
 		for i in count + 1:
 			var t := float(i) / float(count)
 			var p := a * (1.0 - t) * (1.0 - t) + control * 2.0 * (1.0 - t) * t + b * t * t
@@ -1565,11 +1608,13 @@ func _build_path() -> void:
 		if _path_points.is_empty():
 			_path_points = points
 
+	_build_path_hash()
+
 	# маркерные берёзы вдоль каждой тропы
 	var marker := 0
 	for path in _paths:
 		var points: Array = path["points"]
-		for i in range(4, points.size() - 3, 9):
+		for i in range(6, points.size() - 3, 16):
 			var p: Vector3 = points[i]
 			var prev_p: Vector3 = points[i - 1]
 			var next_p: Vector3 = points[i + 1]
@@ -1593,6 +1638,7 @@ func _build_hut() -> void:
 	for hut in HUTS:
 		var hp: Vector3 = hut["pos"]
 		var hpos := Vector3(hp.x, terrain.height_at(hp.x, hp.z), hp.z)
+		print("[hut] ", hp, " h=", snappedf(hpos.y, 0.01), " slope=", snappedf(terrain.slope_at(hp.x, hp.z), 0.01))
 		var parts := HutScript.build(self, hpos, deg_to_rad(35.0 + float(hut["main"]) * 0.0))
 		if hut["main"]:
 			_hut_parts = parts
