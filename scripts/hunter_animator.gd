@@ -14,6 +14,10 @@ var block: bool = false
 var two_handed: bool = false
 var drawn: bool = false
 
+# Временно 0: оси ног L/R не откалиброваны, иначе ноги разъезжаются.
+# Вернуть 1.0 после теста осей; см. TODO_ANIMATIONS.md, раздел 2.1.
+const LEG_SWING := 0.0
+
 const BONES: Array = [
 	"root", "pelvis", "spine_01", "spine_02", "neck", "head",
 	"clavicle_l", "upperarm_l", "lowerarm_l", "hand_l",
@@ -73,14 +77,14 @@ func _process(delta: float) -> void:
 
 	var sw: float = sin(phase)
 	# ноги
-	rot["thigh_l"] += Vector3(sw * 0.52 * w, 0.0, 0.0)
-	rot["thigh_r"] += Vector3(-sw * 0.52 * w, 0.0, 0.0)
-	rot["calf_l"] += Vector3(maxf(0.0, -sw) * 0.55 * w, 0.0, 0.0)
-	rot["calf_r"] += Vector3(maxf(0.0, sw) * 0.55 * w, 0.0, 0.0)
-	rot["foot_l"] += Vector3(-sw * 0.16 * w, 0.0, 0.0)
-	rot["foot_r"] += Vector3(sw * 0.16 * w, 0.0, 0.0)
-	rot["toe_l"] += Vector3(maxf(0.0, -sw) * 0.20 * w, 0.0, 0.0)
-	rot["toe_r"] += Vector3(maxf(0.0, sw) * 0.20 * w, 0.0, 0.0)
+	rot["thigh_l"] += Vector3(sw * 0.52 * w * LEG_SWING, 0.0, 0.0)
+	rot["thigh_r"] += Vector3(-sw * 0.52 * w * LEG_SWING, 0.0, 0.0)
+	rot["calf_l"] += Vector3(maxf(0.0, -sw) * 0.55 * w * LEG_SWING, 0.0, 0.0)
+	rot["calf_r"] += Vector3(maxf(0.0, sw) * 0.55 * w * LEG_SWING, 0.0, 0.0)
+	rot["foot_l"] += Vector3(-sw * 0.16 * w * LEG_SWING, 0.0, 0.0)
+	rot["foot_r"] += Vector3(sw * 0.16 * w * LEG_SWING, 0.0, 0.0)
+	rot["toe_l"] += Vector3(maxf(0.0, -sw) * 0.20 * w * LEG_SWING, 0.0, 0.0)
+	rot["toe_r"] += Vector3(maxf(0.0, sw) * 0.20 * w * LEG_SWING, 0.0, 0.0)
 
 	# руки: левая держит меч, правая свободна.
 	# Z — отведение в сторону (проверено на риге), X — скрутка.
