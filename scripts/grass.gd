@@ -83,9 +83,9 @@ func populate(terrain: Object, amount: int = 40000, radius: float = 42.0, paths:
 
 		var basis := Basis(Quaternion(Vector3.UP, normal)) * Basis(Vector3.UP, rng.randf() * TAU)
 		basis = basis.scaled(Vector3(
-			rng.randf_range(0.8, 1.2),
-			rng.randf_range(0.20, 0.42),
-			rng.randf_range(0.8, 1.2)
+			rng.randf_range(0.75, 1.10),
+			rng.randf_range(0.30, 0.62),
+			rng.randf_range(0.75, 1.10)
 		))
 		var key := Vector2i(int(floor(x / chunk_size)), int(floor(z / chunk_size)))
 		if not chunks.has(key):
@@ -137,7 +137,7 @@ static func make_tuft_mesh() -> ArrayMesh:
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
 
-	var half_w := 0.26
+	var half_w := 0.19
 
 	for k in 3:
 		var a := PI * float(k) / 3.0
@@ -146,8 +146,8 @@ static func make_tuft_mesh() -> ArrayMesh:
 
 		verts.append(dir * -half_w)
 		verts.append(dir * half_w)
-		verts.append(dir * half_w + Vector3(0.0, 0.70, 0.0))
-		verts.append(dir * -half_w + Vector3(0.0, 0.70, 0.0))
+		verts.append(dir * half_w + Vector3(0.0, 0.78, 0.0))
+		verts.append(dir * -half_w + Vector3(0.0, 0.78, 0.0))
 
 		for i in 4:
 			normals.append(Vector3.UP)
