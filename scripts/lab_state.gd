@@ -6,4 +6,5 @@ extends RefCounted
 static var spawn_at := Vector3.INF
 static var enemy := ""
 static var object_name := ""
+static var hunter_preview := false
 static var time_of_day := "night"

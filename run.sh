@@ -30,6 +30,10 @@ case "$MODE" in
     shift || true
     exec "${GODOT:-godot}" --path . res://scenes/model_viewer.tscn "$@"
     ;;
+  hunter|kimi|glb)
+    shift || true
+    exec "${GODOT:-godot}" --path . res://scenes/model_viewer.tscn -- --glb "$@"
+    ;;
   character|char)
     shift || true
     exec "${GODOT:-godot}" --path . res://scenes/character_lab.tscn "$@"
@@ -40,7 +44,7 @@ case "$MODE" in
     ;;
   *)
     echo "Неизвестный режим: $MODE"
-    echo "Доступно: world, day, morning, evening, night, menu, model, character, enemies"
+    echo "Доступно: world, day, morning, evening, night, menu, model, hunter, character, enemies"
     exit 1
     ;;
 esac

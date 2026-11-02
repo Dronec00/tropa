@@ -14,6 +14,8 @@ extends Node3D
 ##       --shot docs/shot.png --angle 0 --dist 3.6 --pose idle --clean
 
 const DhampirScript := preload("res://scripts/dhampir_model.gd")
+const HunterModelScript := preload("res://scripts/hunter_model.gd")
+const LabStateScript := preload("res://scripts/lab_state.gd")
 
 const SHOTS := [
 	{"name": "весь рост", "dist": 3.40, "pitch": 0.14, "target": 1.02, "angle": 0.42},
@@ -43,6 +45,7 @@ var _panning := false
 var _auto := false
 var _light_index := 0
 var _shot_index := 0
+var _hunter_mode := false
 var _walk := 0.0
 var _drawn := false
 var _block := false
@@ -164,7 +167,7 @@ func _parse_args() -> void:
 		var a: String = argv[i]
 		if a.begins_with("--"):
 			var key: String = a.substr(2)
-			if key == "clean" or key == "turntable" or key == "dump" or key == "cape-test" or key == "silhouette" or key == "zoom-test":
+			if key == "clean" or key == "turntable" or key == "dump" or key == "cape-test" or key == "silhouette" or key == "zoom-test" or key == "glb":
 				_args[key] = true
 			elif i + 1 < argv.size():
 				_args[key] = argv[i + 1]
@@ -268,6 +271,17 @@ func _setup_model() -> void:
 	_model = Node3D.new()
 	_model.name = "Hero"
 	add_child(_model)
+	var use_hunter: bool = _args.has("glb") or LabStateScript.hunter_preview
+	_hunter_mode = use_hunter
+	LabStateScript.hunter_preview = false
+	if use_hunter:
+		_parts = HunterModelScript.build(_model)
+		if _parts.is_empty():
+			push_error("Модель Кимы не собралась")
+			return
+		_animator = _parts.get("animator")
+		_apply_pose("idle")
+		return
 	_parts = DhampirScript.build(_model)
 	_animator = _parts.get("animator") as Node
 	_apply_pose("idle")
@@ -283,7 +297,7 @@ func _setup_ui() -> void:
 	var title: Label = Label.new()
 	title.position = Vector2(26, 20)
 	title.size = Vector2(760, 40)
-	title.text = "ДАМПИР · модель главного героя"
+	title.text = "ОХОТНИК D · модель Кимы" if _hunter_mode else "ДАМПИР · модель главного героя"
 	title.add_theme_font_size_override("font_size", 22)
 	title.add_theme_color_override("font_color", Color(0.90, 0.86, 0.76))
 	_ui.add_child(title)

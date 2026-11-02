@@ -137,6 +137,7 @@ func _show_main() -> void:
 	_button("Играть", _play)
 	_button("Локация", _show_locations)
 	_button("Модель ГГ", _open_model)
+	_button("Модель Кимы", _open_hunter)
 	_button("Персонаж", _open_character)
 	_button("Враги", _show_enemies)
 	_button("Время суток", _show_times)
@@ -226,6 +227,11 @@ func _open_character() -> void:
 	get_tree().change_scene_to_file("res://scenes/character_lab.tscn")
 
 func _open_model() -> void:
+	LabStateScript.hunter_preview = false
+	get_tree().change_scene_to_file("res://scenes/model_viewer.tscn")
+
+func _open_hunter() -> void:
+	LabStateScript.hunter_preview = true
 	get_tree().change_scene_to_file("res://scenes/model_viewer.tscn")
 
 func _spacer(height: float) -> void:

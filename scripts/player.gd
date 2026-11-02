@@ -21,6 +21,8 @@ const MOUSE_SENSITIVITY := 0.0024
 const GRAVITY := 18.0
 const INVULN_TIME := 0.30
 const DhampirModelScript := preload("res://scripts/dhampir_model.gd")
+const HunterModelScript := preload("res://scripts/hunter_model.gd")
+const HUNTER_GLB := "res://models/hunter_d.glb"
 
 var max_health := 100.0
 var health := 100.0
@@ -102,6 +104,15 @@ func _build_lock_marker() -> void:
 	add_child(_lock_marker)
 
 func _build_model() -> void:
+	if ResourceLoader.exists(HUNTER_GLB):
+		var hp: Dictionary = HunterModelScript.build(model)
+		if not hp.is_empty():
+			_animator = hp.get("animator")
+			_torch_flame = hp["torch_flame"]
+			_torch_light = hp["torch_light"]
+			_torch_particles = hp["torch_particles"]
+			print("[player] модель Кимы загружена")
+			return
 	var parts: Dictionary = DhampirModelScript.build(model)
 	_animator = parts.get("animator")
 	print("[player] дампир загружен")

@@ -79,14 +79,19 @@ cd ~/Desktop/game
 длинный чёрный плащ, широкая шляпа с загнутыми полями, бледное лицо,
 длинные волнистые волосы, меч за спиной. Не копия, а «похож по духу».
 
-**Файл модели:** `scripts/dhampir_model.gd`
-**Аниматор:** `scripts/dhampir_animator.gd`
-**Витрина:** `scenes/model_viewer.tscn`
-**Паспорт модели:** `docs/CHARACTER_DHAMPIR.md`
-**Готовая модель:** `models/dhampir.glb` (2.38 МБ, 169 мешей)
+**Основная модель:** `models/hunter_d.glb` (Кима; 8.7 МБ, 1 меш, 43 576
+треугольников, 22 кости, 4K-текстуры). Обёртка — `scripts/hunter_model.gd`,
+аниматор — `scripts/hunter_animator.gd`.
+**Fallback и витрина:** `scripts/dhampir_model.gd` / `dhampir_animator.gd`,
+`models/dhampir.glb` (2.38 МБ, 169 мешей).
+**Витрина:** `scenes/model_viewer.tscn` (кнопка «Модель Кимы» / `./run.sh hunter`).
+**Паспорт:** `docs/CHARACTER_HUNTER_D.md`, `docs/CHARACTER_DHAMPIR.md`.
 
 ### Статус
 
+- [x] **S2.3. Модель Кимы интегрирована:** GLB импортирован, повёрнут в −Z,
+      ступни на 0, материал перенастроен, 22-костный риг, процедурные
+      idle/walk/attack/block, игрок/витрина/меню. Анимации — первый проход.
 - [x] Референсы отобраны (`references/character1…13`)
 - [x] Блокинг: рост 1.93 м, худой, длинные руки/ноги, силуэт «шляпа + плащ»
 - [x] Голова: бледная кожа, длинный нос, высокие скулы, узкие глаза, острые уши
